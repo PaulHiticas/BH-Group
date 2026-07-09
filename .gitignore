@@ -1,0 +1,32 @@
+# --- Root ---
+.env
+.env.local
+*.log
+.DS_Store
+
+# --- Backend (Java / Maven) ---
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+backend/*.iml
+backend/.idea/
+backend/HELP.md
+*.class
+
+# --- Frontend (Next.js) ---
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.env*.local
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+
+# --- IDE ---
+.vscode/
+.idea/
+
+# --- Docker ---
+pgdata/
+
+# --- Local file uploads ---
+backend/uploads/

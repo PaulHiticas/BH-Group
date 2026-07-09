@@ -1,0 +1,87 @@
+"use client"
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import {
+  publicApi,
+  type PublicBookingPayload,
+  type PublicBookingUpdatePayload,
+  type PublicPropertySearchParams,
+} from "@/lib/api/public"
+import { ApiError } from "@/lib/api/types"
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError) return error.message
+  return fallback
+}
+
+export function usePublicProperties(params: PublicPropertySearchParams) {
+  return useQuery({
+    queryKey: ["public-properties", params],
+    queryFn: () => publicApi.searchProperties(params),
+  })
+}
+
+export function usePublicProperty(id: string) {
+  return useQuery({
+    queryKey: ["public-property", id],
+    queryFn: () => publicApi.getProperty(id),
+    enabled: !!id,
+  })
+}
+
+export function usePublicAvailability(propertyId: string, checkIn: string, checkOut: string) {
+  return useQuery({
+    queryKey: ["public-availability", propertyId, checkIn, checkOut],
+    queryFn: () => publicApi.checkAvailability(propertyId, checkIn, checkOut),
+    enabled: !!propertyId && !!checkIn && !!checkOut,
+  })
+}
+
+export function useCreatePublicBooking() {
+  return useMutation({
+    mutationFn: (payload: PublicBookingPayload) => publicApi.createBooking(payload),
+    onError: (error) => {
+      toast.error(errorMessage(error, "Rezervarea nu a putut fi finalizată"))
+    },
+  })
+}
+
+export function useBookingByToken(token: string) {
+  return useQuery({
+    queryKey: ["booking-manage", token],
+    queryFn: () => publicApi.getBookingByToken(token),
+    enabled: !!token,
+    retry: false,
+  })
+}
+
+export function useUpdateBookingByToken(token: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: PublicBookingUpdatePayload) => publicApi.updateBookingByToken(token, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking-manage", token] })
+      toast.success("Rezervarea a fost actualizată")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Actualizarea rezervării a eșuat"))
+    },
+  })
+}
+
+export function useCancelBookingByToken(token: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => publicApi.cancelBookingByToken(token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking-manage", token] })
+      toast.success("Rezervarea a fost anulată")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Anularea rezervării a eșuat"))
+    },
+  })
+}

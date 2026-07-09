@@ -1,0 +1,329 @@
+"use client"
+
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import { z } from "zod"
+import { CheckCircle2, XCircle } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useProperties } from "@/hooks/use-properties"
+import { useAvailability } from "@/hooks/use-reservations"
+import { ALL_RESERVATION_SOURCES, RESERVATION_SOURCE_LABELS } from "@/lib/reservation-labels"
+import type { ReservationPayload } from "@/lib/api/reservations"
+
+const reservationSchema = z.object({
+  propertyId: z.string().min(1, "Proprietatea este obligatorie"),
+  guestFirstName: z.string().min(1, "Prenumele oaspetelui este obligatoriu"),
+  guestLastName: z.string().min(1, "Numele oaspetelui este obligatoriu"),
+  guestEmail: z.string().email("Adresă de email invalidă").optional().or(z.literal("")),
+  guestPhone: z.string().optional(),
+  checkInDate: z.string().min(1, "Data de check-in este obligatorie"),
+  checkOutDate: z.string().min(1, "Data de check-out este obligatorie"),
+  numberOfGuests: z.coerce.number().int().min(1),
+  source: z.enum(ALL_RESERVATION_SOURCES as [string, ...string[]]),
+  totalAmount: z.coerce.number().min(0).optional(),
+  currency: z.string().min(1).max(3),
+  notes: z.string().optional(),
+})
+
+interface CreateReservationFormProps {
+  onSubmit: (values: ReservationPayload) => void
+  isSubmitting?: boolean
+  defaultPropertyId?: string
+}
+
+export function CreateReservationForm({
+  onSubmit,
+  isSubmitting,
+  defaultPropertyId,
+}: CreateReservationFormProps) {
+  const { data: properties } = useProperties({ size: 200 })
+  const form = useForm({
+    resolver: zodResolver(reservationSchema),
+    defaultValues: {
+      propertyId: defaultPropertyId ?? "",
+      guestFirstName: "",
+      guestLastName: "",
+      guestEmail: "",
+      guestPhone: "",
+      checkInDate: "",
+      checkOutDate: "",
+      numberOfGuests: 2,
+      source: "DIRECT",
+      totalAmount: undefined,
+      currency: "RON",
+      notes: "",
+    },
+  })
+
+  const [propertyId, checkInDate, checkOutDate] = form.watch([
+    "propertyId",
+    "checkInDate",
+    "checkOutDate",
+  ])
+  const { data: availability, isFetching: isCheckingAvailability } = useAvailability(
+    propertyId,
+    checkInDate,
+    checkOutDate
+  )
+
+  function handleFormSubmit(values: z.infer<typeof reservationSchema>) {
+    onSubmit({
+      ...values,
+      guestEmail: values.guestEmail || undefined,
+      source: values.source as ReservationPayload["source"],
+    })
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Proprietate & perioadă</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="propertyId"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Proprietate</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selectează proprietatea" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {properties?.content.map((property) => (
+                        <SelectItem key={property.id} value={property.id}>
+                          {property.name} — {property.city}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="checkInDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Check-in</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="checkOutDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Check-out</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {propertyId && checkInDate && checkOutDate && !isCheckingAvailability && availability && (
+              <div className="sm:col-span-2">
+                {availability.available ? (
+                  <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="size-4" />
+                    Proprietatea este disponibilă în perioada selectată.
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-1.5 text-sm text-destructive">
+                    <XCircle className="size-4" />
+                    Proprietatea nu este disponibilă în perioada selectată.
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Detalii oaspete</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="guestFirstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Prenume</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="guestLastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nume</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="guestEmail"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="guestPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefon</FormLabel>
+                  <FormControl>
+                    <Input type="tel" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="numberOfGuests"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Număr oaspeți</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} {...field} value={field.value as number} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="source"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sursă rezervare</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {ALL_RESERVATION_SOURCES.map((source) => (
+                        <SelectItem key={source} value={source}>
+                          {RESERVATION_SOURCE_LABELS[source]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Plată & note</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="totalAmount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sumă totală</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="currency"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Monedă</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <FormLabel>Note</FormLabel>
+                  <FormControl>
+                    <Textarea rows={3} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-end">
+          <Button type="submit" size="lg" disabled={isSubmitting}>
+            {isSubmitting ? "Se creează..." : "Creează rezervare"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  )
+}
