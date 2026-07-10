@@ -1,13 +1,16 @@
 "use client"
 
+import Link from "next/link"
 import { LogOut, User } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuLinkItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -49,18 +52,20 @@ export function DashboardTopbar() {
               </Avatar>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="font-medium">{user.firstName} {user.lastName}</span>
-                <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
-              </DropdownMenuLabel>
-              <div className="px-2 pb-1">
-                <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
-              </div>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="font-medium">{user.firstName} {user.lastName}</span>
+                  <span className="text-xs font-normal text-muted-foreground">{user.email}</span>
+                </DropdownMenuLabel>
+                <div className="px-2 pb-1">
+                  <Badge variant="secondary">{ROLE_LABELS[user.role]}</Badge>
+                </div>
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
-              <DropdownMenuItem disabled>
+              <DropdownMenuLinkItem render={<Link href="/dashboard/profile" />}>
                 <User className="size-4" />
                 Profil
-              </DropdownMenuItem>
+              </DropdownMenuLinkItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 variant="destructive"
