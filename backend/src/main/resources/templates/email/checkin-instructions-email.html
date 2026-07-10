@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Instrucțiuni de check-in</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:40px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+                   style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <tr>
+                    <td style="background-color:#111827;padding:28px 32px;">
+                        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;" th:text="${appName}">BH Group PMS</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:32px;">
+                        <h1 style="margin:0 0 12px;font-size:20px;color:#111827;">Ești gata de check-in!</h1>
+                        <p style="margin:0 0 20px;font-size:14px;line-height:22px;color:#4b5563;">
+                            Bună <span th:text="${firstName}">nume</span>, sejurul tău la
+                            <strong th:text="${propertyName}">proprietate</strong> începe pe
+                            <strong th:text="${checkInDate}">data</strong>. Iată tot ce ai nevoie pentru acces.
+                        </p>
+                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                               style="background-color:#f9fafb;border-radius:8px;margin-bottom:20px;">
+                            <tr>
+                                <td style="padding:16px 20px;">
+                                    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;">Adresă</p>
+                                    <p style="margin:0 0 14px;font-size:14px;color:#111827;" th:text="${address}">adresă</p>
+                                    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;">Ora check-in</p>
+                                    <p style="margin:0 0 14px;font-size:14px;color:#111827;" th:text="${checkInTime}">14:00</p>
+                                    <p style="margin:0 0 6px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.04em;">Cod acces</p>
+                                    <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:0.08em;color:#111827;" th:text="${accessCode}">0000</p>
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="margin:0 0 20px;font-size:13px;line-height:20px;color:#6b7280;">
+                            Folosește codul de mai sus la ușă / cutia cu chei. Dacă întâmpini probleme la sosire,
+                            ne poți contacta direct.
+                        </p>
+                        <table role="presentation" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="border-radius:8px;background-color:#111827;">
+                                    <a th:href="${manageUrl}" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+                                        Vezi detaliile rezervării
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

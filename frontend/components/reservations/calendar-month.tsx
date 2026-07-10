@@ -69,21 +69,31 @@ export function CalendarMonth({
                 {day.getDate()}
               </span>
               <div className="flex flex-col gap-1">
-                {dayEntries.slice(0, 3).map((entry) => (
-                  <Link
-                    key={entry.reservationId}
-                    href={`/dashboard/reservations/${entry.reservationId}`}
-                    className={cn(
-                      "truncate rounded px-1.5 py-0.5 text-[11px] font-medium",
-                      entry.status === "CANCELLED" || entry.status === "NO_SHOW"
-                        ? "bg-muted text-muted-foreground line-through"
-                        : "bg-primary/10 text-primary"
-                    )}
-                    title={entry.guestFullName}
-                  >
-                    {entry.guestFullName}
-                  </Link>
-                ))}
+                {dayEntries.slice(0, 3).map((entry) =>
+                  entry.source === "MAINTENANCE" ? (
+                    <span
+                      key={entry.reservationId}
+                      className="truncate rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+                      title="Mentenanță"
+                    >
+                      🔧 Mentenanță
+                    </span>
+                  ) : (
+                    <Link
+                      key={entry.reservationId}
+                      href={`/dashboard/reservations/${entry.reservationId}`}
+                      className={cn(
+                        "truncate rounded px-1.5 py-0.5 text-[11px] font-medium",
+                        entry.status === "CANCELLED" || entry.status === "NO_SHOW"
+                          ? "bg-muted text-muted-foreground line-through"
+                          : "bg-primary/10 text-primary"
+                      )}
+                      title={entry.guestFullName}
+                    >
+                      {entry.guestFullName}
+                    </Link>
+                  )
+                )}
                 {dayEntries.length > 3 && (
                   <span className="text-[11px] text-muted-foreground">
                     +{dayEntries.length - 3} altele

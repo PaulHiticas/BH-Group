@@ -1,9 +1,9 @@
 package com.bhgroup.pms.config;
 
-import com.bhgroup.pms.user.Role;
-import com.bhgroup.pms.user.User;
-import com.bhgroup.pms.user.UserRepository;
-import com.bhgroup.pms.user.UserStatus;
+import com.bhgroup.pms.domain.Role;
+import com.bhgroup.pms.domain.User;
+import com.bhgroup.pms.repository.UserRepository;
+import com.bhgroup.pms.domain.UserStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +12,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.bhgroup.pms.domain.Role;
+import com.bhgroup.pms.domain.User;
+import com.bhgroup.pms.domain.UserStatus;
+import com.bhgroup.pms.repository.UserRepository;
 /**
  * Creates the first SUPER_ADMIN account on startup when none exists yet.
  * Self-service registration only ever creates GUEST accounts, so this is the

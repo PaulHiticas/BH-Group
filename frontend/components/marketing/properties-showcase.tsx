@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { motion } from "motion/react"
 import { ArrowRight, BedDouble, Building2, MapPin, Users } from "lucide-react"
@@ -50,11 +51,12 @@ export function PropertiesShowcase() {
               >
                 <div className="relative aspect-[4/3] overflow-hidden">
                   {property.coverPhotoUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={property.coverPhotoUrl}
                       alt={property.name}
-                      className="size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
                     />
                   ) : (
                     <div className="flex size-full items-center justify-center bg-muted text-muted-foreground">

@@ -189,7 +189,7 @@ export type ReservationStatus =
   | "CANCELLED"
   | "NO_SHOW"
 
-export type ReservationSource = "DIRECT" | "AIRBNB" | "BOOKING_COM" | "OTHER"
+export type ReservationSource = "DIRECT" | "AIRBNB" | "BOOKING_COM" | "OTHER" | "MAINTENANCE"
 
 export interface ReservationResponse {
   id: string
@@ -207,6 +207,8 @@ export interface ReservationResponse {
   totalAmount: number | null
   currency: string
   notes: string | null
+  accessCode: string | null
+  accessCodeSentAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -217,10 +219,16 @@ export interface CalendarEntryResponse {
   checkInDate: string
   checkOutDate: string
   status: ReservationStatus
+  source: ReservationSource
 }
 
 export interface AvailabilityResponse {
   available: boolean
+}
+
+export interface PublicCalendarEntryResponse {
+  checkInDate: string
+  checkOutDate: string
 }
 
 // ---------------------------------------------------------------------------
@@ -232,6 +240,8 @@ export interface PublicPropertySummaryResponse {
   name: string
   city: string
   county: string | null
+  latitude: number | null
+  longitude: number | null
   propertyType: PropertyType
   bedrooms: number
   bathrooms: number
@@ -239,6 +249,7 @@ export interface PublicPropertySummaryResponse {
   basePricePerNight: number | null
   currency: string
   coverPhotoUrl: string | null
+  facilities: Facility[]
 }
 
 export interface PublicPropertyResponse {
@@ -249,6 +260,8 @@ export interface PublicPropertyResponse {
   city: string
   county: string | null
   country: string
+  latitude: number | null
+  longitude: number | null
   bedrooms: number
   bathrooms: number
   maxGuests: number
@@ -305,4 +318,21 @@ export interface DashboardSummaryResponse {
   uncontactedLeads: number
   upcomingReservations: ReservationResponse[]
   recentLeads: LeadResponse[]
+}
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+export interface AuditLogResponse {
+  id: string
+  entityName: string
+  entityId: string | null
+  action: string
+  actorId: string | null
+  actorEmail: string | null
+  ipAddress: string | null
+  userAgent: string | null
+  description: string | null
+  createdAt: string
 }

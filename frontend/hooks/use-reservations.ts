@@ -103,6 +103,36 @@ export function useUpdateReservationStatus() {
   })
 }
 
+export function useUpdateAccessCode(id: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (accessCode: string) => reservationsApi.updateAccessCode(id, accessCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservation", id] })
+      toast.success("Cod acces salvat")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Salvarea codului de acces a eșuat"))
+    },
+  })
+}
+
+export function useSendCheckinInstructions(id: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => reservationsApi.sendCheckinInstructions(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reservation", id] })
+      toast.success("Instrucțiunile de check-in au fost trimise")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Trimiterea instrucțiunilor a eșuat"))
+    },
+  })
+}
+
 export function useDeleteReservation() {
   const router = useRouter()
   const queryClient = useQueryClient()

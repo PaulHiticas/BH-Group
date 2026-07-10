@@ -1,7 +1,8 @@
+import Image from "next/image"
 import Link from "next/link"
 import { Bath, BedDouble, Building2, MapPin, Users } from "lucide-react"
 import type { PublicPropertySummaryResponse } from "@/lib/api/types"
-import { PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
+import { FACILITY_LABELS, PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 0 }).format(value)
@@ -21,11 +22,12 @@ export function PublicPropertyCard({
     >
       <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
         {property.coverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={property.coverPhotoUrl}
             alt={property.name}
-            className="size-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+            fill
+            sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">
@@ -66,6 +68,23 @@ export function PublicPropertyCard({
         <span className="mt-1 w-fit rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary">
           {PROPERTY_TYPE_LABELS[property.propertyType]}
         </span>
+        {property.facilities.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {property.facilities.slice(0, 3).map((facility) => (
+              <span
+                key={facility}
+                className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+              >
+                {FACILITY_LABELS[facility]}
+              </span>
+            ))}
+            {property.facilities.length > 3 && (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                +{property.facilities.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   )

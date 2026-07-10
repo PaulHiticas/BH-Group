@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { motion, useScroll, useTransform } from "motion/react"
 import { ArrowRight, Search } from "lucide-react"
@@ -30,10 +31,13 @@ export function HeroSection() {
         style={{ y: bgY, scale: bgScale }}
         className="absolute inset-0"
       >
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
           alt="Apartament modern administrat de BH Group"
-          className="kb-image-loop size-full object-cover"
+          fill
+          sizes="100vw"
+          priority
+          className="kb-image-loop object-cover"
         />
       </motion.div>
 

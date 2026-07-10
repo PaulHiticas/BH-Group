@@ -43,11 +43,19 @@ export function SiteFooter() {
           </div>
         </div>
       </div>
-      <div className="flex flex-col items-center justify-between gap-2 border-t border-border/60 px-6 py-6 text-center text-xs text-muted-foreground sm:flex-row sm:px-10 sm:text-left">
+      <div className="flex flex-col items-center justify-between gap-3 border-t border-border/60 px-6 py-6 text-center text-xs text-muted-foreground sm:flex-row sm:px-10 sm:text-left">
         <span>© {new Date().getFullYear()} BH Group. Toate drepturile rezervate.</span>
-        <Link href="/login" className="text-muted-foreground/70 hover:text-foreground">
-          Acces echipă
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          <Link href="/termeni-si-conditii" className="text-muted-foreground/70 hover:text-foreground">
+            Termeni și condiții
+          </Link>
+          <Link href="/confidentialitate" className="text-muted-foreground/70 hover:text-foreground">
+            Confidențialitate
+          </Link>
+          <Link href="/login" className="text-muted-foreground/70 hover:text-foreground">
+            Acces echipă
+          </Link>
+        </div>
       </div>
     </footer>
   )

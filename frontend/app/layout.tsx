@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/lib/providers/theme-provider";
 import { QueryProvider } from "@/lib/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { CookieConsent } from "@/components/legal/cookie-consent";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -21,13 +22,24 @@ const fraunces = Fraunces({
   axes: ["opsz", "SOFT", "WONK"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhgroup.io";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "BH Group — Administrare premium de proprietăți",
     template: "%s | BH Group",
   },
   description:
     "Administrare premium de proprietăți pentru închirieri pe termen scurt — Airbnb, Booking.com și rezervări directe.",
+  openGraph: {
+    siteName: "BH Group",
+    locale: "ro_RO",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 };
 
 export default function RootLayout({
@@ -51,6 +63,7 @@ export default function RootLayout({
           <QueryProvider>
             {children}
             <Toaster richColors position="top-right" />
+            <CookieConsent />
           </QueryProvider>
         </ThemeProvider>
       </body>

@@ -21,6 +21,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useCreateLead } from "@/hooks/use-leads"
@@ -140,6 +141,13 @@ export function LeadDialog({ trigger }: { trigger: ReactNode }) {
                 </FormItem>
               )}
             />
+            <p className="text-xs text-muted-foreground">
+              Prin trimiterea formularului ești de acord cu{" "}
+              <Link href="/confidentialitate" className="underline hover:text-foreground" target="_blank">
+                Politica de confidențialitate
+              </Link>
+              .
+            </p>
             <Button type="submit" className="w-full" disabled={createLead.isPending}>
               {createLead.isPending ? "Se trimite..." : "Trimite"}
             </Button>

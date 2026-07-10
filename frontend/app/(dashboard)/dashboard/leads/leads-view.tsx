@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Mail, Phone } from "lucide-react"
+import { toast } from "sonner"
+import { Download, Mail, Phone } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -15,19 +16,34 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataPagination } from "@/components/ui/data-pagination"
 import { useLeads, useMarkLeadContacted } from "@/hooks/use-leads"
+import { downloadFile } from "@/lib/download-file"
 
 export function LeadsView() {
   const [page, setPage] = useState(0)
   const { data, isLoading } = useLeads(page, 10)
   const markContacted = useMarkLeadContacted()
 
+  async function handleExport() {
+    try {
+      await downloadFile("/leads/export", "lead-uri.csv")
+    } catch {
+      toast.error("Exportul a eșuat")
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Lead-uri proprietari</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Persoane interesate să-și listeze proprietatea, primite prin site.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Lead-uri proprietari</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Persoane interesate să-și listeze proprietatea, primite prin site.
+          </p>
+        </div>
+        <Button type="button" variant="outline" className="gap-2" onClick={handleExport}>
+          <Download className="size-4" />
+          Export CSV
+        </Button>
       </div>
 
       <div className="rounded-xl border border-border/60 bg-card">

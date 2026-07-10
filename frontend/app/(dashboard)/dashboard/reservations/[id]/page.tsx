@@ -1,18 +1,22 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useRef, useState } from "react"
 import Link from "next/link"
 import {
   Calendar,
+  Dices,
+  KeyRound,
   Mail,
   Pencil,
   Phone,
+  Send,
   Trash2,
   Users,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants, Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   AlertDialog,
@@ -27,7 +31,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { ReservationStatusActions } from "@/components/reservations/reservation-status-actions"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { useDeleteReservation, useReservation } from "@/hooks/use-reservations"
+import {
+  useDeleteReservation,
+  useReservation,
+  useSendCheckinInstructions,
+  useUpdateAccessCode,
+} from "@/hooks/use-reservations"
 import {
   RESERVATION_SOURCE_LABELS,
   RESERVATION_STATUS_BADGE_VARIANT,
@@ -44,7 +53,10 @@ export default function ReservationDetailPage({
   const { data: reservation, isLoading } = useReservation(id)
   const { data: user } = useCurrentUser()
   const deleteReservation = useDeleteReservation()
+  const updateAccessCode = useUpdateAccessCode(id)
+  const sendCheckinInstructions = useSendCheckinInstructions(id)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const accessCodeRef = useRef<HTMLInputElement>(null)
 
   const canManage = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR"
 
@@ -168,6 +180,66 @@ export default function ReservationDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Acces (cod ușă / lockbox)</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex gap-2">
+              <Input
+                ref={accessCodeRef}
+                key={reservation.accessCode ?? "empty"}
+                defaultValue={reservation.accessCode ?? ""}
+                placeholder="ex: 4471"
+                className="max-w-40"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (accessCodeRef.current) {
+                    accessCodeRef.current.value = String(Math.floor(1000 + Math.random() * 9000))
+                  }
+                }}
+              >
+                <Dices className="size-4" />
+                Generează cod
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={updateAccessCode.isPending}
+                onClick={() => updateAccessCode.mutate(accessCodeRef.current?.value ?? "")}
+              >
+                <KeyRound className="size-4" />
+                Salvează cod
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  sendCheckinInstructions.isPending ||
+                  !reservation.accessCode ||
+                  !reservation.guestEmail
+                }
+                onClick={() => sendCheckinInstructions.mutate()}
+              >
+                <Send className="size-4" />
+                Trimite acum
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {reservation.accessCodeSentAt
+                ? `Instrucțiuni trimise oaspetelui la ${new Date(reservation.accessCodeSentAt).toLocaleString("ro-RO")}.`
+                : "Dacă setezi un cod, îl trimitem automat oaspetelui cu o zi înainte de check-in — sau apasă „Trimite acum”."}{" "}
+              Recomandat: folosește un cod diferit la fiecare rezervare și schimbă-l fizic pe
+              încuietoare/lockbox după fiecare oaspete.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {reservation.totalAmount != null && (
         <Card>

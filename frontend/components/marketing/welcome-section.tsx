@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight } from "lucide-react"
 import { Reveal } from "@/components/marketing/reveal"
@@ -11,11 +12,12 @@ export function WelcomeSection() {
     <section className="mx-auto max-w-6xl px-6 py-24 sm:px-10 sm:py-32">
       <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
         <Reveal className="relative aspect-[4/3] overflow-hidden rounded-3xl">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=80&auto=format&fit=crop"
             alt="Apartament BH Group"
-            className="kb-image size-full object-cover"
+            fill
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="kb-image object-cover"
           />
         </Reveal>
         <Reveal delay={0.1}>

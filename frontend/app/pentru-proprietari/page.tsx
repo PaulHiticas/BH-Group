@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { ServicesSection } from "@/components/marketing/services-section"
 import { ProcessSection } from "@/components/marketing/process-section"
@@ -21,11 +22,13 @@ export default function PentruProprietariPage() {
 
       <section className="relative flex min-h-[60vh] items-end overflow-hidden bg-neutral-950 text-white">
         <div className="absolute inset-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=2000&q=80&auto=format&fit=crop"
             alt="Living modern administrat de BH Group"
-            className="kb-image-loop size-full object-cover"
+            fill
+            sizes="100vw"
+            priority
+            className="kb-image-loop object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
         </div>

@@ -1,0 +1,12 @@
+package com.bhgroup.pms.repository;
+
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+import com.bhgroup.pms.domain.Property;
+import com.bhgroup.pms.domain.PropertyStatus;
+public interface PropertyRepository extends JpaRepository<Property, UUID>, JpaSpecificationExecutor<Property> {
+
+    long countByStatus(PropertyStatus status);
+}

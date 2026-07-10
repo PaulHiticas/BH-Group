@@ -3,6 +3,7 @@ package com.bhgroup.pms.config;
 import com.bhgroup.pms.security.CustomUserDetailsService;
 import com.bhgroup.pms.security.JwtAuthenticationFilter;
 import com.bhgroup.pms.security.JwtService;
+import com.bhgroup.pms.security.RateLimitingFilter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -66,6 +67,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public RateLimitingFilter rateLimitingFilter() {
+        return new RateLimitingFilter();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
@@ -76,6 +82,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(rateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

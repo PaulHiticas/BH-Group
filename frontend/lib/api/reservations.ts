@@ -82,4 +82,10 @@ export const reservationsApi = {
     apiClient.patch<ReservationResponse>(`/reservations/${id}/status`, { status }),
 
   delete: (id: string) => apiClient.delete<void>(`/reservations/${id}`),
+
+  updateAccessCode: (id: string, accessCode: string) =>
+    apiClient.patch<ReservationResponse>(`/reservations/${id}/access-code`, { accessCode }),
+
+  sendCheckinInstructions: (id: string) =>
+    apiClient.post<ReservationResponse>(`/reservations/${id}/send-checkin-instructions`),
 }

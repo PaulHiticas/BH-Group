@@ -1,12 +1,13 @@
 package com.bhgroup.pms.security;
 
-import com.bhgroup.pms.user.UserRepository;
+import com.bhgroup.pms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.bhgroup.pms.repository.UserRepository;
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {

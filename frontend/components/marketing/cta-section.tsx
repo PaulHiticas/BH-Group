@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { ArrowRight } from "lucide-react"
 import { Reveal } from "@/components/marketing/reveal"
 import { LeadDialog } from "@/components/marketing/lead-dialog"
@@ -10,11 +11,12 @@ export function CtaSection() {
   return (
     <section className="relative mx-6 mb-24 overflow-hidden rounded-3xl sm:mx-10 sm:mb-32">
       <div className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src="https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=2000&q=80&auto=format&fit=crop"
           alt="Interior modern, luminos"
-          className="kb-image-loop size-full object-cover"
+          fill
+          sizes="100vw"
+          className="kb-image-loop object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/20" />
       </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef } from "react"
+import Image from "next/image"
 import { ImagePlus, Star, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { PropertyPhotoResponse } from "@/lib/api/types"
@@ -37,8 +38,13 @@ export function PhotoGallery({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((photo) => (
           <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-lg bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.url} alt={photo.caption ?? ""} className="size-full object-cover" />
+            <Image
+              src={photo.url}
+              alt={photo.caption ?? ""}
+              fill
+              sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
+              className="object-cover"
+            />
             {photo.cover && (
               <span className="absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">
                 Copertă

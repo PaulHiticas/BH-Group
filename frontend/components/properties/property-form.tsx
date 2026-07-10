@@ -1,9 +1,11 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import dynamic from "next/dynamic"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -34,6 +36,11 @@ import {
 import type { PropertyPayload } from "@/lib/api/properties"
 import type { PropertyResponse } from "@/lib/api/types"
 
+const LocationPicker = dynamic(
+  () => import("@/components/map/location-picker").then((mod) => mod.LocationPicker),
+  { ssr: false, loading: () => <Skeleton className="h-72 w-full" /> }
+)
+
 const propertySchema = z.object({
   name: z.string().min(1, "Numele este obligatoriu").max(200),
   description: z.string().max(4000).optional(),
@@ -44,6 +51,8 @@ const propertySchema = z.object({
   county: z.string().max(100).optional(),
   postalCode: z.string().max(20).optional(),
   country: z.string().min(1, "Țara este obligatorie").max(100),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
   bedrooms: z.coerce.number().int().min(0),
   bathrooms: z.coerce.number().int().min(0),
   maxGuests: z.coerce.number().int().min(1),
@@ -71,6 +80,8 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       county: "",
       postalCode: "",
       country: "Romania",
+      latitude: undefined,
+      longitude: undefined,
       bedrooms: 1,
       bathrooms: 1,
       maxGuests: 2,
@@ -95,6 +106,8 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     county: property.address.county ?? "",
     postalCode: property.address.postalCode ?? "",
     country: property.address.country,
+    latitude: property.address.latitude ?? undefined,
+    longitude: property.address.longitude ?? undefined,
     bedrooms: property.bedrooms,
     bathrooms: property.bathrooms,
     maxGuests: property.maxGuests,
@@ -123,6 +136,8 @@ export function propertyFormValuesToPayload(
       county: values.county || undefined,
       postalCode: values.postalCode || undefined,
       country: values.country,
+      latitude: values.latitude ?? null,
+      longitude: values.longitude ?? null,
     },
     bedrooms: values.bedrooms,
     bathrooms: values.bathrooms,
@@ -310,6 +325,20 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
                 </FormItem>
               )}
             />
+            <div className="sm:col-span-2">
+              <FormLabel className="mb-2 block">Locație pe hartă</FormLabel>
+              <LocationPicker
+                latitude={form.watch("latitude") as number | undefined}
+                longitude={form.watch("longitude") as number | undefined}
+                searchHint={[form.watch("addressLine"), form.watch("city"), form.watch("country")]
+                  .filter(Boolean)
+                  .join(", ")}
+                onChange={(lat, lng) => {
+                  form.setValue("latitude", lat, { shouldDirty: true })
+                  form.setValue("longitude", lng, { shouldDirty: true })
+                }}
+              />
+            </div>
           </CardContent>
         </Card>
 

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (build + test)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: bhgroup_pms
+          POSTGRES_USER: bhgroup
+          POSTGRES_PASSWORD: bhgroup_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bhgroup -d bhgroup_pms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Build and test
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/bhgroup_pms
+          DB_USERNAME: bhgroup
+          DB_PASSWORD: bhgroup_test
+          JWT_SECRET: ci-test-secret-key-not-for-production-use-only-for-tests
+        run: mvn -B verify
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8080/api/v1
+        run: npm run build

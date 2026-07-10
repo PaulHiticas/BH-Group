@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Plus, Search } from "lucide-react"
-import { buttonVariants } from "@/components/ui/button"
+import { toast } from "sonner"
+import { Download, Plus, Search } from "lucide-react"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { downloadFile } from "@/lib/download-file"
 import {
   Select,
   SelectContent,
@@ -47,6 +49,17 @@ export function ReservationsView() {
     page,
   })
 
+  async function handleExport() {
+    const params = new URLSearchParams()
+    if (search) params.set("search", search)
+    if (status !== "ALL") params.set("status", status)
+    try {
+      await downloadFile(`/reservations/export?${params.toString()}`, "rezervari.csv")
+    } catch {
+      toast.error("Exportul a eșuat")
+    }
+  }
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -56,12 +69,18 @@ export function ReservationsView() {
             Administrează rezervările pentru toate proprietățile.
           </p>
         </div>
-        {canManage && (
-          <Link href="/dashboard/reservations/new" className={cn(buttonVariants())}>
-            <Plus className="size-4" />
-            Adaugă rezervare
-          </Link>
-        )}
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" className="gap-2" onClick={handleExport}>
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+          {canManage && (
+            <Link href="/dashboard/reservations/new" className={cn(buttonVariants())}>
+              <Plus className="size-4" />
+              Adaugă rezervare
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">

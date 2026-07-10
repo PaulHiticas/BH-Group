@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -228,6 +229,17 @@ export function BookingForm({
           </CardContent>
         </Card>
 
+        <p className="text-xs text-muted-foreground">
+          Prin trimiterea cererii ești de acord cu{" "}
+          <Link href="/termeni-si-conditii" className="underline hover:text-foreground" target="_blank">
+            Termenii și condițiile
+          </Link>{" "}
+          și{" "}
+          <Link href="/confidentialitate" className="underline hover:text-foreground" target="_blank">
+            Politica de confidențialitate
+          </Link>
+          .
+        </p>
         <Button type="submit" size="lg" disabled={createBooking.isPending}>
           {createBooking.isPending ? "Se trimite..." : "Trimite cererea de rezervare"}
         </Button>

@@ -1,6 +1,6 @@
 package com.bhgroup.pms.security;
 
-import com.bhgroup.pms.user.User;
+import com.bhgroup.pms.domain.User;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -9,6 +9,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.bhgroup.pms.domain.User;
 @Getter
 public class UserPrincipal implements UserDetails {
 

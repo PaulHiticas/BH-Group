@@ -1,7 +1,9 @@
 import { apiClient } from "@/lib/api/client"
 import type {
   AvailabilityResponse,
+  Facility,
   PageResponse,
+  PublicCalendarEntryResponse,
   PublicPropertyResponse,
   PublicPropertySummaryResponse,
   PublicReservationResponse,
@@ -10,6 +12,10 @@ import type {
 export interface PublicPropertySearchParams {
   search?: string
   guests?: number
+  bedrooms?: number
+  minPrice?: number
+  maxPrice?: number
+  facilities?: Facility[]
   checkIn?: string
   checkOut?: string
   page?: number
@@ -34,10 +40,12 @@ export interface PublicBookingUpdatePayload {
   numberOfGuests: number
 }
 
-function buildQuery(params: Record<string, string | number | undefined>) {
+function buildQuery(params: Record<string, string | number | undefined | string[]>) {
   const query = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== "") {
+    if (Array.isArray(value)) {
+      value.forEach((item) => query.append(key, item))
+    } else if (value !== undefined && value !== "") {
       query.set(key, String(value))
     }
   })
@@ -51,6 +59,10 @@ export const publicApi = {
       `/public/properties${buildQuery({
         search: params.search,
         guests: params.guests,
+        bedrooms: params.bedrooms,
+        minPrice: params.minPrice,
+        maxPrice: params.maxPrice,
+        facilities: params.facilities,
         checkIn: params.checkIn,
         checkOut: params.checkOut,
         page: params.page,
@@ -65,6 +77,12 @@ export const publicApi = {
   checkAvailability: (propertyId: string, checkIn: string, checkOut: string) =>
     apiClient.get<AvailabilityResponse>(
       `/public/reservations/availability${buildQuery({ propertyId, checkIn, checkOut })}`,
+      { skipAuth: true }
+    ),
+
+  getCalendar: (propertyId: string, from: string, to: string) =>
+    apiClient.get<PublicCalendarEntryResponse[]>(
+      `/public/properties/${propertyId}/calendar${buildQuery({ from, to })}`,
       { skipAuth: true }
     ),
 

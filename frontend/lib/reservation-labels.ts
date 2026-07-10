@@ -35,6 +35,7 @@ export const RESERVATION_SOURCE_LABELS: Record<ReservationSource, string> = {
   AIRBNB: "Airbnb",
   BOOKING_COM: "Booking.com",
   OTHER: "Altul",
+  MAINTENANCE: "Mentenanță (blocat)",
 }
 
 export const ALL_RESERVATION_SOURCES: ReservationSource[] = [

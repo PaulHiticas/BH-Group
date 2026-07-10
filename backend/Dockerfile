@@ -12,10 +12,11 @@ RUN mvn -B clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
 
-RUN addgroup -S bhgroup && adduser -S bhgroup -G bhgroup
+RUN apk add --no-cache su-exec && \
+    addgroup -S bhgroup && adduser -S bhgroup -G bhgroup
 COPY --from=build /workspace/target/pms-backend.jar app.jar
-RUN chown bhgroup:bhgroup app.jar
-USER bhgroup
+COPY entrypoint.sh /entrypoint.sh
+RUN chown bhgroup:bhgroup app.jar && chmod +x /entrypoint.sh
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+ENTRYPOINT ["/entrypoint.sh"]

@@ -38,6 +38,14 @@ export function usePublicAvailability(propertyId: string, checkIn: string, check
   })
 }
 
+export function usePublicCalendar(propertyId: string, from: string, to: string) {
+  return useQuery({
+    queryKey: ["public-calendar", propertyId, from, to],
+    queryFn: () => publicApi.getCalendar(propertyId, from, to),
+    enabled: !!propertyId,
+  })
+}
+
 export function useCreatePublicBooking() {
   return useMutation({
     mutationFn: (payload: PublicBookingPayload) => publicApi.createBooking(payload),
