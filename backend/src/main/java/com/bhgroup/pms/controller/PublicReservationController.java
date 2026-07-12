@@ -1,6 +1,10 @@
 package com.bhgroup.pms.controller;
 
 import com.bhgroup.pms.common.response.ApiResponse;
+import com.bhgroup.pms.dto.messaging.MessageCreateRequest;
+import com.bhgroup.pms.dto.messaging.MessageResponse;
+import com.bhgroup.pms.dto.property.PriceQuoteResponse;
+import com.bhgroup.pms.dto.reservation.CancellationQuoteResponse;
 import com.bhgroup.pms.dto.publicapi.PublicBookingRequest;
 import com.bhgroup.pms.dto.publicapi.PublicBookingUpdateRequest;
 import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
@@ -9,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -46,6 +51,17 @@ public class PublicReservationController {
                 publicReservationService.availability(propertyId, checkIn, checkOut)));
     }
 
+    @GetMapping("/quote")
+    @Operation(summary = "Get an itemized price quote for a date range")
+    public ResponseEntity<ApiResponse<PriceQuoteResponse>> quote(
+            @RequestParam UUID propertyId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkIn,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate checkOut,
+            @RequestParam(defaultValue = "1") int guests) {
+        return ResponseEntity.ok(ApiResponse.success(
+                publicReservationService.quote(propertyId, checkIn, checkOut, guests)));
+    }
+
     @PostMapping
     @Operation(summary = "Create a booking request")
     public ResponseEntity<ApiResponse<PublicReservationResponse>> create(
@@ -74,5 +90,25 @@ public class PublicReservationController {
     public ResponseEntity<ApiResponse<PublicReservationResponse>> cancel(@PathVariable String token) {
         return ResponseEntity.ok(ApiResponse.success(
                 publicReservationService.cancelByToken(token), "Rezervarea a fost anulată"));
+    }
+
+    @GetMapping("/manage/{token}/cancellation-quote")
+    @Operation(summary = "Preview the refund a cancellation would trigger right now")
+    public ResponseEntity<ApiResponse<CancellationQuoteResponse>> cancellationQuote(@PathVariable String token) {
+        return ResponseEntity.ok(ApiResponse.success(publicReservationService.cancellationQuoteByToken(token)));
+    }
+
+    @GetMapping("/manage/{token}/messages")
+    @Operation(summary = "List messages exchanged with staff about this reservation")
+    public ResponseEntity<ApiResponse<List<MessageResponse>>> listMessages(@PathVariable String token) {
+        return ResponseEntity.ok(ApiResponse.success(publicReservationService.listMessagesByToken(token)));
+    }
+
+    @PostMapping("/manage/{token}/messages")
+    @Operation(summary = "Send a message to staff about this reservation")
+    public ResponseEntity<ApiResponse<MessageResponse>> sendMessage(
+            @PathVariable String token, @Valid @RequestBody MessageCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                publicReservationService.sendMessageByToken(token, request.body())));
     }
 }

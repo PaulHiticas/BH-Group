@@ -29,9 +29,12 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PhotoGallery } from "@/components/properties/photo-gallery"
 import { DocumentList } from "@/components/properties/document-list"
+import { IcalSyncCard } from "@/components/properties/ical-sync-card"
+import { SeasonalRatesManager } from "@/components/properties/seasonal-rates-manager"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useDeleteProperty, useProperty } from "@/hooks/use-properties"
 import {
+  CANCELLATION_POLICY_LABELS,
   FACILITY_LABELS,
   PROPERTY_STATUS_BADGE_VARIANT,
   PROPERTY_STATUS_LABELS,
@@ -187,12 +190,82 @@ export default function PropertyDetailPage({
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Prețuri & reguli de rezervare</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <span className="text-muted-foreground">Preț standard: </span>
+            {property.basePricePerNight != null ? `${property.basePricePerNight} RON / noapte` : "nesetat"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Preț weekend: </span>
+            {property.weekendPricePerNight != null ? `${property.weekendPricePerNight} RON / noapte` : "—"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Taxă curățenie: </span>
+            {property.cleaningFee != null ? `${property.cleaningFee} RON` : "—"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Taxă oaspete suplimentar: </span>
+            {property.extraGuestFee != null
+              ? `${property.extraGuestFee} RON/noapte (peste ${property.baseGuestsIncluded ?? "-"} oaspeți)`
+              : "—"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Discount săptămânal/lunar: </span>
+            {property.weeklyDiscountPercent != null || property.monthlyDiscountPercent != null
+              ? [
+                  property.weeklyDiscountPercent != null ? `${property.weeklyDiscountPercent}% (7+ nopți)` : null,
+                  property.monthlyDiscountPercent != null ? `${property.monthlyDiscountPercent}% (28+ nopți)` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : "—"}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Sejur minim/maxim: </span>
+            {property.minStayNights ?? "-"} / {property.maxStayNights ?? "-"} nopți
+          </div>
+          <div>
+            <span className="text-muted-foreground">Politică de anulare: </span>
+            {CANCELLATION_POLICY_LABELS[property.cancellationPolicy]}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Proprietar: </span>
+            {property.ownerName ?? "neasociat"}
+            {property.commissionPercent != null && ` · comision ${property.commissionPercent}%`}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Sezoane de preț</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SeasonalRatesManager propertyId={id} canManage={!!canManage} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">Documente</CardTitle>
         </CardHeader>
         <CardContent>
           <DocumentList propertyId={id} documents={property.documents} canManage={!!canManage} />
         </CardContent>
       </Card>
+
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Sincronizare calendar (Airbnb / Booking.com)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <IcalSyncCard propertyId={id} exportUrl={property.icalExportUrl} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

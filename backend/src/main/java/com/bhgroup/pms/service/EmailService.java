@@ -63,6 +63,34 @@ public class EmailService {
                 "email/checkin-instructions-email", context);
     }
 
+    @Async
+    public void sendMaintenanceAlertEmail(String toEmail, String firstName, String propertyName,
+                                           String ticketTitle, String ticketDescription) {
+        Context context = new Context();
+        context.setVariable("appName", appProperties.getName());
+        context.setVariable("firstName", firstName);
+        context.setVariable("propertyName", propertyName);
+        context.setVariable("ticketTitle", ticketTitle);
+        context.setVariable("ticketDescription", ticketDescription);
+
+        send(toEmail, "Problemă critică la " + propertyName + " - " + appProperties.getName(),
+                "email/maintenance-alert-email", context);
+    }
+
+    @Async
+    public void sendNewMessageEmail(String toEmail, String firstName, String propertyName,
+                                     String messageBody, String managementToken) {
+        Context context = new Context();
+        context.setVariable("appName", appProperties.getName());
+        context.setVariable("firstName", firstName);
+        context.setVariable("propertyName", propertyName);
+        context.setVariable("messageBody", messageBody);
+        context.setVariable("manageUrl", appProperties.getBaseUrl() + "/manage-booking/" + managementToken);
+
+        send(toEmail, "Mesaj nou despre rezervarea ta - " + appProperties.getName(),
+                "email/new-message-email", context);
+    }
+
     private void send(String toEmail, String subject, String template, Context context) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

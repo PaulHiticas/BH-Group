@@ -1,5 +1,6 @@
 package com.bhgroup.pms.service.mapper;
 
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.dto.property.AddressDto;
 import com.bhgroup.pms.dto.property.PropertyDocumentResponse;
 import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
@@ -7,6 +8,7 @@ import com.bhgroup.pms.dto.property.PropertyResponse;
 import com.bhgroup.pms.dto.property.PropertySummaryResponse;
 import java.util.Comparator;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import com.bhgroup.pms.domain.Address;
@@ -19,7 +21,10 @@ import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
 import com.bhgroup.pms.dto.property.PropertyResponse;
 import com.bhgroup.pms.dto.property.PropertySummaryResponse;
 @Component
+@RequiredArgsConstructor
 public class PropertyMapper {
+
+    private final AppProperties appProperties;
 
     public PropertyResponse toResponse(Property property, List<PropertyPhoto> photos, List<PropertyDocument> documents) {
         return new PropertyResponse(
@@ -34,12 +39,30 @@ public class PropertyMapper {
                 property.getMaxGuests(),
                 property.getSizeSqm(),
                 property.getBasePricePerNight(),
+                property.getWeekendPricePerNight(),
+                property.getCleaningFee(),
+                property.getExtraGuestFee(),
+                property.getBaseGuestsIncluded(),
+                property.getWeeklyDiscountPercent(),
+                property.getMonthlyDiscountPercent(),
+                property.getMinStayNights(),
+                property.getMaxStayNights(),
+                property.getCancellationPolicy(),
+                property.getOwner() != null ? property.getOwner().getId() : null,
+                property.getOwner() != null
+                        ? property.getOwner().getFirstName() + " " + property.getOwner().getLastName() : null,
+                property.getCommissionPercent(),
+                property.getCleaningChecklist(),
                 property.getCheckInTime(),
                 property.getCheckOutTime(),
                 property.getFacilities(),
                 property.isSmartLockEnabled(),
                 property.getSmartLockProvider(),
                 property.getSmartLockDeviceId(),
+                property.getIcalExportToken() != null
+                        ? appProperties.getApiBaseUrl() + "/public/properties/" + property.getId()
+                                + "/calendar.ics?token=" + property.getIcalExportToken()
+                        : null,
                 photos.stream().map(this::toPhotoResponse).toList(),
                 documents.stream().map(this::toDocumentResponse).toList(),
                 property.getCreatedAt(),
@@ -77,7 +100,7 @@ public class PropertyMapper {
     public PropertyDocumentResponse toDocumentResponse(PropertyDocument document) {
         return new PropertyDocumentResponse(
                 document.getId(), document.getFileName(), document.getUrl(),
-                document.getDocumentType(), document.getCreatedAt());
+                document.getDocumentType(), document.getExpiresAt(), document.getCreatedAt());
     }
 
     public Address toAddress(AddressDto dto) {

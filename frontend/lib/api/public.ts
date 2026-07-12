@@ -1,8 +1,11 @@
 import { apiClient } from "@/lib/api/client"
 import type {
   AvailabilityResponse,
+  CancellationQuoteResponse,
   Facility,
+  MessageResponse,
   PageResponse,
+  PriceQuoteResponse,
   PublicCalendarEntryResponse,
   PublicPropertyResponse,
   PublicPropertySummaryResponse,
@@ -32,6 +35,7 @@ export interface PublicBookingPayload {
   checkOutDate: string
   numberOfGuests: number
   notes?: string
+  idempotencyKey?: string
 }
 
 export interface PublicBookingUpdatePayload {
@@ -80,6 +84,12 @@ export const publicApi = {
       { skipAuth: true }
     ),
 
+  getQuote: (propertyId: string, checkIn: string, checkOut: string, guests: number) =>
+    apiClient.get<PriceQuoteResponse>(
+      `/public/reservations/quote${buildQuery({ propertyId, checkIn, checkOut, guests })}`,
+      { skipAuth: true }
+    ),
+
   getCalendar: (propertyId: string, from: string, to: string) =>
     apiClient.get<PublicCalendarEntryResponse[]>(
       `/public/properties/${propertyId}/calendar${buildQuery({ from, to })}`,
@@ -101,4 +111,21 @@ export const publicApi = {
     apiClient.post<PublicReservationResponse>(`/public/reservations/manage/${token}/cancel`, undefined, {
       skipAuth: true,
     }),
+
+  getCancellationQuoteByToken: (token: string) =>
+    apiClient.get<CancellationQuoteResponse>(`/public/reservations/manage/${token}/cancellation-quote`, {
+      skipAuth: true,
+    }),
+
+  getMessagesByToken: (token: string) =>
+    apiClient.get<MessageResponse[]>(`/public/reservations/manage/${token}/messages`, {
+      skipAuth: true,
+    }),
+
+  sendMessageByToken: (token: string, body: string) =>
+    apiClient.post<MessageResponse>(
+      `/public/reservations/manage/${token}/messages`,
+      { body },
+      { skipAuth: true }
+    ),
 }

@@ -1,5 +1,6 @@
 package com.bhgroup.pms.dto.property;
 
+import com.bhgroup.pms.domain.CancellationPolicy;
 import com.bhgroup.pms.domain.Facility;
 import com.bhgroup.pms.domain.PropertyType;
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.util.Set;
+import java.util.UUID;
 
 import com.bhgroup.pms.domain.Address;
 import com.bhgroup.pms.domain.Facility;
@@ -43,6 +45,31 @@ public record PropertyCreateRequest(
         BigDecimal sizeSqm,
 
         BigDecimal basePricePerNight,
+
+        BigDecimal weekendPricePerNight,
+
+        BigDecimal cleaningFee,
+
+        BigDecimal extraGuestFee,
+
+        Integer baseGuestsIncluded,
+
+        BigDecimal weeklyDiscountPercent,
+
+        BigDecimal monthlyDiscountPercent,
+
+        @Min(value = 1, message = "Minimum stay must be at least 1 night")
+        Integer minStayNights,
+
+        Integer maxStayNights,
+
+        CancellationPolicy cancellationPolicy,
+
+        UUID ownerId,
+
+        BigDecimal commissionPercent,
+
+        java.util.List<String> cleaningChecklist,
 
         LocalTime checkInTime,
 

@@ -86,6 +86,16 @@ public class Reservation extends BaseEntity {
     @Column(name = "management_token", unique = true)
     private String managementToken;
 
+    @Column(name = "idempotency_key", unique = true)
+    private String idempotencyKey;
+
+    @Column(name = "hold_expires_at")
+    private Instant holdExpiresAt;
+
+    /** Stable event UID from an imported Airbnb/Booking.com .ics feed; null for reservations created in the PMS. */
+    @Column(name = "external_uid", unique = true)
+    private String externalUid;
+
     @Column(name = "access_code", length = 50)
     private String accessCode;
 

@@ -1,5 +1,6 @@
 import { apiClient } from "@/lib/api/client"
 import type {
+  CancellationPolicy,
   Facility,
   PageResponse,
   PropertyDocumentResponse,
@@ -8,6 +9,7 @@ import type {
   PropertyStatus,
   PropertySummaryResponse,
   PropertyType,
+  SeasonalRateResponse,
 } from "@/lib/api/types"
 
 export interface AddressPayload {
@@ -31,12 +33,31 @@ export interface PropertyPayload {
   maxGuests: number
   sizeSqm?: number | null
   basePricePerNight?: number | null
+  weekendPricePerNight?: number | null
+  cleaningFee?: number | null
+  extraGuestFee?: number | null
+  baseGuestsIncluded?: number | null
+  weeklyDiscountPercent?: number | null
+  monthlyDiscountPercent?: number | null
+  minStayNights?: number | null
+  maxStayNights?: number | null
+  cancellationPolicy?: CancellationPolicy
+  ownerId?: string | null
+  commissionPercent?: number | null
+  cleaningChecklist?: string[]
   checkInTime?: string
   checkOutTime?: string
   facilities: Facility[]
   smartLockEnabled: boolean
   smartLockProvider?: string
   smartLockDeviceId?: string
+}
+
+export interface SeasonalRatePayload {
+  label: string
+  startDate: string
+  endDate: string
+  pricePerNight: number
 }
 
 export interface PropertyListParams {
@@ -95,13 +116,26 @@ export const propertiesApi = {
   setCoverPhoto: (id: string, photoId: string) =>
     apiClient.patch<void>(`/properties/${id}/photos/${photoId}/cover`),
 
-  uploadDocument: (id: string, file: File, documentType: PropertyDocumentType) => {
+  uploadDocument: (id: string, file: File, documentType: PropertyDocumentType, expiresAt?: string) => {
     const formData = new FormData()
     formData.set("file", file)
     formData.set("documentType", documentType)
+    if (expiresAt) formData.set("expiresAt", expiresAt)
     return apiClient.upload<PropertyDocumentResponse>(`/properties/${id}/documents`, formData)
   },
 
   deleteDocument: (id: string, documentId: string) =>
     apiClient.delete<void>(`/properties/${id}/documents/${documentId}`),
+
+  listSeasonalRates: (id: string) =>
+    apiClient.get<SeasonalRateResponse[]>(`/properties/${id}/seasonal-rates`),
+
+  addSeasonalRate: (id: string, payload: SeasonalRatePayload) =>
+    apiClient.post<SeasonalRateResponse>(`/properties/${id}/seasonal-rates`, payload),
+
+  updateSeasonalRate: (id: string, rateId: string, payload: SeasonalRatePayload) =>
+    apiClient.put<SeasonalRateResponse>(`/properties/${id}/seasonal-rates/${rateId}`, payload),
+
+  deleteSeasonalRate: (id: string, rateId: string) =>
+    apiClient.delete<void>(`/properties/${id}/seasonal-rates/${rateId}`),
 }

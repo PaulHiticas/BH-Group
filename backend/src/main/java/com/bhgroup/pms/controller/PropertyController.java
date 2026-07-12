@@ -10,6 +10,8 @@ import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
 import com.bhgroup.pms.dto.property.PropertyResponse;
 import com.bhgroup.pms.dto.property.PropertySummaryResponse;
 import com.bhgroup.pms.dto.property.PropertyUpdateRequest;
+import com.bhgroup.pms.dto.property.SeasonalRateRequest;
+import com.bhgroup.pms.dto.property.SeasonalRateResponse;
 import com.bhgroup.pms.security.SecurityUtils;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.repository.UserRepository;
@@ -147,11 +149,14 @@ public class PropertyController {
     public ResponseEntity<ApiResponse<PropertyDocumentResponse>> addDocument(
             @PathVariable UUID id,
             @RequestParam("file") MultipartFile file,
-            @RequestParam PropertyDocumentType documentType) {
+            @RequestParam PropertyDocumentType documentType,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate expiresAt) {
         User currentUser = userRepository.findById(SecurityUtils.requireCurrentUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(propertyService.addDocument(id, file, documentType, currentUser)));
+                .body(ApiResponse.success(propertyService.addDocument(id, file, documentType, currentUser, expiresAt)));
     }
 
     @DeleteMapping("/{id}/documents/{documentId}")
@@ -160,5 +165,37 @@ public class PropertyController {
     public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable UUID id, @PathVariable UUID documentId) {
         propertyService.deleteDocument(id, documentId);
         return ResponseEntity.ok(ApiResponse.message("Document deleted successfully"));
+    }
+
+    @GetMapping("/{id}/seasonal-rates")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @Operation(summary = "List seasonal price overrides for a property")
+    public ResponseEntity<ApiResponse<List<SeasonalRateResponse>>> listSeasonalRates(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(propertyService.listSeasonalRates(id)));
+    }
+
+    @PostMapping("/{id}/seasonal-rates")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @Operation(summary = "Add a seasonal price override")
+    public ResponseEntity<ApiResponse<SeasonalRateResponse>> addSeasonalRate(
+            @PathVariable UUID id, @Valid @RequestBody SeasonalRateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(propertyService.addSeasonalRate(id, request)));
+    }
+
+    @PutMapping("/{id}/seasonal-rates/{rateId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @Operation(summary = "Update a seasonal price override")
+    public ResponseEntity<ApiResponse<SeasonalRateResponse>> updateSeasonalRate(
+            @PathVariable UUID id, @PathVariable UUID rateId, @Valid @RequestBody SeasonalRateRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(propertyService.updateSeasonalRate(id, rateId, request)));
+    }
+
+    @DeleteMapping("/{id}/seasonal-rates/{rateId}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @Operation(summary = "Delete a seasonal price override")
+    public ResponseEntity<ApiResponse<Void>> deleteSeasonalRate(@PathVariable UUID id, @PathVariable UUID rateId) {
+        propertyService.deleteSeasonalRate(id, rateId);
+        return ResponseEntity.ok(ApiResponse.message("Seasonal rate deleted successfully"));
     }
 }

@@ -1,4 +1,24 @@
-import type { Facility, PropertyDocumentType, PropertyStatus, PropertyType } from "@/lib/api/types"
+import type {
+  CancellationPolicy,
+  Facility,
+  PropertyDocumentType,
+  PropertyStatus,
+  PropertyType,
+} from "@/lib/api/types"
+
+export const CANCELLATION_POLICY_LABELS: Record<CancellationPolicy, string> = {
+  FLEXIBLE: "Flexibilă",
+  MODERATE: "Moderată",
+  STRICT: "Strictă",
+  NON_REFUNDABLE: "Nerambursabilă",
+}
+
+export const ALL_CANCELLATION_POLICIES: CancellationPolicy[] = [
+  "FLEXIBLE",
+  "MODERATE",
+  "STRICT",
+  "NON_REFUNDABLE",
+]
 
 export const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   DRAFT: "Ciornă",

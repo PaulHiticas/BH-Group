@@ -38,6 +38,14 @@ export function usePublicAvailability(propertyId: string, checkIn: string, check
   })
 }
 
+export function usePublicQuote(propertyId: string, checkIn: string, checkOut: string, guests: number) {
+  return useQuery({
+    queryKey: ["public-quote", propertyId, checkIn, checkOut, guests],
+    queryFn: () => publicApi.getQuote(propertyId, checkIn, checkOut, guests),
+    enabled: !!propertyId && !!checkIn && !!checkOut && guests > 0,
+  })
+}
+
 export function usePublicCalendar(propertyId: string, from: string, to: string) {
   return useQuery({
     queryKey: ["public-calendar", propertyId, from, to],
@@ -76,6 +84,14 @@ export function useUpdateBookingByToken(token: string) {
     onError: (error) => {
       toast.error(errorMessage(error, "Actualizarea rezervării a eșuat"))
     },
+  })
+}
+
+export function useBookingCancellationQuote(token: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["booking-cancellation-quote", token],
+    queryFn: () => publicApi.getCancellationQuoteByToken(token),
+    enabled: enabled && !!token,
   })
 }
 

@@ -11,6 +11,7 @@ public class AppProperties {
 
     private String name;
     private String baseUrl;
+    private String apiBaseUrl;
     private Mail mail = new Mail();
     private Cors cors = new Cors();
     private Jwt jwt = new Jwt();

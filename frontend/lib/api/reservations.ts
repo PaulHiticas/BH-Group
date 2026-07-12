@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client"
 import type {
   AvailabilityResponse,
   CalendarEntryResponse,
+  CancellationQuoteResponse,
   PageResponse,
   ReservationResponse,
   ReservationSource,
@@ -88,4 +89,7 @@ export const reservationsApi = {
 
   sendCheckinInstructions: (id: string) =>
     apiClient.post<ReservationResponse>(`/reservations/${id}/send-checkin-instructions`),
+
+  cancellationQuote: (id: string) =>
+    apiClient.get<CancellationQuoteResponse>(`/reservations/${id}/cancellation-quote`),
 }

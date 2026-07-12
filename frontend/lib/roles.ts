@@ -3,9 +3,22 @@ import type { Role, UserStatus } from "@/lib/api/types"
 export const ROLE_LABELS: Record<Role, string> = {
   SUPER_ADMIN: "Super Admin",
   ADMINISTRATOR: "Administrator",
+  OWNER: "Proprietar",
+  CLEANER: "Cleaner",
+  MAINTENANCE: "Mentenanță",
+  ACCOUNTANT: "Contabil",
+  SUPPORT_AGENT: "Agent suport",
 }
 
-export const ALL_ROLES: Role[] = ["SUPER_ADMIN", "ADMINISTRATOR"]
+export const ALL_ROLES: Role[] = [
+  "SUPER_ADMIN",
+  "ADMINISTRATOR",
+  "OWNER",
+  "CLEANER",
+  "MAINTENANCE",
+  "ACCOUNTANT",
+  "SUPPORT_AGENT",
+]
 
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {
   PENDING: "În așteptare",

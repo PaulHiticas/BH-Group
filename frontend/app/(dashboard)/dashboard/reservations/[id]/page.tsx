@@ -30,7 +30,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { ReservationStatusActions } from "@/components/reservations/reservation-status-actions"
+import { ReservationPayments } from "@/components/reservations/reservation-payments"
+import { MessageThread } from "@/components/messaging/message-thread"
 import { useCurrentUser } from "@/hooks/use-current-user"
+import { useReservationMessages, useSendStaffMessage } from "@/hooks/use-messages"
 import {
   useDeleteReservation,
   useReservation,
@@ -58,7 +61,13 @@ export default function ReservationDetailPage({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const accessCodeRef = useRef<HTMLInputElement>(null)
 
-  const canManage = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR"
+  const isFullAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR"
+  const canManage = isFullAdmin || user?.role === "SUPPORT_AGENT"
+  const canDelete = isFullAdmin
+  const canManagePayments = isFullAdmin || user?.role === "ACCOUNTANT"
+
+  const { data: messages, isLoading: messagesLoading } = useReservationMessages(id, canManage)
+  const sendStaffMessage = useSendStaffMessage(id)
 
   if (isLoading || !reservation) {
     return (
@@ -92,7 +101,7 @@ export default function ReservationDetailPage({
           </Link>
         </div>
 
-        {canManage && (
+        {(canManage || canDelete) && (
           <div className="flex gap-2">
             {canEdit && (
               <Link
@@ -103,26 +112,28 @@ export default function ReservationDetailPage({
                 Editează
               </Link>
             )}
-            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-              <AlertDialogTrigger render={<Button variant="destructive" />}>
-                <Trash2 className="size-4" />
-                Șterge
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Ștergi această rezervare?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Acțiunea este ireversibilă.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Anulează</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => deleteReservation.mutate(id)}>
-                    Șterge definitiv
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {canDelete && (
+              <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                <AlertDialogTrigger render={<Button variant="destructive" />}>
+                  <Trash2 className="size-4" />
+                  Șterge
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Ștergi această rezervare?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Acțiunea este ireversibilă.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Anulează</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => deleteReservation.mutate(id)}>
+                      Șterge definitiv
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         )}
       </div>
@@ -241,13 +252,34 @@ export default function ReservationDetailPage({
         </Card>
       )}
 
-      {reservation.totalAmount != null && (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Plăți</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ReservationPayments
+            reservationId={id}
+            totalAmount={reservation.totalAmount}
+            currency={reservation.currency}
+            canManage={canManagePayments}
+          />
+        </CardContent>
+      </Card>
+
+      {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Plată</CardTitle>
+            <CardTitle className="text-base">Mesaje cu oaspetele</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm">
-            {reservation.totalAmount} {reservation.currency}
+          <CardContent>
+            <MessageThread
+              messages={messages}
+              isLoading={messagesLoading}
+              viewerType="STAFF"
+              onSend={(body) => sendStaffMessage.mutate(body)}
+              isSending={sendStaffMessage.isPending}
+              placeholder="Scrie un mesaj oaspetelui..."
+            />
           </CardContent>
         </Card>
       )}

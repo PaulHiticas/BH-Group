@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useCreatePublicBooking, usePublicAvailability } from "@/hooks/use-public-booking"
+import { useCreatePublicBooking, usePublicAvailability, usePublicQuote } from "@/hooks/use-public-booking"
 import type { PublicBookingPayload } from "@/lib/api/public"
 import type { PublicPropertyResponse, PublicReservationResponse } from "@/lib/api/types"
 
@@ -54,6 +55,10 @@ export function BookingForm({
   onSuccess,
 }: BookingFormProps) {
   const createBooking = useCreatePublicBooking()
+  // Stable for the lifetime of this form instance: retries of the same
+  // submission (slow network, accidental double-click) reuse the same key
+  // so the backend returns the existing reservation instead of a duplicate.
+  const [idempotencyKey] = useState(() => crypto.randomUUID())
 
   const form = useForm({
     resolver: zodResolver(bookingSchema),
@@ -69,19 +74,27 @@ export function BookingForm({
     },
   })
 
-  const [checkInDate, checkOutDate] = form.watch(["checkInDate", "checkOutDate"])
+  const [checkInDate, checkOutDate, numberOfGuests] = form.watch([
+    "checkInDate",
+    "checkOutDate",
+    "numberOfGuests",
+  ])
   const { data: availability, isFetching: isCheckingAvailability } = usePublicAvailability(
     property.id,
     checkInDate,
     checkOutDate
   )
+  const { data: quote } = usePublicQuote(
+    property.id,
+    checkInDate,
+    checkOutDate,
+    Number(numberOfGuests) || 1
+  )
 
   const stayNights = nights(checkInDate, checkOutDate)
-  const totalPrice =
-    property.basePricePerNight != null ? property.basePricePerNight * stayNights : null
 
   function handleSubmit(values: z.infer<typeof bookingSchema>) {
-    const payload: PublicBookingPayload = { ...values, propertyId: property.id }
+    const payload: PublicBookingPayload = { ...values, propertyId: property.id, idempotencyKey }
     createBooking.mutate(payload, { onSuccess })
   }
 
@@ -134,22 +147,64 @@ export function BookingForm({
             />
 
             {checkInDate && checkOutDate && !isCheckingAvailability && availability && (
-              <div className="sm:col-span-2">
+              <div className="space-y-2 sm:col-span-2">
                 {availability.available ? (
                   <p className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
                     <CheckCircle2 className="size-4" />
                     Disponibil — {stayNights} nopți
-                    {totalPrice != null && (
-                      <span className="ml-1 font-medium text-foreground">
-                        · {totalPrice.toLocaleString("ro-RO")} {property.currency}
-                      </span>
-                    )}
                   </p>
                 ) : (
                   <p className="flex items-center gap-1.5 text-sm text-destructive">
                     <XCircle className="size-4" />
                     Indisponibil în perioada selectată.
                   </p>
+                )}
+
+                {quote?.available && quote.totalAmount != null && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">
+                        Subtotal ({quote.nights} nopți)
+                      </span>
+                      <span>
+                        {quote.subtotal?.toLocaleString("ro-RO")} {quote.currency}
+                      </span>
+                    </div>
+                    {!!quote.extraGuestFee && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxă oaspeți suplimentari</span>
+                        <span>
+                          {quote.extraGuestFee.toLocaleString("ro-RO")} {quote.currency}
+                        </span>
+                      </div>
+                    )}
+                    {!!quote.cleaningFee && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Taxă de curățenie</span>
+                        <span>
+                          {quote.cleaningFee.toLocaleString("ro-RO")} {quote.currency}
+                        </span>
+                      </div>
+                    )}
+                    {!!quote.discountAmount && (
+                      <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                        <span>Discount ({quote.discountPercent}%)</span>
+                        <span>
+                          -{quote.discountAmount.toLocaleString("ro-RO")} {quote.currency}
+                        </span>
+                      </div>
+                    )}
+                    <div className="mt-1.5 flex justify-between border-t pt-1.5 font-medium text-foreground">
+                      <span>Total</span>
+                      <span>
+                        {quote.totalAmount.toLocaleString("ro-RO")} {quote.currency}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {quote && !quote.available && (
+                  <p className="text-sm text-muted-foreground">{quote.unavailableReason}</p>
                 )}
               </div>
             )}

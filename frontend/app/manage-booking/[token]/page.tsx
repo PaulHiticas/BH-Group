@@ -18,7 +18,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Form,
@@ -29,8 +28,11 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { MessageThread } from "@/components/messaging/message-thread"
+import { useBookingMessages, useSendGuestMessage } from "@/hooks/use-messages"
 import {
   useBookingByToken,
+  useBookingCancellationQuote,
   useCancelBookingByToken,
   useUpdateBookingByToken,
 } from "@/hooks/use-public-booking"
@@ -55,6 +57,10 @@ export default function ManageBookingPage({
   const updateBooking = useUpdateBookingByToken(token)
   const cancelBooking = useCancelBookingByToken(token)
   const [editing, setEditing] = useState(false)
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false)
+  const { data: cancellationQuote } = useBookingCancellationQuote(token, confirmCancelOpen)
+  const { data: messages, isLoading: messagesLoading } = useBookingMessages(token)
+  const sendGuestMessage = useSendGuestMessage(token)
 
   const form = useForm({
     resolver: zodResolver(updateSchema),
@@ -138,6 +144,22 @@ export default function ManageBookingPage({
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Mesaje cu echipa BH Group</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MessageThread
+            messages={messages}
+            isLoading={messagesLoading}
+            viewerType="GUEST"
+            onSend={(body) => sendGuestMessage.mutate(body)}
+            isSending={sendGuestMessage.isPending}
+            placeholder="Scrie un mesaj echipei..."
+          />
+        </CardContent>
+      </Card>
+
       {canModify && (
         <Card>
           <CardHeader>
@@ -205,15 +227,32 @@ export default function ManageBookingPage({
                 <Button variant="outline" onClick={() => setEditing(true)}>
                   Modifică perioada
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger render={<Button variant="destructive" />}>
+                <AlertDialog open={confirmCancelOpen} onOpenChange={setConfirmCancelOpen}>
+                  <Button variant="destructive" onClick={() => setConfirmCancelOpen(true)}>
                     Anulează rezervarea
-                  </AlertDialogTrigger>
+                  </Button>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Anulezi această rezervare?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Acțiunea este ireversibilă. Va trebui să faci o rezervare nouă dacă te răzgândești.
+                        {cancellationQuote && (
+                          <>
+                            {" "}
+                            {cancellationQuote.estimatedRefundAmount > 0 ? (
+                              <>
+                                Conform politicii de anulare, vei primi înapoi{" "}
+                                <strong>
+                                  {cancellationQuote.estimatedRefundAmount} {cancellationQuote.currency} (
+                                  {cancellationQuote.refundPercent}%)
+                                </strong>
+                                .
+                              </>
+                            ) : (
+                              "Conform politicii de anulare, suma plătită nu este rambursabilă în acest moment."
+                            )}
+                          </>
+                        )}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

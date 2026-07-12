@@ -30,6 +30,13 @@ public final class ReservationSpecifications {
         return (root, query, cb) -> cb.equal(root.get("property").get("id"), propertyId);
     }
 
+    public static Specification<Reservation> hasPropertyOwner(UUID ownerId) {
+        if (ownerId == null) {
+            return null;
+        }
+        return (root, query, cb) -> cb.equal(root.get("property").get("owner").get("id"), ownerId);
+    }
+
     public static Specification<Reservation> hasStatus(ReservationStatus status) {
         if (status == null) {
             return null;

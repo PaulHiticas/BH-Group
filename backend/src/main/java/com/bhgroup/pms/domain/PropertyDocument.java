@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -56,6 +57,12 @@ public class PropertyDocument {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by")
     private User uploadedBy;
+
+    @Column(name = "expires_at")
+    private LocalDate expiresAt;
+
+    @Column(name = "expiry_notified_at")
+    private Instant expiryNotifiedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

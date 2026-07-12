@@ -1,4 +1,11 @@
-export type Role = "SUPER_ADMIN" | "ADMINISTRATOR"
+export type Role =
+  | "SUPER_ADMIN"
+  | "ADMINISTRATOR"
+  | "OWNER"
+  | "CLEANER"
+  | "MAINTENANCE"
+  | "ACCOUNTANT"
+  | "SUPPORT_AGENT"
 
 export type UserStatus = "PENDING" | "ACTIVE" | "SUSPENDED" | "DISABLED"
 
@@ -137,6 +144,7 @@ export interface PropertyDocumentResponse {
   fileName: string
   url: string
   documentType: PropertyDocumentType
+  expiresAt: string | null
   createdAt: string
 }
 
@@ -153,6 +161,8 @@ export interface PropertySummaryResponse {
   createdAt: string
 }
 
+export type CancellationPolicy = "FLEXIBLE" | "MODERATE" | "STRICT" | "NON_REFUNDABLE"
+
 export interface PropertyResponse {
   id: string
   name: string
@@ -165,16 +175,210 @@ export interface PropertyResponse {
   maxGuests: number
   sizeSqm: number | null
   basePricePerNight: number | null
+  weekendPricePerNight: number | null
+  cleaningFee: number | null
+  extraGuestFee: number | null
+  baseGuestsIncluded: number | null
+  weeklyDiscountPercent: number | null
+  monthlyDiscountPercent: number | null
+  minStayNights: number | null
+  maxStayNights: number | null
+  cancellationPolicy: CancellationPolicy
+  ownerId: string | null
+  ownerName: string | null
+  commissionPercent: number | null
+  cleaningChecklist: string[]
   checkInTime: string
   checkOutTime: string
   facilities: Facility[]
   smartLockEnabled: boolean
   smartLockProvider: string | null
   smartLockDeviceId: string | null
+  icalExportUrl: string | null
   photos: PropertyPhotoResponse[]
   documents: PropertyDocumentResponse[]
   createdAt: string
   updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// iCal sync
+// ---------------------------------------------------------------------------
+
+export type IcalSyncStatus = "SUCCESS" | "FAILED"
+
+export interface IcalImportFeedResponse {
+  id: string
+  source: ReservationSource
+  feedUrl: string
+  lastSyncedAt: string | null
+  lastSyncStatus: IcalSyncStatus | null
+  lastSyncError: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Payments
+// ---------------------------------------------------------------------------
+
+export type PaymentProvider = "MANUAL" | "STRIPE" | "NETOPIA"
+export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "CARD_TERMINAL" | "ONLINE_CARD" | "OTHER"
+export type PaymentStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "SUCCEEDED"
+  | "FAILED"
+  | "CANCELLED"
+  | "PARTIALLY_REFUNDED"
+  | "REFUNDED"
+export type PaymentTransactionType = "CHARGE" | "REFUND"
+export type PaymentTransactionStatus = "PENDING" | "SUCCEEDED" | "FAILED"
+export type RefundStatus = "REQUESTED" | "SUCCEEDED" | "FAILED"
+
+export interface PaymentTransactionResponse {
+  id: string
+  type: PaymentTransactionType
+  status: PaymentTransactionStatus
+  amount: number
+  providerTransactionId: string | null
+  failureReason: string | null
+  createdAt: string
+}
+
+export interface RefundResponse {
+  id: string
+  amount: number
+  reason: string | null
+  status: RefundStatus
+  createdAt: string
+}
+
+export interface PaymentResponse {
+  id: string
+  reservationId: string
+  provider: PaymentProvider
+  method: PaymentMethod
+  status: PaymentStatus
+  amount: number
+  currency: string
+  refundedAmount: number
+  providerPaymentId: string | null
+  notes: string | null
+  transactions: PaymentTransactionResponse[]
+  refunds: RefundResponse[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SeasonalRateResponse {
+  id: string
+  label: string
+  startDate: string
+  endDate: string
+  pricePerNight: number
+}
+
+// ---------------------------------------------------------------------------
+// Cleaning tasks
+// ---------------------------------------------------------------------------
+
+export type CleaningTaskStatus = "NEW" | "ACCEPTED" | "IN_PROGRESS" | "DONE" | "REJECTED"
+
+export interface CleaningTaskPhotoResponse {
+  id: string
+  url: string
+  caption: string | null
+  createdAt: string
+}
+
+export interface CleaningTaskResponse {
+  id: string
+  propertyId: string
+  propertyName: string
+  reservationId: string | null
+  status: CleaningTaskStatus
+  assignedCleanerId: string | null
+  assignedCleanerName: string | null
+  scheduledDate: string
+  notes: string | null
+  cost: number | null
+  estimatedMinutes: number | null
+  actualMinutes: number | null
+  startedAt: string | null
+  completedAt: string | null
+  checklistResults: Record<string, boolean>
+  photos: CleaningTaskPhotoResponse[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Maintenance tickets
+// ---------------------------------------------------------------------------
+
+export type MaintenanceCategory = "PLUMBING" | "ELECTRICAL" | "APPLIANCE" | "HVAC" | "STRUCTURAL" | "OTHER"
+export type MaintenancePriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+export type MaintenanceStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
+
+export interface MaintenanceTicketPhotoResponse {
+  id: string
+  url: string
+  caption: string | null
+  createdAt: string
+}
+
+export interface MaintenanceTicketResponse {
+  id: string
+  propertyId: string
+  propertyName: string
+  title: string
+  description: string | null
+  category: MaintenanceCategory
+  priority: MaintenancePriority
+  status: MaintenanceStatus
+  reportedById: string | null
+  reportedByName: string | null
+  assignedToId: string | null
+  assignedToName: string | null
+  vendor: string | null
+  estimatedCost: number | null
+  actualCost: number | null
+  resolvedAt: string | null
+  photos: MaintenanceTicketPhotoResponse[]
+  createdAt: string
+  updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Owner portal
+// ---------------------------------------------------------------------------
+
+export interface OwnerPropertyResponse {
+  id: string
+  name: string
+  propertyType: PropertyType
+  status: PropertyStatus
+  address: AddressDto
+  bedrooms: number
+  bathrooms: number
+  maxGuests: number
+  commissionPercent: number | null
+  coverPhotoUrl: string | null
+  grossRevenue: number
+  commissionAmount: number
+  netRevenue: number
+  currency: string
+  documents: PropertyDocumentResponse[]
+}
+
+export interface OwnerDashboardSummaryResponse {
+  totalProperties: number
+  grossRevenue: number
+  commissionAmount: number
+  expensesTotal: number
+  netRevenue: number
+  currency: string
+  upcomingReservations: ReservationResponse[]
+  openMaintenanceTickets: MaintenanceTicketResponse[]
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +428,29 @@ export interface CalendarEntryResponse {
 
 export interface AvailabilityResponse {
   available: boolean
+}
+
+export interface CancellationQuoteResponse {
+  refundPercent: number
+  estimatedRefundAmount: number
+  currency: string
+}
+
+export interface PriceQuoteResponse {
+  available: boolean
+  unavailableReason: string | null
+  checkInDate: string
+  checkOutDate: string
+  nights: number
+  subtotal: number | null
+  extraGuestFee: number | null
+  cleaningFee: number | null
+  discountPercent: number | null
+  discountAmount: number | null
+  totalAmount: number | null
+  currency: string
+  minStayNights: number | null
+  maxStayNights: number | null
 }
 
 export interface PublicCalendarEntryResponse {
@@ -318,6 +545,84 @@ export interface DashboardSummaryResponse {
   uncontactedLeads: number
   upcomingReservations: ReservationResponse[]
   recentLeads: LeadResponse[]
+}
+
+// ---------------------------------------------------------------------------
+// Expenses & financial reporting
+// ---------------------------------------------------------------------------
+
+export type ExpenseCategory =
+  | "CLEANING"
+  | "MAINTENANCE"
+  | "UTILITIES"
+  | "SUPPLIES"
+  | "TAX"
+  | "INSURANCE"
+  | "COMMISSION"
+  | "OTHER"
+
+export interface ExpenseResponse {
+  id: string
+  propertyId: string
+  propertyName: string
+  maintenanceTicketId: string | null
+  category: ExpenseCategory
+  amount: number
+  currency: string
+  vendor: string | null
+  expenseDate: string
+  notes: string | null
+  chargeToOwner: boolean
+  receiptUrl: string | null
+  createdByName: string | null
+  createdAt: string
+}
+
+export interface FinancialReportRowResponse {
+  propertyId: string
+  propertyName: string
+  ownerName: string | null
+  grossRevenue: number
+  commissionAmount: number
+  expensesTotal: number
+  netProfit: number
+  currency: string
+}
+
+export interface FinancialReportSummaryResponse {
+  rows: FinancialReportRowResponse[]
+  totalGrossRevenue: number
+  totalCommission: number
+  totalExpenses: number
+  totalNetProfit: number
+  currency: string
+}
+
+// ---------------------------------------------------------------------------
+// Messaging & notifications
+// ---------------------------------------------------------------------------
+
+export type MessageSenderType = "STAFF" | "GUEST"
+
+export interface MessageResponse {
+  id: string
+  senderType: MessageSenderType
+  senderName: string
+  body: string
+  readAt: string | null
+  createdAt: string
+}
+
+export type NotificationType = "NEW_MESSAGE" | "CRITICAL_MAINTENANCE" | "NEW_LEAD" | "DOCUMENT_EXPIRING"
+
+export interface NotificationResponse {
+  id: string
+  type: NotificationType
+  title: string
+  body: string | null
+  linkPath: string | null
+  readAt: string | null
+  createdAt: string
 }
 
 // ---------------------------------------------------------------------------

@@ -110,6 +110,13 @@
             <version>${springdoc.version}</version>
         </dependency>
 
+        <!-- iCal parsing/generation (Airbnb/Booking.com calendar sync) -->
+        <dependency>
+            <groupId>net.sf.biweekly</groupId>
+            <artifactId>biweekly</artifactId>
+            <version>0.6.8</version>
+        </dependency>
+
         <!-- MapStruct -->
         <dependency>
             <groupId>org.mapstruct</groupId>

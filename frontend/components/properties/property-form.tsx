@@ -1,7 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import dynamic from "next/dynamic"
+import { Plus, Trash2 } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
@@ -26,13 +28,16 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  ALL_CANCELLATION_POLICIES,
   ALL_FACILITIES,
   ALL_PROPERTY_STATUSES,
   ALL_PROPERTY_TYPES,
+  CANCELLATION_POLICY_LABELS,
   FACILITY_LABELS,
   PROPERTY_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
 } from "@/lib/property-labels"
+import { useUsers } from "@/hooks/use-users"
 import type { PropertyPayload } from "@/lib/api/properties"
 import type { PropertyResponse } from "@/lib/api/types"
 
@@ -58,6 +63,18 @@ const propertySchema = z.object({
   maxGuests: z.coerce.number().int().min(1),
   sizeSqm: z.coerce.number().min(0).optional(),
   basePricePerNight: z.coerce.number().min(0).optional(),
+  weekendPricePerNight: z.coerce.number().min(0).optional(),
+  cleaningFee: z.coerce.number().min(0).optional(),
+  extraGuestFee: z.coerce.number().min(0).optional(),
+  baseGuestsIncluded: z.coerce.number().int().min(1).optional(),
+  weeklyDiscountPercent: z.coerce.number().min(0).max(100).optional(),
+  monthlyDiscountPercent: z.coerce.number().min(0).max(100).optional(),
+  minStayNights: z.coerce.number().int().min(1).optional(),
+  maxStayNights: z.coerce.number().int().min(1).optional(),
+  cancellationPolicy: z.enum(ALL_CANCELLATION_POLICIES as [string, ...string[]]),
+  ownerId: z.string().optional(),
+  commissionPercent: z.coerce.number().min(0).max(100).optional(),
+  cleaningChecklist: z.array(z.string()),
   checkInTime: z.string().min(1),
   checkOutTime: z.string().min(1),
   facilities: z.array(z.enum(ALL_FACILITIES as [string, ...string[]])),
@@ -87,6 +104,18 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       maxGuests: 2,
       sizeSqm: undefined,
       basePricePerNight: undefined,
+      weekendPricePerNight: undefined,
+      cleaningFee: undefined,
+      extraGuestFee: undefined,
+      baseGuestsIncluded: undefined,
+      weeklyDiscountPercent: undefined,
+      monthlyDiscountPercent: undefined,
+      minStayNights: undefined,
+      maxStayNights: undefined,
+      cancellationPolicy: "MODERATE",
+      ownerId: undefined,
+      commissionPercent: undefined,
+      cleaningChecklist: [],
       checkInTime: "14:00",
       checkOutTime: "11:00",
       facilities: [],
@@ -113,6 +142,18 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     maxGuests: property.maxGuests,
     sizeSqm: property.sizeSqm ?? undefined,
     basePricePerNight: property.basePricePerNight ?? undefined,
+    weekendPricePerNight: property.weekendPricePerNight ?? undefined,
+    cleaningFee: property.cleaningFee ?? undefined,
+    extraGuestFee: property.extraGuestFee ?? undefined,
+    baseGuestsIncluded: property.baseGuestsIncluded ?? undefined,
+    weeklyDiscountPercent: property.weeklyDiscountPercent ?? undefined,
+    monthlyDiscountPercent: property.monthlyDiscountPercent ?? undefined,
+    minStayNights: property.minStayNights ?? undefined,
+    maxStayNights: property.maxStayNights ?? undefined,
+    cancellationPolicy: property.cancellationPolicy,
+    ownerId: property.ownerId ?? undefined,
+    commissionPercent: property.commissionPercent ?? undefined,
+    cleaningChecklist: property.cleaningChecklist ?? [],
     checkInTime: property.checkInTime.slice(0, 5),
     checkOutTime: property.checkOutTime.slice(0, 5),
     facilities: property.facilities,
@@ -144,6 +185,18 @@ export function propertyFormValuesToPayload(
     maxGuests: values.maxGuests,
     sizeSqm: values.sizeSqm ?? null,
     basePricePerNight: values.basePricePerNight ?? null,
+    weekendPricePerNight: values.weekendPricePerNight ?? null,
+    cleaningFee: values.cleaningFee ?? null,
+    extraGuestFee: values.extraGuestFee ?? null,
+    baseGuestsIncluded: values.baseGuestsIncluded ?? null,
+    weeklyDiscountPercent: values.weeklyDiscountPercent ?? null,
+    monthlyDiscountPercent: values.monthlyDiscountPercent ?? null,
+    minStayNights: values.minStayNights ?? null,
+    maxStayNights: values.maxStayNights ?? null,
+    cancellationPolicy: values.cancellationPolicy as PropertyPayload["cancellationPolicy"],
+    ownerId: values.ownerId || null,
+    commissionPercent: values.commissionPercent ?? null,
+    cleaningChecklist: values.cleaningChecklist,
     checkInTime: `${values.checkInTime}:00`,
     checkOutTime: `${values.checkOutTime}:00`,
     facilities: values.facilities as PropertyPayload["facilities"],
@@ -167,6 +220,7 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
   })
 
   const smartLockEnabled = form.watch("smartLockEnabled")
+  const { data: owners } = useUsers({ role: "OWNER", size: 100 })
 
   return (
     <Form {...form}>
@@ -455,6 +509,265 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Prețuri & reguli de rezervare</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="weekendPricePerNight"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preț weekend / noapte (vin-sâm, RON)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="cleaningFee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taxă de curățenie (RON)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="extraGuestFee"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Taxă oaspete suplimentar / noapte (RON)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="baseGuestsIncluded"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Oaspeți incluși în preț</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="weeklyDiscountPercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Discount săptămânal (%, de la 7 nopți)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="monthlyDiscountPercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Discount lunar (%, de la 28 nopți)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="minStayNights"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Minim nopți / rezervare</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="maxStayNights"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Maxim nopți / rezervare</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="cancellationPolicy"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Politică de anulare</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {() => CANCELLATION_POLICY_LABELS[field.value as (typeof ALL_CANCELLATION_POLICIES)[number]]}
+                        </SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {ALL_CANCELLATION_POLICIES.map((policy) => (
+                        <SelectItem key={policy} value={policy}>
+                          {CANCELLATION_POLICY_LABELS[policy]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="ownerId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Proprietar</FormLabel>
+                  <Select
+                    value={field.value ?? "NONE"}
+                    onValueChange={(v) => field.onChange(v === "NONE" ? undefined : v)}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue>
+                          {() => {
+                            if (!field.value) return "Fără proprietar asociat"
+                            const owner = owners?.content.find((o) => o.id === field.value)
+                            return owner
+                              ? `${owner.firstName} ${owner.lastName} (${owner.email})`
+                              : (property?.ownerName ?? "Fără proprietar asociat")
+                          }}
+                        </SelectValue>
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="NONE">Fără proprietar asociat</SelectItem>
+                      {owners?.content.map((owner) => (
+                        <SelectItem key={owner.id} value={owner.id}>
+                          {owner.firstName} {owner.lastName} ({owner.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="commissionPercent"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Comision BH Group (%)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="0.1"
+                      {...field}
+                      value={(field.value as number | undefined) ?? ""}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Checklist curățenie</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <FormField
+              control={form.control}
+              name="cleaningChecklist"
+              render={({ field }) => (
+                <FormItem>
+                  <ChecklistEditor items={field.value} onChange={field.onChange} />
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Facilități</CardTitle>
           </CardHeader>
           <CardContent>
@@ -554,5 +867,65 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
         </div>
       </form>
     </Form>
+  )
+}
+
+function ChecklistEditor({
+  items,
+  onChange,
+}: {
+  items: string[]
+  onChange: (items: string[]) => void
+}) {
+  const [newItem, setNewItem] = useState("")
+
+  function addItem() {
+    const trimmed = newItem.trim()
+    if (!trimmed) return
+    onChange([...items, trimmed])
+    setNewItem("")
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Niciun item definit — task-urile de curățenie vor fi create fără checklist.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {items.map((item, index) => (
+            <li key={`${item}-${index}`} className="flex items-center justify-between gap-2 text-sm">
+              <span>{item}</span>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => onChange(items.filter((_, i) => i !== index))}
+                aria-label="Șterge item"
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex gap-2 pt-1">
+        <Input
+          placeholder="Ex: Schimbat lenjerie"
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              addItem()
+            }
+          }}
+        />
+        <Button type="button" variant="outline" size="icon" onClick={addItem} aria-label="Adaugă item">
+          <Plus className="size-4" />
+        </Button>
+      </div>
+    </div>
   )
 }

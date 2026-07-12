@@ -30,3 +30,6 @@ pgdata/
 
 # --- Local file uploads ---
 backend/uploads/
+
+# --- DB backups (scripts/backup-db.sh) ---
+backups/

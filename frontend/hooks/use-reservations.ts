@@ -30,6 +30,14 @@ export function useReservation(id: string) {
   })
 }
 
+export function useCancellationQuote(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["cancellation-quote", id],
+    queryFn: () => reservationsApi.cancellationQuote(id),
+    enabled: enabled && !!id,
+  })
+}
+
 export function useCalendar(propertyId: string, from: string, to: string) {
   return useQuery({
     queryKey: ["calendar", propertyId, from, to],

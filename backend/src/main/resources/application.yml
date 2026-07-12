@@ -78,6 +78,7 @@ springdoc:
 app:
   name: ${APP_NAME:BH Group PMS}
   base-url: ${APP_BASE_URL:http://localhost:3000}
+  api-base-url: ${APP_API_BASE_URL:http://localhost:8080/api/v1}
   mail:
     from: ${MAIL_FROM:no-reply@bhgroup.io}
   cors:

@@ -41,7 +41,8 @@ export function ReservationsView() {
   const [page, setPage] = useState(0)
 
   const { data: user } = useCurrentUser()
-  const canManage = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR"
+  const isFullAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRATOR"
+  const canManage = isFullAdmin || user?.role === "SUPPORT_AGENT"
 
   const { data, isLoading } = useReservations({
     search: search || undefined,
@@ -70,10 +71,12 @@ export function ReservationsView() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" className="gap-2" onClick={handleExport}>
-            <Download className="size-4" />
-            Export CSV
-          </Button>
+          {isFullAdmin && (
+            <Button type="button" variant="outline" className="gap-2" onClick={handleExport}>
+              <Download className="size-4" />
+              Export CSV
+            </Button>
+          )}
           {canManage && (
             <Link href="/dashboard/reservations/new" className={cn(buttonVariants())}>
               <Plus className="size-4" />

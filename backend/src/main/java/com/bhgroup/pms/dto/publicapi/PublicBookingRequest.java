@@ -37,6 +37,8 @@ public record PublicBookingRequest(
         @Min(value = 1, message = "Number of guests must be at least 1")
         int numberOfGuests,
 
-        String notes
+        String notes,
+
+        String idempotencyKey
 ) {
 }

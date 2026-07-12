@@ -7,6 +7,7 @@ import {
   propertiesApi,
   type PropertyListParams,
   type PropertyPayload,
+  type SeasonalRatePayload,
 } from "@/lib/api/properties"
 import { ApiError, type PropertyDocumentType, type PropertyStatus } from "@/lib/api/types"
 
@@ -131,8 +132,15 @@ export function useUploadPropertyDocument(propertyId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ file, documentType }: { file: File; documentType: PropertyDocumentType }) =>
-      propertiesApi.uploadDocument(propertyId, file, documentType),
+    mutationFn: ({
+      file,
+      documentType,
+      expiresAt,
+    }: {
+      file: File
+      documentType: PropertyDocumentType
+      expiresAt?: string
+    }) => propertiesApi.uploadDocument(propertyId, file, documentType, expiresAt),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["property", propertyId] })
       toast.success("Document adăugat")
@@ -154,6 +162,60 @@ export function useDeletePropertyDocument(propertyId: string) {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Ștergerea documentului a eșuat"))
+    },
+  })
+}
+
+export function useSeasonalRates(propertyId: string) {
+  return useQuery({
+    queryKey: ["seasonal-rates", propertyId],
+    queryFn: () => propertiesApi.listSeasonalRates(propertyId),
+    enabled: !!propertyId,
+  })
+}
+
+export function useAddSeasonalRate(propertyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (payload: SeasonalRatePayload) => propertiesApi.addSeasonalRate(propertyId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seasonal-rates", propertyId] })
+      toast.success("Sezon adăugat")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Adăugarea sezonului a eșuat"))
+    },
+  })
+}
+
+export function useUpdateSeasonalRate(propertyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ rateId, payload }: { rateId: string; payload: SeasonalRatePayload }) =>
+      propertiesApi.updateSeasonalRate(propertyId, rateId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seasonal-rates", propertyId] })
+      toast.success("Sezon actualizat")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Actualizarea sezonului a eșuat"))
+    },
+  })
+}
+
+export function useDeleteSeasonalRate(propertyId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (rateId: string) => propertiesApi.deleteSeasonalRate(propertyId, rateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seasonal-rates", propertyId] })
+      toast.success("Sezon șters")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Ștergerea sezonului a eșuat"))
     },
   })
 }

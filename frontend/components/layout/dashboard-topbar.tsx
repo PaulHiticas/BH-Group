@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { DashboardMobileNav } from "@/components/layout/dashboard-mobile-nav"
+import { NotificationBell } from "@/components/layout/notification-bell"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useLogout } from "@/hooks/use-auth"
 import { ROLE_LABELS } from "@/lib/roles"
@@ -34,6 +35,13 @@ export function DashboardTopbar() {
       <DashboardMobileNav />
 
       <div className="ml-auto flex items-center gap-2">
+        <NotificationBell
+          enabled={
+            user?.role === "SUPER_ADMIN" ||
+            user?.role === "ADMINISTRATOR" ||
+            user?.role === "SUPPORT_AGENT"
+          }
+        />
         <ThemeToggle />
 
         {isLoading || !user ? (

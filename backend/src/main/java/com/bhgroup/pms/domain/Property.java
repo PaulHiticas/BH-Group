@@ -9,10 +9,14 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -77,6 +81,53 @@ public class Property extends BaseEntity {
     @Column(name = "base_price_per_night", precision = 10, scale = 2)
     private BigDecimal basePricePerNight;
 
+    @Column(name = "weekend_price_per_night", precision = 10, scale = 2)
+    private BigDecimal weekendPricePerNight;
+
+    @Column(name = "cleaning_fee", precision = 10, scale = 2)
+    private BigDecimal cleaningFee;
+
+    @Column(name = "extra_guest_fee", precision = 10, scale = 2)
+    private BigDecimal extraGuestFee;
+
+    /** Guests included in the nightly price before {@link #extraGuestFee} applies. Null = no extra-guest fee. */
+    @Column(name = "base_guests_included")
+    private Integer baseGuestsIncluded;
+
+    @Column(name = "weekly_discount_percent", precision = 5, scale = 2)
+    private BigDecimal weeklyDiscountPercent;
+
+    @Column(name = "monthly_discount_percent", precision = 5, scale = 2)
+    private BigDecimal monthlyDiscountPercent;
+
+    @Column(name = "min_stay_nights")
+    private Integer minStayNights;
+
+    @Column(name = "max_stay_nights")
+    private Integer maxStayNights;
+
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "cancellation_policy", nullable = false)
+    @Builder.Default
+    private CancellationPolicy cancellationPolicy = CancellationPolicy.MODERATE;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private User owner;
+
+    /** Percentage of this property's revenue BH Group keeps as commission. */
+    @Column(name = "commission_percent", precision = 5, scale = 2)
+    private BigDecimal commissionPercent;
+
+    /** Checklist template a cleaner must complete; snapshotted onto each cleaning task at creation. */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "property_checklist_items", joinColumns = @JoinColumn(name = "property_id"))
+    @OrderColumn(name = "sort_order")
+    @Column(name = "item")
+    @Builder.Default
+    private List<String> cleaningChecklist = new ArrayList<>();
+
     @Column(name = "check_in_time", nullable = false)
     @Builder.Default
     private LocalTime checkInTime = LocalTime.of(14, 0);
@@ -94,6 +145,9 @@ public class Property extends BaseEntity {
 
     @Column(name = "smart_lock_device_id")
     private String smartLockDeviceId;
+
+    @Column(name = "ical_export_token", unique = true)
+    private String icalExportToken;
 
     @ElementCollection(targetClass = Facility.class, fetch = FetchType.EAGER)
     @CollectionTable(name = "property_facilities", joinColumns = @JoinColumn(name = "property_id"))

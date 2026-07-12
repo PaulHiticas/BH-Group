@@ -6,6 +6,7 @@ import com.bhgroup.pms.common.response.PageResponse;
 import com.bhgroup.pms.dto.reservation.AccessCodeUpdateRequest;
 import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
 import com.bhgroup.pms.dto.reservation.CalendarEntryResponse;
+import com.bhgroup.pms.dto.reservation.CancellationQuoteResponse;
 import com.bhgroup.pms.dto.reservation.ReservationCreateRequest;
 import com.bhgroup.pms.dto.reservation.ReservationResponse;
 import com.bhgroup.pms.dto.reservation.ReservationStatusUpdateRequest;
@@ -53,7 +54,7 @@ public class ReservationController {
     private final ReservationService reservationService;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','ACCOUNTANT','SUPPORT_AGENT')")
     @Operation(summary = "List reservations with search and filters")
     public ResponseEntity<ApiResponse<PageResponse<ReservationResponse>>> list(
             @RequestParam(required = false) UUID propertyId,
@@ -67,7 +68,7 @@ public class ReservationController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','ACCOUNTANT','SUPPORT_AGENT')")
     @Operation(summary = "Get a reservation by id")
     public ResponseEntity<ApiResponse<ReservationResponse>> get(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(reservationService.get(id)));
@@ -90,7 +91,7 @@ public class ReservationController {
     }
 
     @GetMapping("/calendar")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Get calendar entries for a property in a date range")
     public ResponseEntity<ApiResponse<List<CalendarEntryResponse>>> calendar(
             @RequestParam UUID propertyId,
@@ -100,7 +101,7 @@ public class ReservationController {
     }
 
     @GetMapping("/availability")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Check property availability for a date range")
     public ResponseEntity<ApiResponse<AvailabilityResponse>> availability(
             @RequestParam UUID propertyId,
@@ -110,7 +111,7 @@ public class ReservationController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Create a reservation")
     public ResponseEntity<ApiResponse<ReservationResponse>> create(
             @Valid @RequestBody ReservationCreateRequest request) {
@@ -119,7 +120,7 @@ public class ReservationController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Update a reservation")
     public ResponseEntity<ApiResponse<ReservationResponse>> update(
             @PathVariable UUID id, @Valid @RequestBody ReservationUpdateRequest request) {
@@ -128,7 +129,7 @@ public class ReservationController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Transition a reservation's status")
     public ResponseEntity<ApiResponse<ReservationResponse>> updateStatus(
             @PathVariable UUID id, @Valid @RequestBody ReservationStatusUpdateRequest request) {
@@ -136,7 +137,7 @@ public class ReservationController {
     }
 
     @PatchMapping("/{id}/access-code")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Set or clear the guest access code (smart lock PIN / lockbox code)")
     public ResponseEntity<ApiResponse<ReservationResponse>> updateAccessCode(
             @PathVariable UUID id, @Valid @RequestBody AccessCodeUpdateRequest request) {
@@ -144,8 +145,15 @@ public class ReservationController {
                 reservationService.updateAccessCode(id, request), "Access code updated"));
     }
 
+    @GetMapping("/{id}/cancellation-quote")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
+    @Operation(summary = "Preview the refund a cancellation would trigger right now, per the property's cancellation policy")
+    public ResponseEntity<ApiResponse<CancellationQuoteResponse>> cancellationQuote(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(reservationService.cancellationQuote(id)));
+    }
+
     @PostMapping("/{id}/send-checkin-instructions")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
     @Operation(summary = "Email check-in instructions (address, time, access code) to the guest now")
     public ResponseEntity<ApiResponse<ReservationResponse>> sendCheckinInstructions(@PathVariable UUID id) {
         return ResponseEntity.ok(ApiResponse.success(
