@@ -91,8 +91,10 @@ app:
   security:
     email-verification-token-expiration-minutes: 1440
     password-reset-token-expiration-minutes: 60
+    user-invite-token-expiration-minutes: 4320
     max-login-attempts: 5
     login-lockout-minutes: 15
+    refresh-cookie-secure: ${REFRESH_COOKIE_SECURE:false}
   storage:
     upload-dir: ${UPLOAD_DIR:./uploads}
     public-base-url: ${UPLOAD_PUBLIC_BASE_URL:http://localhost:8080/uploads}

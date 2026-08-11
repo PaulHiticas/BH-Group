@@ -43,14 +43,6 @@ import com.bhgroup.pms.domain.Property;
 import com.bhgroup.pms.domain.PropertyDocumentType;
 import com.bhgroup.pms.domain.PropertyStatus;
 import com.bhgroup.pms.domain.PropertyType;
-import com.bhgroup.pms.domain.User;
-import com.bhgroup.pms.dto.property.PropertyCreateRequest;
-import com.bhgroup.pms.dto.property.PropertyDocumentResponse;
-import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
-import com.bhgroup.pms.dto.property.PropertyResponse;
-import com.bhgroup.pms.dto.property.PropertySummaryResponse;
-import com.bhgroup.pms.dto.property.PropertyUpdateRequest;
-import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.service.PropertyService;
 @RestController
 @RequestMapping("/api/v1/properties")

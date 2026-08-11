@@ -29,10 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bhgroup.pms.domain.Role;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
-import com.bhgroup.pms.dto.auth.UserResponse;
-import com.bhgroup.pms.dto.user.UserCreateRequest;
-import com.bhgroup.pms.dto.user.UserStatusUpdateRequest;
-import com.bhgroup.pms.dto.user.UserUpdateRequest;
 import com.bhgroup.pms.service.UserAdminService;
 @RestController
 @RequestMapping("/api/v1/users")
@@ -81,6 +77,13 @@ public class UserAdminController {
                                                                    @Valid @RequestBody UserStatusUpdateRequest request) {
         UserResponse response = userAdminService.updateStatus(id, request, currentRole());
         return ResponseEntity.ok(ApiResponse.success(response, "User status updated successfully"));
+    }
+
+    @PostMapping("/{id}/resend-invite")
+    @Operation(summary = "Resend the activation invitation for a pending user")
+    public ResponseEntity<ApiResponse<Void>> resendInvite(@PathVariable UUID id) {
+        userAdminService.resendInvite(id, currentRole());
+        return ResponseEntity.ok(ApiResponse.message("Invitation resent"));
     }
 
     private String currentRole() {

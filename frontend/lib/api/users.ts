@@ -5,7 +5,6 @@ export interface UserCreatePayload {
   firstName: string
   lastName: string
   email: string
-  password: string
   phone?: string
   role: Role
 }
@@ -44,4 +43,6 @@ export const usersApi = {
 
   updateStatus: (id: string, status: UserStatus) =>
     apiClient.patch<UserResponse>(`/users/${id}/status`, { status }),
+
+  resendInvite: (id: string) => apiClient.post<void>(`/users/${id}/resend-invite`),
 }

@@ -9,9 +9,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import com.bhgroup.pms.domain.Facility;
-import com.bhgroup.pms.domain.PropertyType;
-import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
 public record PublicPropertyResponse(
         UUID id,
         String name,

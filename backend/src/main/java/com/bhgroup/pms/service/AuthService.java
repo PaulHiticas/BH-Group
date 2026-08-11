@@ -1,16 +1,18 @@
 package com.bhgroup.pms.service;
 
 import com.bhgroup.pms.domain.AuditAction;
+import com.bhgroup.pms.dto.auth.AcceptInviteRequest;
 import com.bhgroup.pms.dto.auth.AuthResponse;
 import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
+import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
 import com.bhgroup.pms.dto.auth.MfaChallengeResponse;
 import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
-import com.bhgroup.pms.dto.auth.RefreshTokenRequest;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
+import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.common.exception.UnauthorizedException;
@@ -35,24 +37,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.AuditAction;
-import com.bhgroup.pms.domain.RefreshToken;
-import com.bhgroup.pms.domain.User;
-import com.bhgroup.pms.domain.VerificationToken;
-import com.bhgroup.pms.domain.VerificationTokenType;
-import com.bhgroup.pms.dto.auth.AuthResponse;
-import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
-import com.bhgroup.pms.dto.auth.LoginRequest;
-import com.bhgroup.pms.dto.auth.MfaChallengeResponse;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
-import com.bhgroup.pms.dto.auth.MfaEnableRequest;
-import com.bhgroup.pms.dto.auth.MfaSetupResponse;
-import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
-import com.bhgroup.pms.dto.auth.RefreshTokenRequest;
-import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
-import com.bhgroup.pms.repository.RefreshTokenRepository;
-import com.bhgroup.pms.repository.UserRepository;
-import com.bhgroup.pms.repository.VerificationTokenRepository;
 import com.bhgroup.pms.service.mapper.UserMapper;
 @Service
 @RequiredArgsConstructor
@@ -129,8 +113,8 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refreshToken(RefreshTokenRequest request, String ipAddress) {
-        String tokenHash = secureTokenGenerator.hash(request.refreshToken());
+    public AuthResponse refreshToken(String rawRefreshToken, String ipAddress) {
+        String tokenHash = secureTokenGenerator.hash(rawRefreshToken);
         RefreshToken existing = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new UnauthorizedException("Invalid or expired refresh token"));
 
@@ -164,8 +148,8 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(RefreshTokenRequest request) {
-        String tokenHash = secureTokenGenerator.hash(request.refreshToken());
+    public void logout(String rawRefreshToken) {
+        String tokenHash = secureTokenGenerator.hash(rawRefreshToken);
         refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
             token.setRevoked(true);
             token.setRevokedAt(Instant.now());
@@ -218,6 +202,44 @@ public class AuthService {
         refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
 
         auditService.record(AuditAction.PASSWORD_RESET_COMPLETED, user, "Password reset completed", null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public InviteInfoResponse getInviteInfo(String rawToken) {
+        VerificationToken token = verificationTokenRepository
+                .findByTokenAndType(rawToken, VerificationTokenType.USER_INVITE)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired invitation"));
+
+        if (!token.isValid()) {
+            throw new BadRequestException("Invalid or expired invitation");
+        }
+
+        User user = token.getUser();
+        return new InviteInfoResponse(user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole());
+    }
+
+    @Transactional
+    public AuthResponse acceptInvite(AcceptInviteRequest request, String ipAddress) {
+        VerificationToken token = verificationTokenRepository
+                .findByTokenAndType(request.token(), VerificationTokenType.USER_INVITE)
+                .orElseThrow(() -> new BadRequestException("Invalid or expired invitation"));
+
+        if (!token.isValid()) {
+            throw new BadRequestException("Invalid or expired invitation");
+        }
+
+        token.setUsedAt(Instant.now());
+        verificationTokenRepository.save(token);
+
+        User user = token.getUser();
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
+        user.setStatus(UserStatus.ACTIVE);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+
+        auditService.record(AuditAction.USER_INVITE_ACCEPTED, user, "Invitation accepted", ipAddress, null);
+        return issueAuthResponse(user, ipAddress);
     }
 
     @Transactional

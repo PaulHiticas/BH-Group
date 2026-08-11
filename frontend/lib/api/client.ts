@@ -12,14 +12,10 @@ const API_BASE_URL =
 let refreshPromise: Promise<string | null> | null = null
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = useAuthStore.getState().refreshToken
-  if (!refreshToken) return null
-
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_BASE_URL}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      credentials: "include",
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -70,6 +66,7 @@ export async function apiRequest<T>(
 
     return fetch(`${API_BASE_URL}${path}`, {
       ...rest,
+      credentials: "include",
       headers: finalHeaders,
     })
   }

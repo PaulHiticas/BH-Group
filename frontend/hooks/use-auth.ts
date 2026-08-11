@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { authApi, type LoginPayload } from "@/lib/api/auth"
@@ -86,6 +86,33 @@ export function useResetPassword() {
   })
 }
 
+export function useInviteInfo(token: string | null) {
+  return useQuery({
+    queryKey: ["invite-info", token],
+    queryFn: () => authApi.getInvite(token as string),
+    enabled: !!token,
+    retry: false,
+  })
+}
+
+export function useAcceptInvite() {
+  const router = useRouter()
+  const setSession = useAuthStore((state) => state.setSession)
+
+  return useMutation({
+    mutationFn: ({ token, password }: { token: string; password: string }) =>
+      authApi.acceptInvite(token, password),
+    onSuccess: (result) => {
+      setSession(result)
+      toast.success(`Bine ai venit, ${result.user.firstName}!`)
+      router.push("/dashboard")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Invitația este invalidă sau a expirat."))
+    },
+  })
+}
+
 export function useSetupMfa() {
   return useMutation({
     mutationFn: () => authApi.setupMfa(),
@@ -102,10 +129,7 @@ export function useEnableMfa() {
   return useMutation({
     mutationFn: (code: string) => authApi.enableMfa(code),
     onSuccess: async () => {
-      const refreshToken = useAuthStore.getState().refreshToken
-      if (refreshToken) {
-        await authApi.logout(refreshToken).catch(() => {})
-      }
+      await authApi.logout().catch(() => {})
       clearSession()
       toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
       router.push("/login")
@@ -136,11 +160,7 @@ export function useLogout() {
   const clearSession = useAuthStore((state) => state.clearSession)
 
   return useMutation({
-    mutationFn: () => {
-      const refreshToken = useAuthStore.getState().refreshToken
-      if (!refreshToken) return Promise.resolve()
-      return authApi.logout(refreshToken)
-    },
+    mutationFn: () => authApi.logout(),
     onSettled: () => {
       clearSession()
       router.push("/login")

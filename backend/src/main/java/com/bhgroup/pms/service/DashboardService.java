@@ -13,13 +13,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.ReservationStatus;
-import com.bhgroup.pms.dto.dashboard.DashboardSummaryResponse;
-import com.bhgroup.pms.repository.PropertyLeadRepository;
-import com.bhgroup.pms.repository.PropertyRepository;
-import com.bhgroup.pms.repository.ReservationRepository;
-import com.bhgroup.pms.service.mapper.LeadMapper;
-import com.bhgroup.pms.service.mapper.ReservationMapper;
 @Service
 @RequiredArgsConstructor
 public class DashboardService {

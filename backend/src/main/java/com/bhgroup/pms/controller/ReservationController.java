@@ -38,12 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationStatus;
-import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
-import com.bhgroup.pms.dto.reservation.CalendarEntryResponse;
-import com.bhgroup.pms.dto.reservation.ReservationCreateRequest;
-import com.bhgroup.pms.dto.reservation.ReservationResponse;
-import com.bhgroup.pms.dto.reservation.ReservationStatusUpdateRequest;
-import com.bhgroup.pms.dto.reservation.ReservationUpdateRequest;
 import com.bhgroup.pms.service.ReservationService;
 @RestController
 @RequestMapping("/api/v1/reservations")

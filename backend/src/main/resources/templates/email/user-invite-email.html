@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Invitație cont</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f5f7;font-family:'Helvetica Neue',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f5f7;padding:40px 0;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+                   style="background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                <tr>
+                    <td style="background-color:#111827;padding:28px 32px;">
+                        <span style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;" th:text="${appName}">BH Group PMS</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:32px;">
+                        <h1 style="margin:0 0 12px;font-size:20px;color:#111827;">Ai fost invitat în echipă</h1>
+                        <p style="margin:0 0 20px;font-size:14px;line-height:22px;color:#4b5563;">
+                            Bună <span th:text="${firstName}">nume</span>, ai fost invitat să activezi un cont cu rol de
+                            <strong th:text="${roleLabel}">Rol</strong> în <span th:text="${appName}">BH Group PMS</span>.
+                            Apasă butonul de mai jos pentru a-ți alege parola și a-ți activa contul.
+                        </p>
+                        <table role="presentation" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="border-radius:8px;background-color:#111827;">
+                                    <a th:href="${inviteUrl}" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">
+                                        Activează-ți contul
+                                    </a>
+                                </td>
+                            </tr>
+                        </table>
+                        <p style="margin:24px 0 0;font-size:12px;line-height:18px;color:#9ca3af;">
+                            Link-ul expiră în <span th:text="${expirationDays}">3</span> zile. Dacă nu te aștepți la acest email, îl poți ignora.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

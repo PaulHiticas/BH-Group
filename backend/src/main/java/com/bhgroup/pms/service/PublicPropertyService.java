@@ -25,15 +25,6 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.domain.PropertyStatus;
-import com.bhgroup.pms.domain.ReservationStatus;
-import com.bhgroup.pms.dto.publicapi.PublicPropertyResponse;
-import com.bhgroup.pms.dto.publicapi.PublicPropertySummaryResponse;
-import com.bhgroup.pms.repository.PropertyPhotoRepository;
-import com.bhgroup.pms.repository.PropertyRepository;
-import com.bhgroup.pms.repository.PropertySpecifications;
-import com.bhgroup.pms.repository.ReservationRepository;
 import com.bhgroup.pms.service.mapper.PublicPropertyMapper;
 @Service
 @RequiredArgsConstructor

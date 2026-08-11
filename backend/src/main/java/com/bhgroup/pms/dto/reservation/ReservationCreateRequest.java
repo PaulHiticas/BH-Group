@@ -11,7 +11,6 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.domain.ReservationSource;
 public record ReservationCreateRequest(
 
         @NotNull(message = "Property is required")

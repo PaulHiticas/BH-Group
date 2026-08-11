@@ -15,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.AuditLog;
-import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.dto.audit.AuditLogResponse;
 import com.bhgroup.pms.repository.AuditLogRepository;
 import com.bhgroup.pms.repository.AuditLogSpecifications;

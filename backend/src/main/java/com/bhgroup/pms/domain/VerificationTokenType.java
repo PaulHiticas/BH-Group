@@ -1,5 +1,6 @@
 package com.bhgroup.pms.domain;
 
 public enum VerificationTokenType {
-    PASSWORD_RESET
+    PASSWORD_RESET,
+    USER_INVITE
 }

@@ -16,7 +16,6 @@ function clearSessionCookie() {
 
 interface AuthState {
   accessToken: string | null
-  refreshToken: string | null
   user: UserResponse | null
   mfaChallengeToken: string | null
   setSession: (auth: AuthResponse) => void
@@ -25,18 +24,19 @@ interface AuthState {
   clearSession: () => void
 }
 
+// The refresh token lives only in the httpOnly `refresh_token` cookie the
+// backend sets (see AuthCookieService) - it is never present in this store
+// or in localStorage, so client-side JS (and any XSS) can't read it.
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       accessToken: null,
-      refreshToken: null,
       user: null,
       mfaChallengeToken: null,
       setSession: (auth) => {
         setSessionCookie()
         set({
           accessToken: auth.accessToken,
-          refreshToken: auth.refreshToken,
           user: auth.user,
           mfaChallengeToken: null,
         })
@@ -45,13 +45,12 @@ export const useAuthStore = create<AuthState>()(
       setMfaChallengeToken: (mfaChallengeToken) => set({ mfaChallengeToken }),
       clearSession: () => {
         clearSessionCookie()
-        set({ accessToken: null, refreshToken: null, user: null, mfaChallengeToken: null })
+        set({ accessToken: null, user: null, mfaChallengeToken: null })
       },
     }),
     {
       name: "pms-auth",
       partialize: (state) => ({
-        refreshToken: state.refreshToken,
         user: state.user,
       }),
     }

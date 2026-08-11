@@ -24,7 +24,6 @@ export interface UserResponse {
 
 export interface AuthResponse {
   accessToken: string
-  refreshToken: string
   tokenType: string
   expiresIn: number
   user: UserResponse
@@ -33,6 +32,13 @@ export interface AuthResponse {
 export interface MfaChallengeResponse {
   challengeToken: string
   expiresIn: number
+}
+
+export interface InviteInfoResponse {
+  email: string
+  firstName: string
+  lastName: string
+  role: Role
 }
 
 export type LoginResult = AuthResponse | MfaChallengeResponse

@@ -8,7 +8,6 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import com.bhgroup.pms.domain.ReservationSource;
 public record ReservationUpdateRequest(
 
         @NotBlank(message = "Guest first name is required")

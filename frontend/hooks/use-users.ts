@@ -29,10 +29,25 @@ export function useCreateUser() {
     mutationFn: (payload: UserCreatePayload) => usersApi.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
-      toast.success("Cont creat cu succes.")
+      toast.success("Invitație trimisă. Colegul tău își activează contul din emailul primit.")
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Nu am putut crea contul. Încearcă din nou."))
+    },
+  })
+}
+
+export function useResendInvite() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => usersApi.resendInvite(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast.success("Invitație retrimisă.")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Nu am putut retrimite invitația."))
     },
   })
 }

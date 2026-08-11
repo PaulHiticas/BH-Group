@@ -34,18 +34,9 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.domain.PropertyStatus;
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationSource;
 import com.bhgroup.pms.domain.ReservationStatus;
-import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
-import com.bhgroup.pms.dto.reservation.CalendarEntryResponse;
-import com.bhgroup.pms.dto.reservation.ReservationCreateRequest;
-import com.bhgroup.pms.dto.reservation.ReservationResponse;
-import com.bhgroup.pms.dto.reservation.ReservationStatusUpdateRequest;
-import com.bhgroup.pms.dto.reservation.ReservationUpdateRequest;
-import com.bhgroup.pms.repository.PropertyRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
 import com.bhgroup.pms.repository.ReservationSpecifications;
 import com.bhgroup.pms.service.mapper.ReservationMapper;

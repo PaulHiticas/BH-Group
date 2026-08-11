@@ -12,10 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.Role;
-import com.bhgroup.pms.domain.User;
-import com.bhgroup.pms.domain.UserStatus;
-import com.bhgroup.pms.repository.UserRepository;
 /**
  * Creates the first SUPER_ADMIN account on startup when none exists yet.
  * Self-service registration only ever creates GUEST accounts, so this is the

@@ -32,6 +32,19 @@ public class EmailService {
     }
 
     @Async
+    public void sendUserInviteEmail(String toEmail, String firstName, String roleLabel, String rawToken,
+                                     long expirationMinutes) {
+        Context context = new Context();
+        context.setVariable("appName", appProperties.getName());
+        context.setVariable("firstName", firstName);
+        context.setVariable("roleLabel", roleLabel);
+        context.setVariable("inviteUrl", appProperties.getBaseUrl() + "/accept-invite/" + rawToken);
+        context.setVariable("expirationDays", Math.max(1, expirationMinutes / 60 / 24));
+
+        send(toEmail, "Ai fost invitat în " + appProperties.getName(), "email/user-invite-email", context);
+    }
+
+    @Async
     public void sendBookingConfirmationEmail(String toEmail, String firstName, String propertyName,
                                               String checkInDate, String checkOutDate, String managementToken) {
         Context context = new Context();

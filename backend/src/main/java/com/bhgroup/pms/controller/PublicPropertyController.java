@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bhgroup.pms.dto.publicapi.PublicPropertyResponse;
-import com.bhgroup.pms.dto.publicapi.PublicPropertySummaryResponse;
 import com.bhgroup.pms.service.PublicPropertyService;
 @RestController
 @RequestMapping("/api/v1/public/properties")

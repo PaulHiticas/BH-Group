@@ -26,8 +26,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.dto.lead.LeadCreateRequest;
-import com.bhgroup.pms.dto.lead.LeadResponse;
 import com.bhgroup.pms.service.LeadService;
 @RestController
 @RequiredArgsConstructor

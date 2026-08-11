@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client"
 import type {
   AuthResponse,
+  InviteInfoResponse,
   LoginResult,
   UserResponse,
 } from "@/lib/api/types"
@@ -29,15 +30,10 @@ export const authApi = {
       skipAuth: true,
     }),
 
-  refresh: (refreshToken: string) =>
-    apiClient.post<AuthResponse>(
-      "/auth/refresh",
-      { refreshToken },
-      { skipAuth: true }
-    ),
+  refresh: () =>
+    apiClient.post<AuthResponse>("/auth/refresh", undefined, { skipAuth: true }),
 
-  logout: (refreshToken: string) =>
-    apiClient.post<void>("/auth/logout", { refreshToken }),
+  logout: () => apiClient.post<void>("/auth/logout"),
 
   forgotPassword: (email: string) =>
     apiClient.post<void>("/auth/forgot-password", { email }, { skipAuth: true }),
@@ -46,6 +42,16 @@ export const authApi = {
     apiClient.post<void>(
       "/auth/reset-password",
       { token, newPassword },
+      { skipAuth: true }
+    ),
+
+  getInvite: (token: string) =>
+    apiClient.get<InviteInfoResponse>(`/auth/invite/${token}`, { skipAuth: true }),
+
+  acceptInvite: (token: string, password: string) =>
+    apiClient.post<AuthResponse>(
+      "/auth/invite/accept",
+      { token, password },
       { skipAuth: true }
     ),
 

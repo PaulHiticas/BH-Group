@@ -5,8 +5,6 @@ import com.bhgroup.pms.dto.reservation.ReservationResponse;
 import org.springframework.stereotype.Component;
 
 import com.bhgroup.pms.domain.Reservation;
-import com.bhgroup.pms.dto.reservation.CalendarEntryResponse;
-import com.bhgroup.pms.dto.reservation.ReservationResponse;
 @Component
 public class ReservationMapper {
 

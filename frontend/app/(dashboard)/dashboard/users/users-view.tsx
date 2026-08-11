@@ -4,7 +4,7 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { KeyRound, Plus, ShieldCheck, ShieldOff, UserPlus } from "lucide-react"
+import { KeyRound, Mail, Plus, ShieldCheck, ShieldOff, UserPlus } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -41,21 +41,17 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataPagination } from "@/components/ui/data-pagination"
-import { useCreateUser, useUpdateUserStatus, useUsers } from "@/hooks/use-users"
+import { useCreateUser, useResendInvite, useUpdateUserStatus, useUsers } from "@/hooks/use-users"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { ALL_ROLES, ROLE_LABELS, USER_STATUS_BADGE_VARIANT, USER_STATUS_LABELS } from "@/lib/roles"
-import type { UserStatus } from "@/lib/api/types"
+import type { Role, UserStatus } from "@/lib/api/types"
 
 const createUserSchema = z.object({
   firstName: z.string().min(1, "Prenumele este obligatoriu").max(100),
   lastName: z.string().min(1, "Numele este obligatoriu").max(100),
   email: z.string().min(1, "Emailul este obligatoriu").email("Adresă de email invalidă"),
-  password: z
-    .string()
-    .min(8, "Parola trebuie să aibă cel puțin 8 caractere")
-    .regex(/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Parola trebuie să conțină literă mare, literă mică și cifră"),
   phone: z.string().max(30).optional(),
-  role: z.enum(["SUPER_ADMIN", "ADMINISTRATOR"]),
+  role: z.enum(ALL_ROLES as [Role, ...Role[]]),
 })
 
 type CreateUserValues = z.infer<typeof createUserSchema>
@@ -69,7 +65,6 @@ function CreateUserDialog() {
       firstName: "",
       lastName: "",
       email: "",
-      password: "",
       phone: "",
       role: "ADMINISTRATOR",
     },
@@ -81,7 +76,6 @@ function CreateUserDialog() {
         firstName: values.firstName,
         lastName: values.lastName,
         email: values.email,
-        password: values.password,
         phone: values.phone || undefined,
         role: values.role,
       },
@@ -102,11 +96,11 @@ function CreateUserDialog() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cont nou de administrare</DialogTitle>
+          <DialogTitle>Cont nou de echipă</DialogTitle>
           <DialogDescription>
-            Stabilești tu parola inițială și i-o transmiți colegului direct (telefon, mesaj privat).
-            La prima autentificare o poate schimba, iar 2FA îl activează singur din contul lui, din
-            Setări — niciodată nu se folosește codul tău.
+            Colegul primește un email de invitație și își alege singur parola pentru a-și activa
+            contul — tu nu vezi și nu transmiți nicio parolă. 2FA îl activează tot el, din contul
+            lui, din Setări.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -147,19 +141,6 @@ function CreateUserDialog() {
                   <FormLabel>Email</FormLabel>
                   <FormControl>
                     <Input type="email" placeholder="nume@bhgroup.io" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Parolă inițială</FormLabel>
-                  <FormControl>
-                    <Input type="text" placeholder="Minim 8 caractere, literă mare + mică + cifră" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -206,7 +187,7 @@ function CreateUserDialog() {
             </div>
             <Button type="submit" className="w-full" disabled={createUser.isPending}>
               <UserPlus className="size-4" />
-              {createUser.isPending ? "Se creează..." : "Creează contul"}
+              {createUser.isPending ? "Se trimite..." : "Trimite invitația"}
             </Button>
           </form>
         </Form>
@@ -221,6 +202,7 @@ export function UsersView() {
   const { data, isLoading } = useUsers({ page })
   const updateStatus = useUpdateUserStatus()
 
+  const resendInvite = useResendInvite()
   const isSuperAdmin = me?.role === "SUPER_ADMIN"
 
   function toggleStatus(id: string, current: UserStatus) {
@@ -298,16 +280,29 @@ export function UsersView() {
                     </TableCell>
                     {isSuperAdmin && (
                       <TableCell className="text-right">
-                        {u.id !== me?.id && (u.status === "ACTIVE" || u.status === "SUSPENDED") && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={updateStatus.isPending}
-                            onClick={() => toggleStatus(u.id, u.status)}
-                          >
-                            {u.status === "ACTIVE" ? "Suspendă" : "Reactivează"}
-                          </Button>
-                        )}
+                        <div className="flex justify-end gap-2">
+                          {u.status === "PENDING" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={resendInvite.isPending}
+                              onClick={() => resendInvite.mutate(u.id)}
+                            >
+                              <Mail className="size-3.5" />
+                              Retrimite invitația
+                            </Button>
+                          )}
+                          {u.id !== me?.id && (u.status === "ACTIVE" || u.status === "SUSPENDED") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={updateStatus.isPending}
+                              onClick={() => toggleStatus(u.id, u.status)}
+                            >
+                              {u.status === "ACTIVE" ? "Suspendă" : "Reactivează"}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     )}
                   </TableRow>
