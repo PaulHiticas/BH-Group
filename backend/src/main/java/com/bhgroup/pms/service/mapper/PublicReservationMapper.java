@@ -4,8 +4,6 @@ import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
 import com.bhgroup.pms.domain.Reservation;
 import org.springframework.stereotype.Component;
 
-import com.bhgroup.pms.domain.Reservation;
-import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
 @Component
 public class PublicReservationMapper {
 

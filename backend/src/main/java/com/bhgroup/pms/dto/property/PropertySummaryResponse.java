@@ -5,8 +5,6 @@ import com.bhgroup.pms.domain.PropertyType;
 import java.time.Instant;
 import java.util.UUID;
 
-import com.bhgroup.pms.domain.PropertyStatus;
-import com.bhgroup.pms.domain.PropertyType;
 public record PropertySummaryResponse(
         UUID id,
         String name,

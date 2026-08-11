@@ -9,10 +9,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.domain.PropertyPhoto;
-import com.bhgroup.pms.dto.publicapi.PublicPropertyResponse;
-import com.bhgroup.pms.dto.publicapi.PublicPropertySummaryResponse;
 @Component
 @RequiredArgsConstructor
 public class PublicPropertyMapper {

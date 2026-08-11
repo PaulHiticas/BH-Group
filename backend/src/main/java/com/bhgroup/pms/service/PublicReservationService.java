@@ -17,11 +17,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.Reservation;
-import com.bhgroup.pms.dto.publicapi.PublicBookingRequest;
-import com.bhgroup.pms.dto.publicapi.PublicBookingUpdateRequest;
-import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
-import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
 import com.bhgroup.pms.service.mapper.PublicReservationMapper;
 @Service
 @RequiredArgsConstructor

@@ -15,11 +15,6 @@ import com.bhgroup.pms.domain.Address;
 import com.bhgroup.pms.domain.Property;
 import com.bhgroup.pms.domain.PropertyDocument;
 import com.bhgroup.pms.domain.PropertyPhoto;
-import com.bhgroup.pms.dto.property.AddressDto;
-import com.bhgroup.pms.dto.property.PropertyDocumentResponse;
-import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
-import com.bhgroup.pms.dto.property.PropertyResponse;
-import com.bhgroup.pms.dto.property.PropertySummaryResponse;
 @Component
 @RequiredArgsConstructor
 public class PropertyMapper {

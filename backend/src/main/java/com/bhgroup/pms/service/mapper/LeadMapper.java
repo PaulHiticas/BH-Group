@@ -4,7 +4,6 @@ import com.bhgroup.pms.dto.lead.LeadResponse;
 import org.springframework.stereotype.Component;
 
 import com.bhgroup.pms.domain.PropertyLead;
-import com.bhgroup.pms.dto.lead.LeadResponse;
 @Component
 public class LeadMapper {
 

@@ -15,10 +15,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import com.bhgroup.pms.domain.Address;
-import com.bhgroup.pms.domain.Facility;
 import com.bhgroup.pms.domain.Property;
-import com.bhgroup.pms.domain.PropertyStatus;
-import com.bhgroup.pms.domain.PropertyType;
 public record PropertyUpdateRequest(
 
         @NotBlank(message = "Name is required")

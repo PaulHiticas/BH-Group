@@ -13,8 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.bhgroup.pms.domain.PropertyLead;
-import com.bhgroup.pms.dto.lead.LeadCreateRequest;
-import com.bhgroup.pms.dto.lead.LeadResponse;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
 import com.bhgroup.pms.service.mapper.LeadMapper;
 @Service

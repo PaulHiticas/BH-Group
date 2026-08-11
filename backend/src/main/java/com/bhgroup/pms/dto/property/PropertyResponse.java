@@ -12,9 +12,6 @@ import java.util.Set;
 import java.util.UUID;
 
 
-import com.bhgroup.pms.domain.Facility;
-import com.bhgroup.pms.domain.PropertyStatus;
-import com.bhgroup.pms.domain.PropertyType;
 public record PropertyResponse(
         UUID id,
         String name,

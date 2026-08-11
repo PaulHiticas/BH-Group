@@ -28,10 +28,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.bhgroup.pms.dto.publicapi.PublicBookingRequest;
-import com.bhgroup.pms.dto.publicapi.PublicBookingUpdateRequest;
-import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
-import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
 import com.bhgroup.pms.service.PublicReservationService;
 @RestController
 @RequestMapping("/api/v1/public/reservations")

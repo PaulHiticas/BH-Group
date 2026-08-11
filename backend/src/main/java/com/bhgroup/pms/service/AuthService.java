@@ -35,24 +35,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.AuditAction;
-import com.bhgroup.pms.domain.RefreshToken;
-import com.bhgroup.pms.domain.User;
-import com.bhgroup.pms.domain.VerificationToken;
-import com.bhgroup.pms.domain.VerificationTokenType;
-import com.bhgroup.pms.dto.auth.AuthResponse;
-import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
-import com.bhgroup.pms.dto.auth.LoginRequest;
-import com.bhgroup.pms.dto.auth.MfaChallengeResponse;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
-import com.bhgroup.pms.dto.auth.MfaEnableRequest;
-import com.bhgroup.pms.dto.auth.MfaSetupResponse;
-import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
-import com.bhgroup.pms.dto.auth.RefreshTokenRequest;
-import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
-import com.bhgroup.pms.repository.RefreshTokenRepository;
-import com.bhgroup.pms.repository.UserRepository;
-import com.bhgroup.pms.repository.VerificationTokenRepository;
 import com.bhgroup.pms.service.mapper.UserMapper;
 @Service
 @RequiredArgsConstructor

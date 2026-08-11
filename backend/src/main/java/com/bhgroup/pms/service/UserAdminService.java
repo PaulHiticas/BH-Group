@@ -22,18 +22,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.Role;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
-import com.bhgroup.pms.dto.auth.UserResponse;
-import com.bhgroup.pms.dto.user.UserCreateRequest;
-import com.bhgroup.pms.dto.user.UserStatusUpdateRequest;
-import com.bhgroup.pms.dto.user.UserUpdateRequest;
-import com.bhgroup.pms.repository.RefreshTokenRepository;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.repository.UserSpecifications;
-import com.bhgroup.pms.service.mapper.UserMapper;
 @Service
 @RequiredArgsConstructor
 public class UserAdminService {

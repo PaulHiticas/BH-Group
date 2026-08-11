@@ -5,7 +5,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import com.bhgroup.pms.domain.ReservationStatus;
 public record PublicReservationResponse(
         UUID id,
         String propertyName,

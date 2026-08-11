@@ -7,8 +7,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-import com.bhgroup.pms.domain.ReservationSource;
-import com.bhgroup.pms.domain.ReservationStatus;
 public record ReservationResponse(
         UUID id,
         UUID propertyId,

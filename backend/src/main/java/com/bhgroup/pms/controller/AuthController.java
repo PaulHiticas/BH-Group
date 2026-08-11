@@ -27,17 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bhgroup.pms.domain.User;
-import com.bhgroup.pms.dto.auth.AuthResponse;
-import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
-import com.bhgroup.pms.dto.auth.LoginRequest;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
-import com.bhgroup.pms.dto.auth.MfaEnableRequest;
-import com.bhgroup.pms.dto.auth.MfaSetupResponse;
-import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
-import com.bhgroup.pms.dto.auth.RefreshTokenRequest;
-import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
-import com.bhgroup.pms.dto.auth.UserResponse;
-import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.service.AuthService;
 import com.bhgroup.pms.service.mapper.UserMapper;
 @RestController
