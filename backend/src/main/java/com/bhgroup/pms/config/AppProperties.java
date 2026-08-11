@@ -47,6 +47,7 @@ public class AppProperties {
         private long userInviteTokenExpirationMinutes;
         private int maxLoginAttempts;
         private long loginLockoutMinutes;
+        private boolean refreshCookieSecure;
     }
 
     @Getter

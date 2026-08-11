@@ -30,15 +30,10 @@ export const authApi = {
       skipAuth: true,
     }),
 
-  refresh: (refreshToken: string) =>
-    apiClient.post<AuthResponse>(
-      "/auth/refresh",
-      { refreshToken },
-      { skipAuth: true }
-    ),
+  refresh: () =>
+    apiClient.post<AuthResponse>("/auth/refresh", undefined, { skipAuth: true }),
 
-  logout: (refreshToken: string) =>
-    apiClient.post<void>("/auth/logout", { refreshToken }),
+  logout: () => apiClient.post<void>("/auth/logout"),
 
   forgotPassword: (email: string) =>
     apiClient.post<void>("/auth/forgot-password", { email }, { skipAuth: true }),

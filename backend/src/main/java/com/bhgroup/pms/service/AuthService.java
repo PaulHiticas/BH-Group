@@ -11,7 +11,6 @@ import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
-import com.bhgroup.pms.dto.auth.RefreshTokenRequest;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
 import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.common.exception.BadRequestException;
@@ -114,8 +113,8 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse refreshToken(RefreshTokenRequest request, String ipAddress) {
-        String tokenHash = secureTokenGenerator.hash(request.refreshToken());
+    public AuthResponse refreshToken(String rawRefreshToken, String ipAddress) {
+        String tokenHash = secureTokenGenerator.hash(rawRefreshToken);
         RefreshToken existing = refreshTokenRepository.findByTokenHash(tokenHash)
                 .orElseThrow(() -> new UnauthorizedException("Invalid or expired refresh token"));
 
@@ -149,8 +148,8 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(RefreshTokenRequest request) {
-        String tokenHash = secureTokenGenerator.hash(request.refreshToken());
+    public void logout(String rawRefreshToken) {
+        String tokenHash = secureTokenGenerator.hash(rawRefreshToken);
         refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
             token.setRevoked(true);
             token.setRevokedAt(Instant.now());

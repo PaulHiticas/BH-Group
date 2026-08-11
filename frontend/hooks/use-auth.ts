@@ -129,10 +129,7 @@ export function useEnableMfa() {
   return useMutation({
     mutationFn: (code: string) => authApi.enableMfa(code),
     onSuccess: async () => {
-      const refreshToken = useAuthStore.getState().refreshToken
-      if (refreshToken) {
-        await authApi.logout(refreshToken).catch(() => {})
-      }
+      await authApi.logout().catch(() => {})
       clearSession()
       toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
       router.push("/login")
@@ -163,11 +160,7 @@ export function useLogout() {
   const clearSession = useAuthStore((state) => state.clearSession)
 
   return useMutation({
-    mutationFn: () => {
-      const refreshToken = useAuthStore.getState().refreshToken
-      if (!refreshToken) return Promise.resolve()
-      return authApi.logout(refreshToken)
-    },
+    mutationFn: () => authApi.logout(),
     onSettled: () => {
       clearSession()
       router.push("/login")
