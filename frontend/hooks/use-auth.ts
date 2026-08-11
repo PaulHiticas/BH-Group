@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { authApi, type LoginPayload } from "@/lib/api/auth"
@@ -82,6 +82,33 @@ export function useResetPassword() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Link-ul de resetare este invalid sau a expirat."))
+    },
+  })
+}
+
+export function useInviteInfo(token: string | null) {
+  return useQuery({
+    queryKey: ["invite-info", token],
+    queryFn: () => authApi.getInvite(token as string),
+    enabled: !!token,
+    retry: false,
+  })
+}
+
+export function useAcceptInvite() {
+  const router = useRouter()
+  const setSession = useAuthStore((state) => state.setSession)
+
+  return useMutation({
+    mutationFn: ({ token, password }: { token: string; password: string }) =>
+      authApi.acceptInvite(token, password),
+    onSuccess: (result) => {
+      setSession(result)
+      toast.success(`Bine ai venit, ${result.user.firstName}!`)
+      router.push("/dashboard")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Invitația este invalidă sau a expirat."))
     },
   })
 }

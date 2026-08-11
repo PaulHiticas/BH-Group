@@ -35,6 +35,13 @@ export interface MfaChallengeResponse {
   expiresIn: number
 }
 
+export interface InviteInfoResponse {
+  email: string
+  firstName: string
+  lastName: string
+  role: Role
+}
+
 export type LoginResult = AuthResponse | MfaChallengeResponse
 
 export function isMfaChallenge(result: LoginResult): result is MfaChallengeResponse {

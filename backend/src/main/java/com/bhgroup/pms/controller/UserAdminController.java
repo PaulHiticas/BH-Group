@@ -79,6 +79,13 @@ public class UserAdminController {
         return ResponseEntity.ok(ApiResponse.success(response, "User status updated successfully"));
     }
 
+    @PostMapping("/{id}/resend-invite")
+    @Operation(summary = "Resend the activation invitation for a pending user")
+    public ResponseEntity<ApiResponse<Void>> resendInvite(@PathVariable UUID id) {
+        userAdminService.resendInvite(id, currentRole());
+        return ResponseEntity.ok(ApiResponse.message("Invitation resent"));
+    }
+
     private String currentRole() {
         return SecurityUtils.getCurrentPrincipal()
                 .map(principal -> principal.getRole())

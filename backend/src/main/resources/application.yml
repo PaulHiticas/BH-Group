@@ -91,6 +91,7 @@ app:
   security:
     email-verification-token-expiration-minutes: 1440
     password-reset-token-expiration-minutes: 60
+    user-invite-token-expiration-minutes: 4320
     max-login-attempts: 5
     login-lockout-minutes: 15
   storage:

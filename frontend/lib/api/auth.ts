@@ -1,6 +1,7 @@
 import { apiClient } from "@/lib/api/client"
 import type {
   AuthResponse,
+  InviteInfoResponse,
   LoginResult,
   UserResponse,
 } from "@/lib/api/types"
@@ -46,6 +47,16 @@ export const authApi = {
     apiClient.post<void>(
       "/auth/reset-password",
       { token, newPassword },
+      { skipAuth: true }
+    ),
+
+  getInvite: (token: string) =>
+    apiClient.get<InviteInfoResponse>(`/auth/invite/${token}`, { skipAuth: true }),
+
+  acceptInvite: (token: string, password: string) =>
+    apiClient.post<AuthResponse>(
+      "/auth/invite/accept",
+      { token, password },
       { skipAuth: true }
     ),
 

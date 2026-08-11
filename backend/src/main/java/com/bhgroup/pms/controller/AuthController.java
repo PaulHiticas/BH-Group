@@ -1,7 +1,9 @@
 package com.bhgroup.pms.controller;
 
+import com.bhgroup.pms.dto.auth.AcceptInviteRequest;
 import com.bhgroup.pms.dto.auth.AuthResponse;
 import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
+import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
 import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
@@ -20,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -83,6 +86,21 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.message("Password reset successfully. Please login with your new password."));
+    }
+
+    @GetMapping("/invite/{token}")
+    @Operation(summary = "Look up a pending invitation by its token")
+    public ResponseEntity<ApiResponse<InviteInfoResponse>> getInvite(@PathVariable String token) {
+        InviteInfoResponse response = authService.getInviteInfo(token);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @PostMapping("/invite/accept")
+    @Operation(summary = "Accept an invitation by setting a password, activating the account and logging in")
+    public ResponseEntity<ApiResponse<AuthResponse>> acceptInvite(@Valid @RequestBody AcceptInviteRequest request,
+                                                                   HttpServletRequest servletRequest) {
+        AuthResponse response = authService.acceptInvite(request, clientIp(servletRequest));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/mfa/setup")

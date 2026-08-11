@@ -44,6 +44,7 @@ public class AppProperties {
     public static class Security {
         private long emailVerificationTokenExpirationMinutes;
         private long passwordResetTokenExpirationMinutes;
+        private long userInviteTokenExpirationMinutes;
         private int maxLoginAttempts;
         private long loginLockoutMinutes;
     }
