@@ -6,17 +6,19 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
 
+import com.bhgroup.pms.domain.PaymentStatus;
 import com.bhgroup.pms.domain.Property;
 import com.bhgroup.pms.domain.PropertyStatus;
-import com.bhgroup.pms.domain.Reservation;
+import com.bhgroup.pms.dto.report.FinancialReportCurrencyTotals;
 import com.bhgroup.pms.dto.report.FinancialReportRowResponse;
 import com.bhgroup.pms.dto.report.FinancialReportSummaryResponse;
 import com.bhgroup.pms.repository.ExpenseRepository;
+import com.bhgroup.pms.repository.PaymentRepository;
 import com.bhgroup.pms.repository.PropertyRepository;
-import com.bhgroup.pms.repository.ReservationRepository;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,10 +29,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class FinancialReportServiceTest {
 
+    private static final Set<PaymentStatus> NET_PAID_STATUSES =
+            Set.of(PaymentStatus.SUCCEEDED, PaymentStatus.PARTIALLY_REFUNDED);
+
     @Mock
     private PropertyRepository propertyRepository;
     @Mock
-    private ReservationRepository reservationRepository;
+    private PaymentRepository paymentRepository;
     @Mock
     private ExpenseRepository expenseRepository;
 
@@ -38,44 +43,66 @@ class FinancialReportServiceTest {
 
     @BeforeEach
     void setUp() {
-        financialReportService = new FinancialReportService(propertyRepository, reservationRepository, expenseRepository);
+        financialReportService = new FinancialReportService(propertyRepository, paymentRepository, expenseRepository);
     }
 
     @Test
-    void summary_computesCommissionAndNetProfitForASingleProperty() {
-        Property property = Property.builder()
-                .name("Apartament Cluj")
-                .status(PropertyStatus.ACTIVE)
-                .commissionPercent(new BigDecimal("20"))
-                .build();
-        property.setId(UUID.randomUUID());
+    void summary_revenueComesFromNetCapturedPayments_notReservationTotalAmount() {
+        Property property = propertyWithCommission("Apartament Cluj", "20");
 
-        Reservation booking1 = reservationWithAmount(property, new BigDecimal("500"));
-        Reservation booking2 = reservationWithAmount(property, new BigDecimal("300"));
-
-        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
-        when(reservationRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
-                .thenReturn(List.of(booking1, booking2));
-        when(expenseRepository.sumForProperty(eq(property.getId()), isNull(), isNull()))
-                .thenReturn(new BigDecimal("150"));
+        // Two SUCCEEDED payments net 500 + 300 = 800 (the repository query already
+        // excludes PENDING/FAILED/CANCELLED payments and nets out refunds - this
+        // asserts the service only ever asks for the statuses that mean "captured").
+        when(paymentRepository.sumNetPaidByPropertyGroupedByCurrency(eq(property.getId()), eq(NET_PAID_STATUSES), isNull(), isNull()))
+                .thenReturn(List.<Object[]>of(new Object[] {"RON", new BigDecimal("800")}));
+        when(expenseRepository.sumForPropertyGroupedByCurrency(eq(property.getId()), isNull(), isNull()))
+                .thenReturn(List.<Object[]>of(new Object[] {"RON", new BigDecimal("150")}));
 
         FinancialReportSummaryResponse summary = financialReportService.summary(property.getId(), null, null);
 
         assertThat(summary.rows()).hasSize(1);
         FinancialReportRowResponse row = summary.rows().get(0);
-
-        // gross revenue: 500 + 300 = 800
+        assertThat(row.currency()).isEqualTo("RON");
         assertThat(row.grossRevenue()).isEqualByComparingTo("800");
-        // commission: 800 * 20% = 160
         assertThat(row.commissionAmount()).isEqualByComparingTo("160.00");
         assertThat(row.expensesTotal()).isEqualByComparingTo("150");
-        // net profit = gross revenue - expenses (commission is BH Group's own cut, not a cash outflow tracked here)
+        // net profit = net captured revenue - expenses (commission is BH Group's own cut, not a cash outflow tracked here)
         assertThat(row.netProfit()).isEqualByComparingTo("650");
 
-        assertThat(summary.totalGrossRevenue()).isEqualByComparingTo("800");
-        assertThat(summary.totalCommission()).isEqualByComparingTo("160.00");
-        assertThat(summary.totalExpenses()).isEqualByComparingTo("150");
-        assertThat(summary.totalNetProfit()).isEqualByComparingTo("650");
+        assertThat(summary.totals()).hasSize(1);
+        FinancialReportCurrencyTotals totals = summary.totals().get(0);
+        assertThat(totals.currency()).isEqualTo("RON");
+        assertThat(totals.totalGrossRevenue()).isEqualByComparingTo("800");
+        assertThat(totals.totalNetProfit()).isEqualByComparingTo("650");
+    }
+
+    @Test
+    void summary_differentCurrenciesProduceSeparateRowsAndTotals_neverSummedTogether() {
+        Property property = propertyWithCommission("Apartament dual-currency", "10");
+
+        when(paymentRepository.sumNetPaidByPropertyGroupedByCurrency(eq(property.getId()), eq(NET_PAID_STATUSES), isNull(), isNull()))
+                .thenReturn(List.of(
+                        new Object[] {"RON", new BigDecimal("1000")},
+                        new Object[] {"EUR", new BigDecimal("200")}));
+        when(expenseRepository.sumForPropertyGroupedByCurrency(eq(property.getId()), isNull(), isNull()))
+                .thenReturn(List.<Object[]>of(new Object[] {"RON", new BigDecimal("100")}));
+
+        FinancialReportSummaryResponse summary = financialReportService.summary(property.getId(), null, null);
+
+        assertThat(summary.rows()).hasSize(2);
+        assertThat(summary.totals()).hasSize(2);
+
+        FinancialReportCurrencyTotals ronTotals = totalsFor(summary, "RON");
+        assertThat(ronTotals.totalGrossRevenue()).isEqualByComparingTo("1000");
+        assertThat(ronTotals.totalExpenses()).isEqualByComparingTo("100");
+
+        FinancialReportCurrencyTotals eurTotals = totalsFor(summary, "EUR");
+        assertThat(eurTotals.totalGrossRevenue()).isEqualByComparingTo("200");
+        assertThat(eurTotals.totalExpenses()).isEqualByComparingTo("0");
+
+        // the two currencies must never be added into a single figure
+        assertThat(summary.totals().stream().map(FinancialReportCurrencyTotals::totalGrossRevenue))
+                .doesNotContain(new BigDecimal("1200"));
     }
 
     @Test
@@ -84,10 +111,10 @@ class FinancialReportServiceTest {
         property.setId(UUID.randomUUID());
 
         when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
-        when(reservationRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class)))
-                .thenReturn(List.of(reservationWithAmount(property, new BigDecimal("400"))));
-        when(expenseRepository.sumForProperty(eq(property.getId()), isNull(), isNull()))
-                .thenReturn(BigDecimal.ZERO);
+        when(paymentRepository.sumNetPaidByPropertyGroupedByCurrency(eq(property.getId()), eq(NET_PAID_STATUSES), isNull(), isNull()))
+                .thenReturn(List.<Object[]>of(new Object[] {"RON", new BigDecimal("400")}));
+        when(expenseRepository.sumForPropertyGroupedByCurrency(eq(property.getId()), isNull(), isNull()))
+                .thenReturn(List.of());
 
         FinancialReportSummaryResponse summary = financialReportService.summary(property.getId(), null, null);
 
@@ -103,18 +130,40 @@ class FinancialReportServiceTest {
         FinancialReportSummaryResponse summary = financialReportService.summary(missingId, null, null);
 
         assertThat(summary.rows()).isEmpty();
-        assertThat(summary.totalGrossRevenue()).isEqualByComparingTo("0");
+        assertThat(summary.totals()).isEmpty();
     }
 
-    private Reservation reservationWithAmount(Property property, BigDecimal amount) {
-        Reservation reservation = Reservation.builder()
-                .property(property)
-                .guestFirstName("Guest")
-                .guestLastName("Test")
-                .totalAmount(amount)
-                .currency("RON")
+    @Test
+    void summary_defaultsToRonWithZeroAmountsWhenPropertyHasNoActivityInPeriod() {
+        Property property = Property.builder().name("Quiet property").status(PropertyStatus.ACTIVE).build();
+        property.setId(UUID.randomUUID());
+
+        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
+        when(paymentRepository.sumNetPaidByPropertyGroupedByCurrency(any(), any(), any(), any())).thenReturn(List.of());
+        when(expenseRepository.sumForPropertyGroupedByCurrency(any(), any(), any())).thenReturn(List.of());
+
+        FinancialReportSummaryResponse summary = financialReportService.summary(property.getId(), null, null);
+
+        assertThat(summary.rows()).hasSize(1);
+        assertThat(summary.rows().get(0).currency()).isEqualTo("RON");
+        assertThat(summary.rows().get(0).grossRevenue()).isEqualByComparingTo("0");
+    }
+
+    private FinancialReportCurrencyTotals totalsFor(FinancialReportSummaryResponse summary, String currency) {
+        return summary.totals().stream()
+                .filter(t -> t.currency().equals(currency))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private Property propertyWithCommission(String name, String commissionPercent) {
+        Property property = Property.builder()
+                .name(name)
+                .status(PropertyStatus.ACTIVE)
+                .commissionPercent(new BigDecimal(commissionPercent))
                 .build();
-        reservation.setId(UUID.randomUUID());
-        return reservation;
+        property.setId(UUID.randomUUID());
+        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
+        return property;
     }
 }

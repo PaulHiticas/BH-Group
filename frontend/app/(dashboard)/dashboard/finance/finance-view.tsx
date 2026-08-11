@@ -155,23 +155,25 @@ function FinancialReportSection({ propertyId, from, to }: { propertyId: string; 
               ))}
             </TableBody>
             <TableFooter>
-              <TableRow>
-                <TableCell colSpan={2}>Total</TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(data.totalGrossRevenue, data.currency)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(data.totalCommission, data.currency)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatCurrency(data.totalExpenses, data.currency)}
-                </TableCell>
-                <TableCell
-                  className={`text-right ${data.totalNetProfit < 0 ? "text-destructive" : ""}`}
-                >
-                  {formatCurrency(data.totalNetProfit, data.currency)}
-                </TableCell>
-              </TableRow>
+              {data.totals.map((totals) => (
+                <TableRow key={totals.currency}>
+                  <TableCell colSpan={2}>Total {totals.currency}</TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.totalGrossRevenue, totals.currency)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.totalCommission, totals.currency)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {formatCurrency(totals.totalExpenses, totals.currency)}
+                  </TableCell>
+                  <TableCell
+                    className={`text-right ${totals.totalNetProfit < 0 ? "text-destructive" : ""}`}
+                  >
+                    {formatCurrency(totals.totalNetProfit, totals.currency)}
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableFooter>
           </Table>
         )}

@@ -595,13 +595,17 @@ export interface FinancialReportRowResponse {
   currency: string
 }
 
-export interface FinancialReportSummaryResponse {
-  rows: FinancialReportRowResponse[]
+export interface FinancialReportCurrencyTotals {
+  currency: string
   totalGrossRevenue: number
   totalCommission: number
   totalExpenses: number
   totalNetProfit: number
-  currency: string
+}
+
+export interface FinancialReportSummaryResponse {
+  rows: FinancialReportRowResponse[]
+  totals: FinancialReportCurrencyTotals[]
 }
 
 // ---------------------------------------------------------------------------
