@@ -1,8 +1,10 @@
 package com.bhgroup.pms.service;
 
 import com.bhgroup.pms.common.exception.BadRequestException;
+import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.config.AppProperties;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,6 +13,8 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -59,6 +63,19 @@ public class FileStorageService {
 
         String url = appProperties.getStorage().getPublicBaseUrl() + "/" + fileKey;
         return new StoredFile(fileKey, url);
+    }
+
+    /** Loads a previously stored file for an authenticated download - never exposed as a public static path. */
+    public Resource loadAsResource(String fileKey) {
+        try {
+            Resource resource = new UrlResource(resolvePath(fileKey).toUri());
+            if (!resource.exists() || !resource.isReadable()) {
+                throw new ResourceNotFoundException("File not found");
+            }
+            return resource;
+        } catch (MalformedURLException ex) {
+            throw new ResourceNotFoundException("File not found");
+        }
     }
 
     public void delete(String fileKey) {

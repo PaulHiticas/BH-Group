@@ -2,6 +2,8 @@ package com.bhgroup.pms.controller;
 
 import com.bhgroup.pms.common.response.ApiResponse;
 import com.bhgroup.pms.common.response.PageResponse;
+import com.bhgroup.pms.domain.Expense;
+import com.bhgroup.pms.domain.PropertyDocument;
 import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.dto.expense.ExpenseResponse;
 import com.bhgroup.pms.dto.maintenance.MaintenanceTicketResponse;
@@ -15,8 +17,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,6 +80,28 @@ public class OwnerController {
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
                 ownerService.listMyMaintenanceTickets(currentOwnerId(), pageable)));
+    }
+
+    @GetMapping("/properties/{propertyId}/documents/{documentId}/download")
+    @Operation(summary = "Download one of the current owner's property documents")
+    public ResponseEntity<Resource> downloadDocument(@PathVariable UUID propertyId, @PathVariable UUID documentId) {
+        PropertyDocument document = ownerService.getMyDocumentOrThrow(currentOwnerId(), propertyId, documentId);
+        Resource resource = ownerService.loadDocumentResource(document);
+        return ResponseEntity.ok()
+                .contentType(MediaTypeFactory.getMediaType(document.getFileName()).orElse(MediaType.APPLICATION_OCTET_STREAM))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + document.getFileName() + "\"")
+                .body(resource);
+    }
+
+    @GetMapping("/expenses/{id}/receipt/download")
+    @Operation(summary = "Download the receipt for one of the current owner's expenses")
+    public ResponseEntity<Resource> downloadReceipt(@PathVariable UUID id) {
+        Expense expense = ownerService.getMyExpenseOrThrow(currentOwnerId(), id);
+        Resource resource = ownerService.loadReceiptResource(expense);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"receipt\"")
+                .body(resource);
     }
 
     @GetMapping("/expenses")

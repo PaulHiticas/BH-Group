@@ -18,9 +18,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -94,6 +97,16 @@ public class ExpenseController {
             @PathVariable UUID id, @RequestParam("file") MultipartFile file) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(expenseService.uploadReceipt(id, file)));
+    }
+
+    @GetMapping("/{id}/receipt/download")
+    @Operation(summary = "Download the receipt for an expense")
+    public ResponseEntity<Resource> downloadReceipt(@PathVariable UUID id) {
+        Resource resource = expenseService.getReceiptResource(id);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"receipt\"")
+                .body(resource);
     }
 
     @DeleteMapping("/{id}")

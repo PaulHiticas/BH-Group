@@ -6,6 +6,7 @@ import com.bhgroup.pms.domain.Expense;
 import com.bhgroup.pms.domain.MaintenanceStatus;
 import com.bhgroup.pms.domain.MaintenanceTicket;
 import com.bhgroup.pms.domain.Property;
+import com.bhgroup.pms.domain.PropertyDocument;
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.dto.expense.ExpenseResponse;
@@ -32,6 +33,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -56,6 +58,7 @@ public class OwnerService {
     private final MaintenanceTicketRepository maintenanceTicketRepository;
     private final MaintenanceTicketPhotoRepository maintenanceTicketPhotoRepository;
     private final ExpenseRepository expenseRepository;
+    private final FileStorageService fileStorageService;
     private final OwnerMapper ownerMapper;
     private final ReservationMapper reservationMapper;
     private final MaintenanceTicketMapper maintenanceTicketMapper;
@@ -153,6 +156,37 @@ public class OwnerService {
         );
         Page<Expense> page = expenseRepository.findAll(spec, pageable);
         return PageResponse.of(page, expenseMapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public PropertyDocument getMyDocumentOrThrow(UUID ownerId, UUID propertyId, UUID documentId) {
+        Property property = propertyRepository.findById(propertyId)
+                .filter(p -> p.getOwner() != null && p.getOwner().getId().equals(ownerId))
+                .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
+        return propertyDocumentRepository.findById(documentId)
+                .filter(d -> d.getProperty().getId().equals(property.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadDocumentResource(PropertyDocument document) {
+        return fileStorageService.loadAsResource(document.getFileKey());
+    }
+
+    @Transactional(readOnly = true)
+    public Expense getMyExpenseOrThrow(UUID ownerId, UUID expenseId) {
+        return expenseRepository.findById(expenseId)
+                .filter(e -> e.getProperty().getOwner() != null
+                        && e.getProperty().getOwner().getId().equals(ownerId))
+                .orElseThrow(() -> new ResourceNotFoundException("Expense not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadReceiptResource(Expense expense) {
+        if (expense.getReceiptFileKey() == null) {
+            throw new ResourceNotFoundException("Receipt not found");
+        }
+        return fileStorageService.loadAsResource(expense.getReceiptFileKey());
     }
 
     private MaintenanceTicketResponse toMaintenanceTicketResponse(MaintenanceTicket ticket) {
