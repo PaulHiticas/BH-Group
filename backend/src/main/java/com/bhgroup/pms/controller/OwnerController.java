@@ -9,9 +9,12 @@ import com.bhgroup.pms.dto.expense.ExpenseResponse;
 import com.bhgroup.pms.dto.maintenance.MaintenanceTicketResponse;
 import com.bhgroup.pms.dto.owner.OwnerDashboardSummaryResponse;
 import com.bhgroup.pms.dto.owner.OwnerPropertyResponse;
+import com.bhgroup.pms.dto.ownerstatement.OwnerStatementResponse;
+import com.bhgroup.pms.dto.ownerstatement.OwnerStatementSummaryResponse;
 import com.bhgroup.pms.dto.reservation.ReservationResponse;
 import com.bhgroup.pms.security.SecurityUtils;
 import com.bhgroup.pms.service.OwnerService;
+import com.bhgroup.pms.service.OwnerStatementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.LocalDate;
@@ -44,6 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OwnerController {
 
     private final OwnerService ownerService;
+    private final OwnerStatementService ownerStatementService;
 
     @GetMapping("/dashboard/summary")
     @Operation(summary = "Revenue/commission summary and upcoming reservations for the current owner")
@@ -112,6 +116,18 @@ public class OwnerController {
             Pageable pageable) {
         return ResponseEntity.ok(ApiResponse.success(
                 ownerService.listMyExpenses(currentOwnerId(), from, to, pageable)));
+    }
+
+    @GetMapping("/statements")
+    @Operation(summary = "List the current owner's payout statements")
+    public ResponseEntity<ApiResponse<PageResponse<OwnerStatementSummaryResponse>>> listStatements(Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(ownerStatementService.listForOwner(currentOwnerId(), pageable)));
+    }
+
+    @GetMapping("/statements/{id}")
+    @Operation(summary = "Get one of the current owner's payout statements, including its per-property lines")
+    public ResponseEntity<ApiResponse<OwnerStatementResponse>> getStatement(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(ownerStatementService.getForOwner(currentOwnerId(), id)));
     }
 
     private UUID currentOwnerId() {

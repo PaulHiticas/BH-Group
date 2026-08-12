@@ -388,6 +388,53 @@ export interface OwnerDashboardSummaryResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Owner statements
+// ---------------------------------------------------------------------------
+
+export type OwnerStatementStatus = "ISSUED" | "PAID"
+
+export interface OwnerStatementLineResponse {
+  propertyId: string | null
+  propertyName: string
+  grossRevenue: number
+  commissionAmount: number
+  expensesTotal: number
+  netAmount: number
+}
+
+export interface OwnerStatementResponse {
+  id: string
+  ownerId: string
+  ownerName: string
+  periodStart: string
+  periodEnd: string
+  currency: string
+  grossRevenue: number
+  commissionAmount: number
+  expensesTotal: number
+  netPayout: number
+  status: OwnerStatementStatus
+  generatedByName: string | null
+  paidAt: string | null
+  paymentReference: string | null
+  createdAt: string
+  lines: OwnerStatementLineResponse[]
+}
+
+export interface OwnerStatementSummaryResponse {
+  id: string
+  ownerId: string
+  ownerName: string
+  periodStart: string
+  periodEnd: string
+  currency: string
+  netPayout: number
+  status: OwnerStatementStatus
+  createdAt: string
+  paidAt: string | null
+}
+
+// ---------------------------------------------------------------------------
 // Reservations
 // ---------------------------------------------------------------------------
 

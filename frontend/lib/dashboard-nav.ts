@@ -9,6 +9,7 @@ import {
   Sparkles,
   Users,
   UserPlus,
+  Wallet,
   Wrench,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -83,6 +84,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     href: "/dashboard/owner/expenses",
     label: "Cheltuielile mele",
     icon: Receipt,
+    roles: ["OWNER"],
+  },
+  {
+    href: "/dashboard/owner/statements",
+    label: "Deconturile mele",
+    icon: Wallet,
     roles: ["OWNER"],
   },
   {

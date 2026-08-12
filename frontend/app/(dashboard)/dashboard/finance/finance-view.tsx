@@ -31,6 +31,7 @@ import { useCreateExpense, useDeleteExpense, useExpenses, useUploadExpenseReceip
 import { useFinancialReport } from "@/hooks/use-financial-reports"
 import { useProperties } from "@/hooks/use-properties"
 import { ALL_EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expense-labels"
+import { OwnerStatementsSection } from "./owner-statements-section"
 import type { ExpenseCategory } from "@/lib/api/types"
 
 function formatCurrency(value: number, currency: string) {
@@ -65,6 +66,7 @@ export function FinanceView() {
 
       <FinancialReportSection propertyId={propertyId} from={from} to={to} />
       <ExpensesSection propertyId={propertyId} from={from} to={to} />
+      <OwnerStatementsSection />
     </div>
   )
 }
