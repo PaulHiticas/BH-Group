@@ -1,5 +1,6 @@
 package com.bhgroup.pms.repository;
 
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,4 +12,6 @@ public interface PropertyLeadRepository extends JpaRepository<PropertyLead, UUID
     Page<PropertyLead> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     long countByContactedFalse();
+
+    List<PropertyLead> findByEmailIgnoreCase(String email);
 }

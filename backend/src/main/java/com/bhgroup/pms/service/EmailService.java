@@ -114,7 +114,19 @@ public class EmailService {
             helper.setText(templateEngine.process(template, context), true);
             mailSender.send(message);
         } catch (Exception ex) {
-            log.error("Failed to send email to {} using template {}", toEmail, template, ex);
+            log.error("Failed to send email to {} using template {}", maskEmail(toEmail), template, ex);
         }
+    }
+
+    /** Keeps enough of the address to be useful for support/debugging without logging it in full. */
+    private String maskEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        int at = email.indexOf('@');
+        if (at <= 1) {
+            return "***" + email.substring(Math.max(at, 0));
+        }
+        return email.charAt(0) + "***" + email.substring(at);
     }
 }

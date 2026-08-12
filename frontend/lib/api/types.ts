@@ -701,3 +701,25 @@ export interface AuditLogResponse {
   description: string | null
   createdAt: string
 }
+
+// ---------------------------------------------------------------------------
+// GDPR
+// ---------------------------------------------------------------------------
+
+export type GdprRecordType = "RESERVATION" | "LEAD"
+
+export interface GdprSearchMatchResponse {
+  recordType: GdprRecordType
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  context: string
+  createdAt: string
+}
+
+export interface GdprEraseResultResponse {
+  reservationsErased: number
+  leadsErased: number
+  messagesRedacted: number
+}

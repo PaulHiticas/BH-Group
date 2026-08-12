@@ -6,6 +6,7 @@ import {
   Receipt,
   ScrollText,
   Settings,
+  ShieldCheck,
   Sparkles,
   Users,
   UserPlus,
@@ -68,6 +69,7 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
   },
   { href: "/dashboard/users", label: "Echipă", icon: Users, roles: ["SUPER_ADMIN"] },
   { href: "/dashboard/audit-log", label: "Jurnal audit", icon: ScrollText, roles: ["SUPER_ADMIN"] },
+  { href: "/dashboard/gdpr", label: "GDPR", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },
   {
     href: "/dashboard/owner/properties",
     label: "Proprietățile mele",

@@ -18,6 +18,8 @@ import com.bhgroup.pms.domain.ReservationStatus;
 public interface ReservationRepository extends JpaRepository<Reservation, UUID>,
         JpaSpecificationExecutor<Reservation> {
 
+    List<Reservation> findByGuestEmailIgnoreCase(String guestEmail);
+
     @Query("""
             select r from Reservation r
             where r.property.id = :propertyId
