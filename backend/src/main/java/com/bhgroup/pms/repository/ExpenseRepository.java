@@ -41,4 +41,17 @@ public interface ExpenseRepository extends JpaRepository<Expense, UUID>, JpaSpec
             """)
     BigDecimal sumChargeableToOwnerForProperty(@Param("propertyId") UUID propertyId,
                                                 @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /** Same as {@link #sumChargeableToOwnerForProperty}, grouped by currency. */
+    @Query("""
+            select e.currency, coalesce(sum(e.amount), 0) from Expense e
+            where e.property.id = :propertyId
+              and e.chargeToOwner = true
+              and (cast(:from as java.time.LocalDate) is null or e.expenseDate >= cast(:from as java.time.LocalDate))
+              and (cast(:to as java.time.LocalDate) is null or e.expenseDate <= cast(:to as java.time.LocalDate))
+            group by e.currency
+            """)
+    List<Object[]> sumChargeableToOwnerForPropertyGroupedByCurrency(@Param("propertyId") UUID propertyId,
+                                                                      @Param("from") LocalDate from,
+                                                                      @Param("to") LocalDate to);
 }

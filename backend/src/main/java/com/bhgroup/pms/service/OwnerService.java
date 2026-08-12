@@ -59,6 +59,7 @@ public class OwnerService {
     private final MaintenanceTicketPhotoRepository maintenanceTicketPhotoRepository;
     private final ExpenseRepository expenseRepository;
     private final FileStorageService fileStorageService;
+    private final OwnerFinancialsService ownerFinancialsService;
     private final OwnerMapper ownerMapper;
     private final ReservationMapper reservationMapper;
     private final MaintenanceTicketMapper maintenanceTicketMapper;
@@ -95,21 +96,10 @@ public class OwnerService {
     public OwnerDashboardSummaryResponse getMyDashboardSummary(UUID ownerId) {
         var properties = propertyRepository.findByOwnerId(ownerId);
 
-        BigDecimal grossRevenue = BigDecimal.ZERO;
-        BigDecimal commissionAmount = BigDecimal.ZERO;
-        BigDecimal expensesTotal = BigDecimal.ZERO;
-        for (Property property : properties) {
-            BigDecimal propertyRevenue = reservationRepository
-                    .sumRevenueForProperty(property.getId(), ReservationStatus.NON_BLOCKING);
-            grossRevenue = grossRevenue.add(propertyRevenue);
-            if (property.getCommissionPercent() != null) {
-                commissionAmount = commissionAmount.add(propertyRevenue
-                        .multiply(property.getCommissionPercent())
-                        .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP));
-            }
-            expensesTotal = expensesTotal.add(
-                    expenseRepository.sumChargeableToOwnerForProperty(property.getId(), null, null));
-        }
+        var financials = ownerFinancialsService.computeForOwner(ownerId, null, null);
+        BigDecimal grossRevenue = sumField(financials, OwnerFinancialsService.PropertyFinancials::grossRevenue);
+        BigDecimal commissionAmount = sumField(financials, OwnerFinancialsService.PropertyFinancials::commissionAmount);
+        BigDecimal expensesTotal = sumField(financials, OwnerFinancialsService.PropertyFinancials::expensesTotal);
         BigDecimal netRevenue = grossRevenue.subtract(commissionAmount).subtract(expensesTotal);
 
         Specification<Reservation> upcomingSpec = ReservationSpecifications.combine(
@@ -197,8 +187,12 @@ public class OwnerService {
     private OwnerPropertyResponse toOwnerPropertyResponse(Property property) {
         var photos = propertyPhotoRepository.findByPropertyIdOrderBySortOrderAsc(property.getId());
         var documents = propertyDocumentRepository.findByPropertyIdOrderByCreatedAtDesc(property.getId());
-        BigDecimal revenue = reservationRepository
-                .sumRevenueForProperty(property.getId(), ReservationStatus.NON_BLOCKING);
+        BigDecimal revenue = ownerFinancialsService.sumGrossRevenueForProperty(property.getId(), null, null);
         return ownerMapper.toResponse(property, photos, revenue, documents);
+    }
+
+    private BigDecimal sumField(List<OwnerFinancialsService.PropertyFinancials> financials,
+                                 java.util.function.Function<OwnerFinancialsService.PropertyFinancials, BigDecimal> extractor) {
+        return financials.stream().map(extractor).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }
