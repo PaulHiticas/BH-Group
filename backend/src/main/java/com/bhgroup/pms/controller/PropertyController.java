@@ -6,6 +6,7 @@ import com.bhgroup.pms.common.response.ApiResponse;
 import com.bhgroup.pms.common.response.PageResponse;
 import com.bhgroup.pms.dto.property.PropertyCreateRequest;
 import com.bhgroup.pms.dto.property.PropertyDocumentResponse;
+import com.bhgroup.pms.dto.property.PropertyIntegrationModeUpdateRequest;
 import com.bhgroup.pms.dto.property.PropertyPhotoResponse;
 import com.bhgroup.pms.dto.property.PropertyResponse;
 import com.bhgroup.pms.dto.property.PropertySummaryResponse;
@@ -99,6 +100,18 @@ public class PropertyController {
     public ResponseEntity<ApiResponse<PropertyResponse>> update(@PathVariable UUID id,
                                                                  @Valid @RequestBody PropertyUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(propertyService.update(id, request), "Property updated successfully"));
+    }
+
+    @PatchMapping("/{id}/integration-mode")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR')")
+    @Operation(summary = "Change which system owns a property's availability (manual, iCal, channel manager)")
+    public ResponseEntity<ApiResponse<PropertyResponse>> updateIntegrationMode(
+            @PathVariable UUID id, @Valid @RequestBody PropertyIntegrationModeUpdateRequest request) {
+        User currentUser = userRepository.findById(SecurityUtils.requireCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return ResponseEntity.ok(ApiResponse.success(
+                propertyService.updateIntegrationMode(id, request.mode(), currentUser),
+                "Integration mode updated successfully"));
     }
 
     @DeleteMapping("/{id}")

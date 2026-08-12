@@ -169,6 +169,8 @@ export interface PropertySummaryResponse {
 
 export type CancellationPolicy = "FLEXIBLE" | "MODERATE" | "STRICT" | "NON_REFUNDABLE"
 
+export type IntegrationMode = "MANUAL" | "ICAL" | "CHANNEL_MANAGER"
+
 export interface PropertyResponse {
   id: string
   name: string
@@ -201,6 +203,7 @@ export interface PropertyResponse {
   smartLockProvider: string | null
   smartLockDeviceId: string | null
   icalExportUrl: string | null
+  integrationMode: IntegrationMode
   photos: PropertyPhotoResponse[]
   documents: PropertyDocumentResponse[]
   createdAt: string

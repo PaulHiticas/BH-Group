@@ -262,7 +262,11 @@ export default function PropertyDetailPage({
             <CardTitle className="text-base">Sincronizare calendar (Airbnb / Booking.com)</CardTitle>
           </CardHeader>
           <CardContent>
-            <IcalSyncCard propertyId={id} exportUrl={property.icalExportUrl} />
+            <IcalSyncCard
+              propertyId={id}
+              exportUrl={property.icalExportUrl}
+              integrationMode={property.integrationMode}
+            />
           </CardContent>
         </Card>
       )}

@@ -3,9 +3,11 @@ package com.bhgroup.pms.service;
 import biweekly.Biweekly;
 import biweekly.ICalendar;
 import biweekly.component.VEvent;
+import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.domain.IcalImportFeed;
 import com.bhgroup.pms.domain.IcalSyncStatus;
+import com.bhgroup.pms.domain.IntegrationMode;
 import com.bhgroup.pms.domain.Property;
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationStatus;
@@ -64,6 +66,7 @@ public class IcalImportService {
     public IcalImportFeedResponse addFeed(UUID propertyId, IcalImportFeedCreateRequest request) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
+        requireIcalMode(property);
 
         IcalImportFeed feed = IcalImportFeed.builder()
                 .property(property)
@@ -87,18 +90,36 @@ public class IcalImportService {
 
     @Transactional
     public IcalImportFeedResponse syncFeed(UUID propertyId, UUID feedId) {
-        return syncFeed(findFeedOrThrow(propertyId, feedId));
+        IcalImportFeed feed = findFeedOrThrow(propertyId, feedId);
+        requireIcalMode(feed.getProperty());
+        return syncFeed(feed);
     }
 
-    /** Invoked by {@link IcalSyncScheduler} for every registered feed. */
+    /**
+     * Invoked by {@link IcalSyncScheduler} for every registered feed. Unlike
+     * the manual entry points, a property that's no longer in ICAL mode is
+     * silently skipped here (not an error) since this job runs unattended
+     * over every feed regardless of each property's current mode.
+     */
     @Transactional
     public void syncAllFeeds() {
         for (IcalImportFeed feed : icalImportFeedRepository.findAll()) {
+            if (feed.getProperty().getIntegrationMode() != IntegrationMode.ICAL) {
+                continue;
+            }
             try {
                 syncFeed(feed);
             } catch (Exception ex) {
                 log.error("Unexpected error syncing iCal feed {}", feed.getId(), ex);
             }
+        }
+    }
+
+    private void requireIcalMode(Property property) {
+        if (property.getIntegrationMode() != IntegrationMode.ICAL) {
+            throw new BadRequestException(
+                    "Proprietatea nu este în modul de sincronizare iCal (mod curent: "
+                            + property.getIntegrationMode() + ")");
         }
     }
 

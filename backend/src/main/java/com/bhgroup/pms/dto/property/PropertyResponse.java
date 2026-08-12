@@ -2,6 +2,7 @@ package com.bhgroup.pms.dto.property;
 
 import com.bhgroup.pms.domain.CancellationPolicy;
 import com.bhgroup.pms.domain.Facility;
+import com.bhgroup.pms.domain.IntegrationMode;
 import com.bhgroup.pms.domain.PropertyStatus;
 import com.bhgroup.pms.domain.PropertyType;
 import java.math.BigDecimal;
@@ -44,6 +45,7 @@ public record PropertyResponse(
         String smartLockProvider,
         String smartLockDeviceId,
         String icalExportUrl,
+        IntegrationMode integrationMode,
         List<PropertyPhotoResponse> photos,
         List<PropertyDocumentResponse> documents,
         Instant createdAt,

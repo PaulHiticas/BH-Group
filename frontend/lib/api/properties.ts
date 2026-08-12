@@ -2,6 +2,7 @@ import { apiClient } from "@/lib/api/client"
 import type {
   CancellationPolicy,
   Facility,
+  IntegrationMode,
   PageResponse,
   PropertyDocumentResponse,
   PropertyDocumentType,
@@ -102,6 +103,9 @@ export const propertiesApi = {
     apiClient.put<PropertyResponse>(`/properties/${id}`, payload),
 
   delete: (id: string) => apiClient.delete<void>(`/properties/${id}`),
+
+  updateIntegrationMode: (id: string, mode: IntegrationMode) =>
+    apiClient.patch<PropertyResponse>(`/properties/${id}/integration-mode`, { mode }),
 
   uploadPhoto: (id: string, file: File, caption?: string) => {
     const formData = new FormData()
