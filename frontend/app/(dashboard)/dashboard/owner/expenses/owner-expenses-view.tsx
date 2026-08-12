@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataPagination } from "@/components/ui/data-pagination"
 import { useOwnerExpenses } from "@/hooks/use-owner"
 import { EXPENSE_CATEGORY_LABELS } from "@/lib/expense-labels"
+import { downloadFile } from "@/lib/download-file"
 
 function formatCurrency(value: number, currency: string) {
   return new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 }).format(value) + " " + currency
@@ -55,14 +57,16 @@ export function OwnerExpensesView() {
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary">{EXPENSE_CATEGORY_LABELS[expense.category]}</Badge>
                   {expense.receiptUrl && (
-                    <a
-                      href={expense.receiptUrl}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadFile(`/owner/expenses/${expense.id}/receipt/download`, "bon")
+                          .catch(() => toast.error("Descărcarea bonului a eșuat"))
+                      }
                       className="text-xs text-primary underline"
                     >
                       Vezi bon
-                    </a>
+                    </button>
                   )}
                 </div>
               </div>

@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -268,12 +269,22 @@ public class PropertyService {
 
     @Transactional
     public void deleteDocument(UUID propertyId, UUID documentId) {
-        PropertyDocument document = propertyDocumentRepository.findById(documentId)
-                .filter(d -> d.getProperty().getId().equals(propertyId))
-                .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+        PropertyDocument document = getDocumentOrThrow(propertyId, documentId);
 
         fileStorageService.delete(document.getFileKey());
         propertyDocumentRepository.delete(document);
+    }
+
+    @Transactional(readOnly = true)
+    public PropertyDocument getDocumentOrThrow(UUID propertyId, UUID documentId) {
+        return propertyDocumentRepository.findById(documentId)
+                .filter(d -> d.getProperty().getId().equals(propertyId))
+                .orElseThrow(() -> new ResourceNotFoundException("Document not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadDocumentResource(PropertyDocument document) {
+        return fileStorageService.loadAsResource(document.getFileKey());
     }
 
     @Transactional(readOnly = true)

@@ -102,7 +102,7 @@ export default function OwnerPropertyDetailPage({
           <CardTitle className="text-base">Documente</CardTitle>
         </CardHeader>
         <CardContent>
-          <DocumentList propertyId={id} documents={property.documents} canManage={false} />
+          <DocumentList propertyId={id} documents={property.documents} canManage={false} viewerType="owner" />
         </CardContent>
       </Card>
     </div>

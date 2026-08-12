@@ -293,14 +293,16 @@ function ExpensesSection({ propertyId, from, to }: { propertyId: string; from: s
                       </span>
                     </label>
                     {expense.receiptUrl && (
-                      <a
-                        href={expense.receiptUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadFile(`/expenses/${expense.id}/receipt/download`, "bon")
+                            .catch(() => toast.error("Descărcarea bonului a eșuat"))
+                        }
                         className="text-xs text-primary underline"
                       >
                         Vezi bon
-                      </a>
+                      </button>
                     )}
                     <Button
                       type="button"

@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState } from "react"
+import { toast } from "sonner"
 import { FileText, Trash2, Upload } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import {
   useDeletePropertyDocument,
   useUploadPropertyDocument,
 } from "@/hooks/use-properties"
+import { downloadFile } from "@/lib/download-file"
 
 const DOCUMENT_TYPES: PropertyDocumentType[] = [
   "CONTRACT",
@@ -51,16 +53,32 @@ export function DocumentList({
   propertyId,
   documents,
   canManage,
+  viewerType = "admin",
 }: {
   propertyId: string
   documents: PropertyDocumentResponse[]
   canManage: boolean
+  viewerType?: "admin" | "owner"
 }) {
   const [documentType, setDocumentType] = useState<PropertyDocumentType>("OTHER")
   const [expiresAt, setExpiresAt] = useState("")
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const uploadDocument = useUploadPropertyDocument(propertyId)
   const deleteDocument = useDeletePropertyDocument(propertyId)
+
+  async function handleDownload(document: PropertyDocumentResponse) {
+    const basePath =
+      viewerType === "owner" ? `/owner/properties/${propertyId}` : `/properties/${propertyId}`
+    setDownloadingId(document.id)
+    try {
+      await downloadFile(`${basePath}/documents/${document.id}/download`, document.fileName)
+    } catch {
+      toast.error("Descărcarea documentului a eșuat")
+    } finally {
+      setDownloadingId(null)
+    }
+  }
 
   function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -81,18 +99,18 @@ export function DocumentList({
         <div className="flex flex-col divide-y divide-border/60">
           {documents.map((document) => (
             <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-              <a
-                href={document.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm hover:text-primary"
+              <button
+                type="button"
+                onClick={() => handleDownload(document)}
+                disabled={downloadingId === document.id}
+                className="flex items-center gap-2 text-left text-sm hover:text-primary disabled:opacity-60"
               >
                 <FileText className="size-4 text-muted-foreground" />
                 {document.fileName}
                 <span className="text-xs text-muted-foreground">
                   ({PROPERTY_DOCUMENT_TYPE_LABELS[document.documentType]})
                 </span>
-              </a>
+              </button>
               <div className="flex items-center gap-2">
                 {expiryBadge(document.expiresAt)}
                 {canManage && (

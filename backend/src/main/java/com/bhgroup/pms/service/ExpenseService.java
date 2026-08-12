@@ -13,12 +13,14 @@ import com.bhgroup.pms.repository.ExpenseRepository;
 import com.bhgroup.pms.repository.ExpenseSpecifications;
 import com.bhgroup.pms.repository.MaintenanceTicketRepository;
 import com.bhgroup.pms.repository.PropertyRepository;
+import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.service.mapper.ExpenseMapper;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -118,6 +120,15 @@ public class ExpenseService {
         expense.setReceiptFileKey(stored.fileKey());
         expense.setReceiptUrl(stored.url());
         return expenseMapper.toResponse(expenseRepository.save(expense));
+    }
+
+    @Transactional(readOnly = true)
+    public Resource getReceiptResource(UUID id) {
+        Expense expense = findOrThrow(id);
+        if (expense.getReceiptFileKey() == null) {
+            throw new ResourceNotFoundException("Receipt not found");
+        }
+        return fileStorageService.loadAsResource(expense.getReceiptFileKey());
     }
 
     @Transactional

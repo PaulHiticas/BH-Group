@@ -37,7 +37,19 @@ public class SecurityConfig {
             "/v3/api-docs/**",
             "/actuator/health",
             "/actuator/info",
-            "/uploads/**"
+            // Property marketing photos only (propertyId/filename - exactly two segments),
+            // shown to anonymous guests on the public booking site. Anything nested deeper,
+            // e.g. /uploads/properties/{id}/documents/**, is NOT matched by this pattern and
+            // falls through to the authenticated-download endpoints below - contracts, ID
+            // copies and receipts are never served as static files. See
+            // PropertyController#downloadDocument / OwnerController#downloadDocument /
+            // ExpenseController#downloadReceipt.
+            "/uploads/properties/*/*",
+            // Cleaning/maintenance proof photos: lower sensitivity than legal/financial
+            // documents, left public for now as a tracked follow-up rather than silently
+            // breaking their display in this patch.
+            "/uploads/cleaning-tasks/**",
+            "/uploads/maintenance-tickets/**"
     };
 
     private final CustomUserDetailsService userDetailsService;
