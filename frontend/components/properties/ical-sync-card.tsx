@@ -21,10 +21,16 @@ import {
   useRegenerateExportToken,
   useSyncIcalFeed,
 } from "@/hooks/use-ical"
+import { useUpdateIntegrationMode } from "@/hooks/use-properties"
 import { RESERVATION_SOURCE_LABELS } from "@/lib/reservation-labels"
-import type { ReservationSource } from "@/lib/api/types"
+import type { IntegrationMode, ReservationSource } from "@/lib/api/types"
 
 const IMPORT_SOURCES: ReservationSource[] = ["AIRBNB", "BOOKING_COM", "OTHER"]
+
+const MODE_LABELS: Record<Extract<IntegrationMode, "MANUAL" | "ICAL">, string> = {
+  MANUAL: "Manual",
+  ICAL: "Sincronizare iCal",
+}
 
 function formatDateTime(value: string | null) {
   if (!value) return "Niciodată"
@@ -34,18 +40,23 @@ function formatDateTime(value: string | null) {
 export function IcalSyncCard({
   propertyId,
   exportUrl,
+  integrationMode,
 }: {
   propertyId: string
   exportUrl: string | null
+  integrationMode: IntegrationMode
 }) {
   const regenerateToken = useRegenerateExportToken(propertyId)
   const { data: feeds, isLoading } = useIcalFeeds(propertyId)
   const addFeed = useAddIcalFeed(propertyId)
   const syncFeed = useSyncIcalFeed(propertyId)
   const deleteFeed = useDeleteIcalFeed(propertyId)
+  const updateMode = useUpdateIntegrationMode(propertyId)
 
   const [source, setSource] = useState<ReservationSource>("AIRBNB")
   const [feedUrl, setFeedUrl] = useState("")
+
+  const icalActive = integrationMode === "ICAL"
 
   function handleCopy() {
     if (!exportUrl) return
@@ -60,6 +71,31 @@ export function IcalSyncCard({
 
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <p className="mb-2 text-sm font-medium">Mod de gestionare a disponibilității</p>
+        <p className="mb-2 text-xs text-muted-foreground">
+          {integrationMode === "CHANNEL_MANAGER"
+            ? "Proprietatea este gestionată printr-un channel manager extern; sincronizarea iCal de mai jos este dezactivată."
+            : "Alege dacă disponibilitatea se gestionează manual din BH Group sau prin importul automat de calendare iCal."}
+        </p>
+        <Select
+          value={icalActive ? "ICAL" : "MANUAL"}
+          disabled={integrationMode === "CHANNEL_MANAGER" || updateMode.isPending}
+          onValueChange={(v) => updateMode.mutate(v as IntegrationMode)}
+        >
+          <SelectTrigger className="w-56">
+            <SelectValue>{() => MODE_LABELS[icalActive ? "ICAL" : "MANUAL"]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(MODE_LABELS) as Array<keyof typeof MODE_LABELS>).map((mode) => (
+              <SelectItem key={mode} value={mode}>
+                {MODE_LABELS[mode]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div>
         <p className="mb-2 text-sm font-medium">Exportă calendarul BH Group către Airbnb/Booking.com</p>
         <p className="mb-2 text-xs text-muted-foreground">
@@ -89,11 +125,12 @@ export function IcalSyncCard({
         )}
       </div>
 
-      <div>
+      <div className={icalActive ? undefined : "pointer-events-none opacity-50"}>
         <p className="mb-2 text-sm font-medium">Importă calendare din Airbnb/Booking.com</p>
         <p className="mb-2 text-xs text-muted-foreground">
           Adaugă link-ul .ics de export din Airbnb/Booking.com aici — rezervările lor vor bloca automat
           calendarul BH Group (sincronizare orară, sau apasă &bdquo;Sincronizează acum&rdquo;).
+          {!icalActive && " Comută modul de mai sus pe „Sincronizare iCal” pentru a activa importul."}
         </p>
 
         {isLoading ? (

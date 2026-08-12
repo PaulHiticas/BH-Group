@@ -3,6 +3,8 @@ package com.bhgroup.pms.service;
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.common.response.PageResponse;
+import com.bhgroup.pms.domain.AuditAction;
+import com.bhgroup.pms.domain.IntegrationMode;
 import com.bhgroup.pms.domain.SeasonalRate;
 import com.bhgroup.pms.dto.property.PropertyCreateRequest;
 import com.bhgroup.pms.dto.property.PropertyDocumentResponse;
@@ -54,6 +56,7 @@ public class PropertyService {
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
     private final NotificationService notificationService;
+    private final AuditService auditService;
     private final PropertyMapper propertyMapper;
     private final SeasonalRateMapper seasonalRateMapper;
 
@@ -174,6 +177,28 @@ public class PropertyService {
         property.setSmartLockDeviceId(request.smartLockDeviceId());
 
         property = propertyRepository.save(property);
+        return toFullResponse(property);
+    }
+
+    /**
+     * Switching modes is an explicit, audited administrator action - never
+     * automatic. No cleanup is required when leaving ICAL: existing feeds
+     * are kept (not deleted) so switching back doesn't require
+     * re-registering them; {@link IcalImportService} simply skips feeds
+     * for a property that is no longer in ICAL mode.
+     */
+    @Transactional
+    public PropertyResponse updateIntegrationMode(UUID id, IntegrationMode newMode, User actor) {
+        Property property = findPropertyOrThrow(id);
+        IntegrationMode oldMode = property.getIntegrationMode();
+
+        property.setIntegrationMode(newMode);
+        property = propertyRepository.save(property);
+
+        auditService.record(AuditAction.PROPERTY_INTEGRATION_MODE_CHANGED, actor,
+                "Property " + id + " (" + property.getName() + ") integration mode: " + oldMode + " -> " + newMode,
+                null, null);
+
         return toFullResponse(property);
     }
 

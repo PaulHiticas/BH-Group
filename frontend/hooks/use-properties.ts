@@ -9,7 +9,7 @@ import {
   type PropertyPayload,
   type SeasonalRatePayload,
 } from "@/lib/api/properties"
-import { ApiError, type PropertyDocumentType, type PropertyStatus } from "@/lib/api/types"
+import { ApiError, type IntegrationMode, type PropertyDocumentType, type PropertyStatus } from "@/lib/api/types"
 
 function errorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) return error.message
@@ -61,6 +61,21 @@ export function useUpdateProperty(id: string) {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Actualizarea proprietății a eșuat"))
+    },
+  })
+}
+
+export function useUpdateIntegrationMode(id: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (mode: IntegrationMode) => propertiesApi.updateIntegrationMode(id, mode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["property", id] })
+      toast.success("Mod de sincronizare actualizat")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Actualizarea modului de sincronizare a eșuat"))
     },
   })
 }

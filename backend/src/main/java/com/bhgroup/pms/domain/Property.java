@@ -112,6 +112,13 @@ public class Property extends BaseEntity {
     @Builder.Default
     private CancellationPolicy cancellationPolicy = CancellationPolicy.MODERATE;
 
+    /** Which system owns this property's availability - see {@link IntegrationMode}. */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "integration_mode", nullable = false)
+    @Builder.Default
+    private IntegrationMode integrationMode = IntegrationMode.MANUAL;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id")
     private User owner;

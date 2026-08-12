@@ -58,6 +58,7 @@ public class PropertyMapper {
                         ? appProperties.getApiBaseUrl() + "/public/properties/" + property.getId()
                                 + "/calendar.ics?token=" + property.getIcalExportToken()
                         : null,
+                property.getIntegrationMode(),
                 photos.stream().map(this::toPhotoResponse).toList(),
                 documents.stream().map(this::toDocumentResponse).toList(),
                 property.getCreatedAt(),
