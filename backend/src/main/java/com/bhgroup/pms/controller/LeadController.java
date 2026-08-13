@@ -54,7 +54,7 @@ public class LeadController {
     @Operation(summary = "Export leads as CSV")
     public void export(HttpServletResponse response) throws IOException {
         CsvWriter.write(response, "lead-uri.csv",
-                List.of("Nume", "Email", "Telefon", "Oraș", "Mesaj", "Contactat", "Creat la"),
+                List.of("Nume", "Email", "Telefon", "Oraș", "Mesaj", "Contactat", "Tip", "Creat la"),
                 leadService.exportRows());
     }
 
