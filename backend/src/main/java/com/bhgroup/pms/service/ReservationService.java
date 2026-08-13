@@ -158,6 +158,7 @@ public class ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
 
         validateDates(request.checkInDate(), request.checkOutDate());
+        pricingService.validateGuestCount(property, request.numberOfGuests());
         assertNoOverlap(property.getId(), request.checkInDate(), request.checkOutDate(), null);
 
         Reservation reservation = Reservation.builder()
@@ -191,6 +192,7 @@ public class ReservationService {
         }
 
         validateDates(request.checkInDate(), request.checkOutDate());
+        pricingService.validateGuestCount(reservation.getProperty(), request.numberOfGuests());
         assertNoOverlap(reservation.getProperty().getId(), request.checkInDate(), request.checkOutDate(), id);
 
         reservation.setGuestFirstName(request.guestFirstName());
@@ -321,6 +323,7 @@ public class ReservationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
 
         validateDates(checkInDate, checkOutDate);
+        pricingService.validateGuestCount(property, numberOfGuests);
         pricingService.validateStayLength(property, (int) ChronoUnit.DAYS.between(checkInDate, checkOutDate));
         assertNoOverlap(propertyId, checkInDate, checkOutDate, null);
 
@@ -405,6 +408,7 @@ public class ReservationService {
         }
 
         validateDates(checkInDate, checkOutDate);
+        pricingService.validateGuestCount(reservation.getProperty(), numberOfGuests);
         pricingService.validateStayLength(reservation.getProperty(),
                 (int) ChronoUnit.DAYS.between(checkInDate, checkOutDate));
         assertNoOverlap(reservation.getProperty().getId(), checkInDate, checkOutDate, reservation.getId());
