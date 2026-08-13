@@ -26,9 +26,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.domain.Role;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
+import com.bhgroup.pms.repository.UserRepository;
+import com.bhgroup.pms.service.AuthService;
 import com.bhgroup.pms.service.UserAdminService;
 @RestController
 @RequestMapping("/api/v1/users")
@@ -38,6 +41,8 @@ import com.bhgroup.pms.service.UserAdminService;
 public class UserAdminController {
 
     private final UserAdminService userAdminService;
+    private final AuthService authService;
+    private final UserRepository userRepository;
 
     @GetMapping
     @Operation(summary = "List users with search and filters")
@@ -75,7 +80,8 @@ public class UserAdminController {
     @Operation(summary = "Change a user's account status")
     public ResponseEntity<ApiResponse<UserResponse>> updateStatus(@PathVariable UUID id,
                                                                    @Valid @RequestBody UserStatusUpdateRequest request) {
-        UserResponse response = userAdminService.updateStatus(id, request, currentRole());
+        UserResponse response = userAdminService.updateStatus(
+                id, request, SecurityUtils.requireCurrentUserId(), currentRole());
         return ResponseEntity.ok(ApiResponse.success(response, "User status updated successfully"));
     }
 
@@ -84,6 +90,16 @@ public class UserAdminController {
     public ResponseEntity<ApiResponse<Void>> resendInvite(@PathVariable UUID id) {
         userAdminService.resendInvite(id, currentRole());
         return ResponseEntity.ok(ApiResponse.message("Invitation resent"));
+    }
+
+    @PostMapping("/{id}/reset-mfa")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Reset a user's MFA (lost device/recovery codes) - forces mandatory setup again on next login")
+    public ResponseEntity<ApiResponse<Void>> resetMfa(@PathVariable UUID id) {
+        User actor = userRepository.findById(SecurityUtils.requireCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        authService.resetMfaByAdmin(id, actor);
+        return ResponseEntity.ok(ApiResponse.message("MFA reset - the user will set it up again on next login"));
     }
 
     private String currentRole() {

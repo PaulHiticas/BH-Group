@@ -51,6 +51,7 @@ public class UserAdminService {
     );
 
     private final UserRepository userRepository;
+    private final com.bhgroup.pms.repository.PropertyRepository propertyRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final VerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -148,16 +149,54 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserResponse updateStatus(UUID id, UserStatusUpdateRequest request, String actingRole) {
+    public UserResponse updateStatus(UUID id, UserStatusUpdateRequest request, UUID actingUserId, String actingRole) {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
+
+        if (request.status() == UserStatus.DISABLED) {
+            assertCanDisable(user, actingUserId, request.confirmEmail());
+        }
 
         user.setStatus(request.status());
         if (request.status() != UserStatus.ACTIVE) {
             refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
         }
         user = userRepository.save(user);
+
+        auditService.record(AuditAction.USER_STATUS_CHANGED, null,
+                "User " + user.getId() + " (" + user.getEmail() + ") status changed to " + request.status(),
+                null, null);
+
         return userMapper.toResponse(user);
+    }
+
+    /**
+     * Disabling is treated as this system's "delete" - the account can no
+     * longer log in and its status is effectively permanent. These guards
+     * exist because it's easy to lock the whole team out or orphan an
+     * owner's properties with a single misclick.
+     */
+    private void assertCanDisable(User user, UUID actingUserId, String confirmEmail) {
+        if (user.getId().equals(actingUserId)) {
+            throw new BadRequestException("You cannot disable your own account");
+        }
+
+        if (confirmEmail == null || !confirmEmail.trim().equalsIgnoreCase(user.getEmail())) {
+            throw new BadRequestException("Type the account's email exactly to confirm this action");
+        }
+
+        if (user.getRole() == Role.SUPER_ADMIN && user.getStatus() == UserStatus.ACTIVE) {
+            long otherActiveSuperAdmins = userRepository
+                    .countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, user.getId());
+            if (otherActiveSuperAdmins == 0) {
+                throw new BadRequestException("Cannot disable the last active Super Admin account");
+            }
+        }
+
+        if (user.getRole() == Role.OWNER && !propertyRepository.findByOwnerId(user.getId()).isEmpty()) {
+            throw new BadRequestException(
+                    "Reassign this owner's properties to another owner before disabling their account");
+        }
     }
 
     private User findOrThrow(UUID id) {

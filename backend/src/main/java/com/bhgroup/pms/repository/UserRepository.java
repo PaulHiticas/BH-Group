@@ -21,4 +21,6 @@ public interface UserRepository extends JpaRepository<User, UUID>, JpaSpecificat
     long countByRole(Role role);
 
     List<User> findByRoleInAndStatus(Collection<Role> roles, com.bhgroup.pms.domain.UserStatus status);
+
+    long countByRoleAndStatusAndIdNot(Role role, com.bhgroup.pms.domain.UserStatus status, UUID id);
 }
