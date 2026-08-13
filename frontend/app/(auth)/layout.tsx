@@ -9,7 +9,7 @@ export default function AuthLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-neutral-950">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-navy">
       <Image
         src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=2000&q=80&auto=format&fit=crop"
         alt="Interior modern administrat de BH Group"

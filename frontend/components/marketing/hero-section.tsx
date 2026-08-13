@@ -3,7 +3,7 @@
 import { useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { motion, useScroll, useTransform } from "motion/react"
+import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { ArrowRight, Search } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -12,19 +12,22 @@ const EASE_CINEMATIC = [0.16, 1, 0.3, 1] as const
 
 export function HeroSection() {
   const sectionRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],
   })
 
-  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "22%"])
-  const bgScale = useTransform(scrollYProgress, [0, 1], [1.04, 1.16])
+  // Scroll-linked parallax is a motion effect too (WCAG 2.3.3) - frozen in
+  // place rather than animated when reduced motion is preferred.
+  const bgY = useTransform(scrollYProgress, [0, 1], reduceMotion ? ["0%", "0%"] : ["0%", "22%"])
+  const bgScale = useTransform(scrollYProgress, [0, 1], reduceMotion ? [1.04, 1.04] : [1.04, 1.16])
   const contentOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0])
 
   return (
     <section
       ref={sectionRef}
-      className="relative flex min-h-[92vh] items-end overflow-hidden bg-neutral-950 text-white"
+      className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy text-white"
     >
       {/* Background layer — slow continuous Ken Burns + scroll parallax */}
       <motion.div
@@ -50,27 +53,27 @@ export function HeroSection() {
         className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 pb-20 pt-40 sm:px-10"
       >
         <motion.span
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: EASE_CINEMATIC }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.8, ease: EASE_CINEMATIC }}
           className="w-fit rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80 backdrop-blur-sm"
         >
           Cazare premium în România
         </motion.span>
 
         <motion.h1
-          initial={{ opacity: 0, y: 24 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.1, ease: EASE_CINEMATIC }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.9, delay: reduceMotion ? 0 : 0.1, ease: EASE_CINEMATIC }}
           className="max-w-3xl text-balance font-heading text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl"
         >
           Locuiește ca un localnic, oriunde te oprești.
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.2, ease: EASE_CINEMATIC }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.9, delay: reduceMotion ? 0 : 0.2, ease: EASE_CINEMATIC }}
           className="max-w-xl text-balance text-lg text-white/75"
         >
           O colecție curatoriată de apartamente moderne, verificate personal de echipa
@@ -78,9 +81,9 @@ export function HeroSection() {
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.3, ease: EASE_CINEMATIC }}
+          transition={{ duration: reduceMotion ? 0.2 : 0.9, delay: reduceMotion ? 0 : 0.3, ease: EASE_CINEMATIC }}
           className="flex flex-wrap items-center gap-3"
         >
           <Link href="/book" className={cn(buttonVariants({ size: "lg" }), "gap-2")}>
