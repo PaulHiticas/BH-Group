@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "motion/react"
+import { motion, useReducedMotion } from "motion/react"
 import { CalendarCheck, ClipboardList, Handshake, Rocket } from "lucide-react"
 import { Reveal } from "@/components/marketing/reveal"
 
@@ -28,6 +28,7 @@ const STEPS = [
 ]
 
 export function ProcessSection() {
+  const reduceMotion = useReducedMotion()
   return (
     <section className="border-y border-border/60 bg-muted/30 py-24 sm:py-32">
       <div className="mx-auto max-w-6xl px-6 sm:px-10">
@@ -41,10 +42,10 @@ export function ProcessSection() {
         <div className="relative mt-16">
           <div className="absolute left-0 right-0 top-6 hidden h-px bg-border sm:block" />
           <motion.div
-            initial={{ scaleX: 0 }}
+            initial={{ scaleX: reduceMotion ? 1 : 0 }}
             whileInView={{ scaleX: 1 }}
             viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: reduceMotion ? 0 : 1.4, ease: [0.16, 1, 0.3, 1] }}
             style={{ transformOrigin: "left" }}
             className="absolute left-0 right-0 top-6 hidden h-px bg-primary sm:block"
           />
