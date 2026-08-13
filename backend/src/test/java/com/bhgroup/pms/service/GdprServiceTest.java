@@ -3,6 +3,7 @@ package com.bhgroup.pms.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,8 @@ import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.domain.AuditAction;
+import com.bhgroup.pms.domain.GdprRequestType;
+import com.bhgroup.pms.domain.GdprVerificationMethod;
 import com.bhgroup.pms.domain.Message;
 import com.bhgroup.pms.domain.MessageSenderType;
 import com.bhgroup.pms.domain.Property;
@@ -18,6 +21,7 @@ import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationSource;
 import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.domain.User;
+import com.bhgroup.pms.repository.GdprRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
@@ -36,15 +40,19 @@ class GdprServiceTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private PropertyLeadRepository propertyLeadRepository;
     @Mock private MessageRepository messageRepository;
+    @Mock private GdprRequestRepository gdprRequestRepository;
     @Mock private AuditService auditService;
 
     private GdprService gdprService;
     private User actor;
     private final String email = "guest@example.com";
+    private final GdprVerificationMethod method = GdprVerificationMethod.RESERVATION_DETAILS;
+    private final String note = "Confirmat data check-in și numele proprietății la telefon";
 
     @BeforeEach
     void setUp() {
-        gdprService = new GdprService(reservationRepository, propertyLeadRepository, messageRepository, auditService);
+        gdprService = new GdprService(reservationRepository, propertyLeadRepository, messageRepository,
+                gdprRequestRepository, auditService);
         actor = new User();
         actor.setId(UUID.randomUUID());
     }
@@ -97,7 +105,7 @@ class GdprServiceTest {
         when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(propertyLeadRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        var result = gdprService.erase(email, actor);
+        var result = gdprService.erase(email, method, note, actor);
 
         assertThat(result.reservationsErased()).isEqualTo(1);
         assertThat(result.leadsErased()).isEqualTo(1);
@@ -111,13 +119,84 @@ class GdprServiceTest {
         // fiscally-relevant fields must survive erasure
         assertThat(reservation.getTotalAmount()).isEqualByComparingTo("500.00");
         assertThat(reservation.getCheckInDate()).isEqualTo(LocalDate.of(2026, 7, 1));
+        assertThat(reservation.getCheckOutDate()).isEqualTo(LocalDate.of(2026, 7, 5));
+        assertThat(reservation.getCurrency()).isEqualTo("RON");
+        assertThat(reservation.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(reservation.getProperty()).isNotNull();
 
         assertThat(lead.getEmail()).isNull();
         assertThat(lead.getPhone()).isNull();
         assertThat(lead.getMessage()).isNull();
 
-        verify(auditService).record(eq(AuditAction.GDPR_DATA_ERASED), eq(actor), any(), any(), any());
+        verify(gdprRequestRepository).save(argThat(req ->
+                req.getRequestType() == GdprRequestType.ERASE
+                        && req.getRecordsAffected() == 2
+                        && req.getMaskedEmail().equals("g***@example.com")
+                        && !req.getMaskedEmail().equals(email)));
+    }
+
+    @Test
+    void erase_auditLogAndComplianceRegisterNeverContainTheFullEmail() {
+        Reservation reservation = buildReservation();
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(reservation));
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(messageRepository.redactGuestMessagesForReservations(any(), any())).thenReturn(0);
+        when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        gdprService.erase(email, method, note, actor);
+
+        verify(auditService).record(eq(AuditAction.GDPR_DATA_ERASED), eq(actor),
+                argThat(description -> !description.contains(email)), any(), any());
+        verify(gdprRequestRepository).save(argThat(req -> !req.getMaskedEmail().contains(email)));
+    }
+
+    @Test
+    void export_auditLogAndComplianceRegisterNeverContainTheFullEmail() {
+        Reservation reservation = buildReservation();
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(reservation));
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(messageRepository.findByReservationIdInOrderByCreatedAtAsc(any())).thenReturn(List.of());
+
+        gdprService.export(email, method, note, actor);
+
+        verify(auditService).record(eq(AuditAction.GDPR_DATA_EXPORTED), eq(actor),
+                argThat(description -> !description.contains(email)), any(), any());
+        verify(gdprRequestRepository).save(argThat(req -> !req.getMaskedEmail().contains(email)));
+    }
+
+    @Test
+    void erase_rejectsWhenVerificationMethodMissing() {
+        assertThatThrownBy(() -> gdprService.erase(email, null, note, actor))
+                .isInstanceOf(BadRequestException.class);
+        verify(reservationRepository, never()).findByGuestEmailIgnoreCase(any());
+    }
+
+    @Test
+    void erase_rejectsWhenVerificationNoteBlank() {
+        assertThatThrownBy(() -> gdprService.erase(email, method, "   ", actor))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void erase_rejectsVerificationNoteThatLooksLikeAnIdNumber() {
+        assertThatThrownBy(() -> gdprService.erase(email, method, "CNP 1234567890123 confirmat", actor))
+                .isInstanceOf(BadRequestException.class);
+        verify(reservationRepository, never()).findByGuestEmailIgnoreCase(any());
+    }
+
+    @Test
+    void erase_secondExecutionIsRejectedBecauseNothingIsLeftToErase() {
+        when(reservationRepository.findByGuestEmailIgnoreCase(email))
+                .thenReturn(List.of(buildReservation()))
+                .thenReturn(List.of());
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(messageRepository.redactGuestMessagesForReservations(any(), any())).thenReturn(0);
+        when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        gdprService.erase(email, method, note, actor); // first run succeeds
+
+        assertThatThrownBy(() -> gdprService.erase(email, method, note, actor)) // second run
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -125,7 +204,7 @@ class GdprServiceTest {
         when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> gdprService.erase(email, actor)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> gdprService.erase(email, method, note, actor)).isInstanceOf(BadRequestException.class);
         verify(messageRepository, never()).redactGuestMessagesForReservations(any(), any());
     }
 
@@ -140,7 +219,7 @@ class GdprServiceTest {
         when(messageRepository.findByReservationIdInOrderByCreatedAtAsc(List.of(reservation.getId())))
                 .thenReturn(List.of(guestMessage));
 
-        var export = gdprService.export(email, actor);
+        var export = gdprService.export(email, method, note, actor);
 
         assertThat(export.reservations()).hasSize(1);
         assertThat(export.reservations().get(0).messages()).hasSize(1);
@@ -153,6 +232,13 @@ class GdprServiceTest {
         when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
 
-        assertThatThrownBy(() -> gdprService.export(email, actor)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> gdprService.export(email, method, note, actor)).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void export_rejectsWhenVerificationMissing() {
+        assertThatThrownBy(() -> gdprService.export(email, method, "", actor))
+                .isInstanceOf(BadRequestException.class);
+        verify(reservationRepository, never()).findByGuestEmailIgnoreCase(any());
     }
 }

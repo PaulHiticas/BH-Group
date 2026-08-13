@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { gdprApi } from "@/lib/api/gdpr"
+import { gdprApi, type GdprVerification } from "@/lib/api/gdpr"
 import { ApiError } from "@/lib/api/types"
 
 function errorMessage(error: unknown, fallback: string) {
@@ -21,8 +21,9 @@ export function useGdprSearch(email: string) {
 export function useEraseGdprData() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (email: string) => gdprApi.erase(email),
-    onSuccess: (_result, email) => {
+    mutationFn: ({ email, verification }: { email: string; verification: GdprVerification }) =>
+      gdprApi.erase(email, verification),
+    onSuccess: (_result, { email }) => {
       queryClient.invalidateQueries({ queryKey: ["gdpr-search", email] })
       toast.success("Datele au fost anonimizate")
     },

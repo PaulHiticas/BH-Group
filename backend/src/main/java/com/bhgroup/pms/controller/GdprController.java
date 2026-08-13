@@ -3,6 +3,7 @@ package com.bhgroup.pms.controller;
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.common.response.ApiResponse;
+import com.bhgroup.pms.domain.GdprVerificationMethod;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.dto.gdpr.GdprEraseRequest;
 import com.bhgroup.pms.dto.gdpr.GdprEraseResultResponse;
@@ -48,8 +49,12 @@ public class GdprController {
 
     @GetMapping("/export")
     @Operation(summary = "Export all personal data tied to an email address")
-    public ResponseEntity<ApiResponse<GdprExportResponse>> export(@RequestParam String email) {
-        return ResponseEntity.ok(ApiResponse.success(gdprService.export(email, currentUser())));
+    public ResponseEntity<ApiResponse<GdprExportResponse>> export(
+            @RequestParam String email,
+            @RequestParam GdprVerificationMethod verificationMethod,
+            @RequestParam String verificationNote) {
+        return ResponseEntity.ok(ApiResponse.success(
+                gdprService.export(email, verificationMethod, verificationNote, currentUser())));
     }
 
     @PostMapping("/erase")
@@ -59,7 +64,8 @@ public class GdprController {
             throw new BadRequestException("Erasure must be explicitly confirmed");
         }
         return ResponseEntity.ok(ApiResponse.success(
-                gdprService.erase(request.email(), currentUser()), "Date anonimizate cu succes"));
+                gdprService.erase(request.email(), request.verificationMethod(), request.verificationNote(), currentUser()),
+                "Date anonimizate cu succes"));
     }
 
     private User currentUser() {

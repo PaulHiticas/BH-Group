@@ -708,6 +708,12 @@ export interface AuditLogResponse {
 
 export type GdprRecordType = "RESERVATION" | "LEAD"
 
+export type GdprVerificationMethod =
+  | "EMAIL_CONFIRMATION"
+  | "RESERVATION_DETAILS"
+  | "IDENTITY_DOCUMENT"
+  | "OTHER"
+
 export interface GdprSearchMatchResponse {
   recordType: GdprRecordType
   id: string

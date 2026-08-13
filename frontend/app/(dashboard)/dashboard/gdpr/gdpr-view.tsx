@@ -17,7 +17,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
   TableBody,
@@ -26,9 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { gdprApi } from "@/lib/api/gdpr"
 import { downloadFile } from "@/lib/download-file"
 import { useEraseGdprData, useGdprSearch } from "@/hooks/use-gdpr"
-import type { GdprRecordType } from "@/lib/api/types"
+import type { GdprRecordType, GdprVerificationMethod } from "@/lib/api/types"
 
 function formatDateTime(value: string) {
   return new Date(value).toLocaleString("ro-RO", { dateStyle: "medium", timeStyle: "short" })
@@ -39,23 +48,42 @@ const RECORD_TYPE_LABELS: Record<GdprRecordType, string> = {
   LEAD: "Lead",
 }
 
+const VERIFICATION_METHOD_LABELS: Record<GdprVerificationMethod, string> = {
+  EMAIL_CONFIRMATION: "Confirmare prin email",
+  RESERVATION_DETAILS: "Detalii de rezervare verificate telefonic",
+  IDENTITY_DOCUMENT: "Act de identitate verificat",
+  OTHER: "Altă metodă",
+}
+
+const VERIFICATION_METHODS = Object.keys(VERIFICATION_METHOD_LABELS) as GdprVerificationMethod[]
+
 export function GdprView() {
   const [email, setEmail] = useState("")
   const [searchedEmail, setSearchedEmail] = useState("")
   const { data: results, isLoading, isFetching, refetch, isFetched } = useGdprSearch(searchedEmail)
   const eraseData = useEraseGdprData()
 
+  const [verificationMethod, setVerificationMethod] = useState<GdprVerificationMethod>("EMAIL_CONFIRMATION")
+  const [verificationNote, setVerificationNote] = useState("")
+  const [confirmEmailInput, setConfirmEmailInput] = useState("")
+
+  const verificationNoteValid = verificationNote.trim().length > 0 && verificationNote.length <= 300
+  const canActOnResults = !!results && results.length > 0 && verificationNoteValid
+  const canConfirmErase = canActOnResults && confirmEmailInput.trim().toLowerCase() === searchedEmail.trim().toLowerCase()
+
   function handleSearch() {
     const trimmed = email.trim()
     if (!trimmed) return
     setSearchedEmail(trimmed)
+    setConfirmEmailInput("")
     setTimeout(refetch, 0)
   }
 
   async function handleExport() {
+    if (!verificationNoteValid) return
     try {
       await downloadFile(
-        `/admin/gdpr/export?email=${encodeURIComponent(searchedEmail)}`,
+        gdprApi.exportUrl(searchedEmail, { verificationMethod, verificationNote }),
         `gdpr-export-${searchedEmail}.json`
       )
     } catch {
@@ -64,7 +92,11 @@ export function GdprView() {
   }
 
   function handleErase() {
-    eraseData.mutate(searchedEmail, { onSuccess: () => refetch() })
+    if (!canConfirmErase) return
+    eraseData.mutate(
+      { email: searchedEmail, verification: { verificationMethod, verificationNote } },
+      { onSuccess: () => { refetch(); setConfirmEmailInput("") } }
+    )
   }
 
   return (
@@ -104,39 +136,9 @@ export function GdprView() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              {results.length} înregistrare(ări) găsite pentru <span className="font-medium">{searchedEmail}</span>
-            </p>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleExport}>
-                <Download className="size-4" />
-                Exportă (JSON)
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger render={<Button variant="destructive" size="sm" className="gap-2" />}>
-                  <ShieldAlert className="size-4" />
-                  Anonimizează tot
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Anonimizezi toate datele pentru {searchedEmail}?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Numele, emailul, telefonul, notele și codurile de acces vor fi șterse ireversibil
-                      din toate cele {results.length} înregistrări găsite. Datele de rezervare (date,
-                      sumă, proprietate) rămân, în scop contabil. Această acțiune nu poate fi anulată.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Anulează</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleErase} disabled={eraseData.isPending}>
-                      Anonimizează definitiv
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            {results.length} înregistrare(ări) găsite pentru <span className="font-medium">{searchedEmail}</span>
+          </p>
 
           <div className="rounded-lg border border-border/60">
             <Table>
@@ -165,6 +167,98 @@ export function GdprView() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="flex flex-col gap-3 rounded-lg border p-4">
+            <p className="text-sm font-medium">Verificarea identității solicitantului</p>
+            <p className="text-xs text-muted-foreground">
+              Obligatoriu înainte de export sau anonimizare. Nu introdu CNP, serie de act de
+              identitate sau copii de acte în notă — doar cum a fost verificată identitatea.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Select value={verificationMethod} onValueChange={(v) => setVerificationMethod(v as GdprVerificationMethod)}>
+                <SelectTrigger>
+                  <SelectValue>{() => VERIFICATION_METHOD_LABELS[verificationMethod]}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {VERIFICATION_METHODS.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {VERIFICATION_METHOD_LABELS[m]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                placeholder="Ex: am confirmat prin telefon numele și datele rezervării"
+                value={verificationNote}
+                onChange={(e) => setVerificationNote(e.target.value)}
+                maxLength={300}
+                className="sm:col-span-1"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                disabled={!canActOnResults}
+                onClick={handleExport}
+              >
+                <Download className="size-4" />
+                Exportă (JSON)
+              </Button>
+
+              <AlertDialog>
+                <AlertDialogTrigger
+                  render={<Button variant="destructive" size="sm" className="gap-2" disabled={!canActOnResults} />}
+                >
+                  <ShieldAlert className="size-4" />
+                  Anonimizează tot
+                </AlertDialogTrigger>
+                <AlertDialogContent className="sm:max-w-lg">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Anonimizezi toate datele pentru {searchedEmail}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Numele, emailul, telefonul, notele și codurile de acces vor fi șterse ireversibil
+                      din înregistrările de mai jos. Datele de rezervare (date, sumă, proprietate) rămân,
+                      în scop contabil. Această acțiune nu poate fi anulată.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+
+                  <div className="flex flex-col divide-y divide-border/60 rounded-lg border text-sm">
+                    {results.map((match) => (
+                      <div key={`${match.recordType}-${match.id}`} className="flex items-center justify-between gap-3 p-2.5">
+                        <span>
+                          <Badge variant="outline" className="mr-2">{RECORD_TYPE_LABELS[match.recordType]}</Badge>
+                          {match.name}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{match.context}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Tastează exact <span className="font-medium text-foreground">{searchedEmail}</span> ca să confirmi
+                    </label>
+                    <Input
+                      value={confirmEmailInput}
+                      onChange={(e) => setConfirmEmailInput(e.target.value)}
+                      placeholder={searchedEmail}
+                    />
+                  </div>
+
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setConfirmEmailInput("")}>Anulează</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleErase} disabled={!canConfirmErase || eraseData.isPending}>
+                      Anonimizează definitiv
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           </div>
         </div>
       )}
