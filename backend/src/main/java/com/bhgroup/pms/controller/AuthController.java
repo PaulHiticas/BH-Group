@@ -7,6 +7,8 @@ import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
 import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
+import com.bhgroup.pms.dto.auth.MfaEnableResponse;
+import com.bhgroup.pms.dto.auth.MfaRecoveryLoginRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
@@ -67,6 +69,17 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> verifyMfaLogin(@Valid @RequestBody MfaVerifyLoginRequest request,
                                                                      HttpServletRequest servletRequest) {
         AuthResponse response = authService.verifyMfaLogin(request, clientIp(servletRequest),
+                servletRequest.getHeader("User-Agent"));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookieFor(response).toString())
+                .body(ApiResponse.success(response.withoutRefreshToken()));
+    }
+
+    @PostMapping("/mfa/verify-recovery")
+    @Operation(summary = "Complete login using a one-time recovery code instead of a TOTP code")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyMfaRecovery(
+            @Valid @RequestBody MfaRecoveryLoginRequest request, HttpServletRequest servletRequest) {
+        AuthResponse response = authService.verifyMfaRecoveryLogin(request, clientIp(servletRequest),
                 servletRequest.getHeader("User-Agent"));
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, refreshCookieFor(response).toString())
@@ -138,10 +151,10 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/enable")
-    @Operation(summary = "Confirm and enable MFA by verifying a TOTP code")
-    public ResponseEntity<ApiResponse<Void>> enableMfa(@Valid @RequestBody MfaEnableRequest request) {
-        authService.enableMfa(SecurityUtils.requireCurrentUserId(), request);
-        return ResponseEntity.ok(ApiResponse.message("Two-factor authentication enabled"));
+    @Operation(summary = "Confirm and enable MFA by verifying a TOTP code. Returns one-time recovery codes shown only here.")
+    public ResponseEntity<ApiResponse<MfaEnableResponse>> enableMfa(@Valid @RequestBody MfaEnableRequest request) {
+        MfaEnableResponse response = authService.enableMfa(SecurityUtils.requireCurrentUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Two-factor authentication enabled"));
     }
 
     @PostMapping("/mfa/disable")
