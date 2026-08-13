@@ -27,13 +27,20 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     List<Message> findByReservationIdInOrderByCreatedAtAsc(List<UUID> reservationIds);
 
-    /** Redacts guest-authored message bodies for reservations being GDPR-erased; staff replies are kept for context. */
+    /**
+     * Redacts every message body (both guest and staff) for reservations
+     * being GDPR-erased. Staff replies are included deliberately, not just
+     * the guest's own messages - a staff reply can just as easily quote or
+     * restate the guest's name, phone, or other details back into the
+     * thread, so leaving it untouched would leave the same PII the
+     * reservation fields just had cleared sitting in plain text one table
+     * over.
+     */
     @Modifying
     @Query("""
             update Message m set m.body = :redactedText
             where m.reservation.id in :reservationIds
-              and m.senderType = com.bhgroup.pms.domain.MessageSenderType.GUEST
             """)
-    int redactGuestMessagesForReservations(@Param("reservationIds") List<UUID> reservationIds,
-                                            @Param("redactedText") String redactedText);
+    int redactMessagesForReservations(@Param("reservationIds") List<UUID> reservationIds,
+                                       @Param("redactedText") String redactedText);
 }

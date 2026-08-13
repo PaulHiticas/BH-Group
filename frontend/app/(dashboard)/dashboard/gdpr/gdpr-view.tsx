@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { toast } from "sonner"
 import { Download, Search, ShieldAlert } from "lucide-react"
 import {
   AlertDialog,
@@ -34,9 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { gdprApi } from "@/lib/api/gdpr"
-import { downloadFile } from "@/lib/download-file"
-import { useEraseGdprData, useGdprSearch } from "@/hooks/use-gdpr"
+import { useEraseGdprData, useExportGdprData, useGdprSearch } from "@/hooks/use-gdpr"
 import type { GdprRecordType, GdprVerificationMethod } from "@/lib/api/types"
 
 function formatDateTime(value: string) {
@@ -57,16 +54,32 @@ const VERIFICATION_METHOD_LABELS: Record<GdprVerificationMethod, string> = {
 
 const VERIFICATION_METHODS = Object.keys(VERIFICATION_METHOD_LABELS) as GdprVerificationMethod[]
 
+/** Triggers a client-side download of already-fetched JSON - no email in the filename, nothing written server-side. */
+function downloadJson(data: unknown, filenamePrefix: string) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement("a")
+  link.href = url
+  link.download = `${filenamePrefix}-${Date.now()}.json`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export function GdprView() {
   const [email, setEmail] = useState("")
   const [searchedEmail, setSearchedEmail] = useState("")
-  const { data: results, isLoading, isFetching, refetch, isFetched } = useGdprSearch(searchedEmail)
+
+  const search = useGdprSearch()
+  const exportData = useExportGdprData()
   const eraseData = useEraseGdprData()
 
   const [verificationMethod, setVerificationMethod] = useState<GdprVerificationMethod>("EMAIL_CONFIRMATION")
   const [verificationNote, setVerificationNote] = useState("")
   const [confirmEmailInput, setConfirmEmailInput] = useState("")
 
+  const results = search.data
   const verificationNoteValid = verificationNote.trim().length > 0 && verificationNote.length <= 300
   const canActOnResults = !!results && results.length > 0 && verificationNoteValid
   const canConfirmErase = canActOnResults && confirmEmailInput.trim().toLowerCase() === searchedEmail.trim().toLowerCase()
@@ -76,26 +89,31 @@ export function GdprView() {
     if (!trimmed) return
     setSearchedEmail(trimmed)
     setConfirmEmailInput("")
-    setTimeout(refetch, 0)
+    search.mutate(trimmed)
   }
 
-  async function handleExport() {
+  function handleExport() {
     if (!verificationNoteValid) return
-    try {
-      await downloadFile(
-        gdprApi.exportUrl(searchedEmail, { verificationMethod, verificationNote }),
-        `gdpr-export-${searchedEmail}.json`
-      )
-    } catch {
-      toast.error("Exportul a eșuat")
-    }
+    exportData.mutate(
+      { email: searchedEmail, verification: { verificationMethod, verificationNote } },
+      { onSuccess: (data) => downloadJson(data, "gdpr-export") }
+    )
   }
 
   function handleErase() {
     if (!canConfirmErase) return
     eraseData.mutate(
-      { email: searchedEmail, verification: { verificationMethod, verificationNote } },
-      { onSuccess: () => { refetch(); setConfirmEmailInput("") } }
+      {
+        email: searchedEmail,
+        confirmationEmail: confirmEmailInput.trim(),
+        verification: { verificationMethod, verificationNote },
+      },
+      {
+        onSuccess: () => {
+          setConfirmEmailInput("")
+          search.mutate(searchedEmail) // refresh - erased records no longer match this email
+        },
+      }
     )
   }
 
@@ -106,7 +124,8 @@ export function GdprView() {
         <p className="mt-1 text-sm text-muted-foreground">
           Caută toate rezervările și lead-urile asociate unei adrese de email, exportă-le sau
           anonimizează-le la cererea persoanei vizate. Rezervările nu sunt șterse (se păstrează
-          datele/sumele în scop contabil), doar datele de identificare sunt eliminate.
+          datele/sumele în scop contabil), doar datele de identificare sunt eliminate — inclusiv
+          linkul de auto-gestionare al rezervării, mesajele și notificările asociate.
         </p>
       </div>
 
@@ -121,14 +140,14 @@ export function GdprView() {
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           />
         </div>
-        <Button type="button" disabled={!email.trim()} onClick={handleSearch}>
+        <Button type="button" disabled={!email.trim() || search.isPending} onClick={handleSearch}>
           Caută
         </Button>
       </div>
 
-      {isLoading || isFetching ? (
+      {search.isPending ? (
         <Skeleton className="h-48 w-full" />
-      ) : !isFetched ? null : !results || results.length === 0 ? (
+      ) : !search.isSuccess ? null : !results || results.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <p className="text-sm text-muted-foreground">
             Nicio înregistrare găsită pentru <span className="font-medium">{searchedEmail}</span>.
@@ -203,7 +222,7 @@ export function GdprView() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                disabled={!canActOnResults}
+                disabled={!canActOnResults || exportData.isPending}
                 onClick={handleExport}
               >
                 <Download className="size-4" />
@@ -221,9 +240,11 @@ export function GdprView() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Anonimizezi toate datele pentru {searchedEmail}?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Numele, emailul, telefonul, notele și codurile de acces vor fi șterse ireversibil
-                      din înregistrările de mai jos. Datele de rezervare (date, sumă, proprietate) rămân,
-                      în scop contabil. Această acțiune nu poate fi anulată.
+                      Numele, emailul, telefonul, notele, codul de acces și linkul de
+                      auto-gestionare vor fi șterse ireversibil, iar mesajele și notificările
+                      legate de rezervările de mai jos vor fi redactate. Datele de rezervare
+                      (date, sumă, proprietate) rămân, în scop contabil. Această acțiune nu poate
+                      fi anulată.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
 

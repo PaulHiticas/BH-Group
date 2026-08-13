@@ -2,6 +2,7 @@ package com.bhgroup.pms.service;
 
 import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.common.exception.BadRequestException;
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.GdprRecordType;
 import com.bhgroup.pms.domain.GdprRequest;
@@ -19,6 +20,7 @@ import com.bhgroup.pms.dto.gdpr.GdprReservationExport;
 import com.bhgroup.pms.dto.gdpr.GdprSearchMatchResponse;
 import com.bhgroup.pms.repository.GdprRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
+import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
 import java.time.Instant;
@@ -30,6 +32,8 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Technical support for data-subject-access and erasure requests
@@ -44,17 +48,34 @@ import org.springframework.transaction.annotation.Transactional;
  * required retention period is a legal question, not a technical one -
  * this only implements the mechanism, on demand.
  *
+ * Erasure also has to reach every copy of the guest's PII, not just the
+ * Reservation row it originates from: the unauthenticated
+ * {@code managementToken} link (still usable to view/modify/cancel/
+ * message the booking otherwise), every message in the thread (staff
+ * replies can restate the guest's own details back at them, not just
+ * their own messages), and the free-standing Notification rows a guest
+ * message fans out to (title/body copied in at creation time, no FK
+ * back to the reservation).
+ *
  * Neither the general audit log nor the {@link GdprRequest} compliance
  * register ever get the full email - only {@link PiiMasking#maskEmail}'d
- * form. The whole point of this feature is to stop retaining a data
- * subject's PII on request; logging it in full here would just move the
- * problem, not solve it.
+ * form plus a keyed {@link PiiMasking#fingerprintEmail} for exact-match
+ * verification. The whole point of this feature is to stop retaining a
+ * data subject's PII on request; logging it in full here would just move
+ * the problem, not solve it. The audit log write is deliberately deferred
+ * to run only after this method's own transaction commits (see
+ * {@link #afterSuccessfulCommit}) - {@link AuditService#record} uses
+ * REQUIRES_NEW and commits independently, so calling it eagerly would let
+ * "GDPR_DATA_ERASED" reach the audit log even on a request whose
+ * anonymization was later rolled back.
  */
 @Service
 @RequiredArgsConstructor
 public class GdprService {
 
     private static final String REDACTED_MESSAGE = "[mesaj șters - solicitare GDPR]";
+    private static final String REDACTED_NOTIFICATION_TITLE = "Mesaj șters (solicitare GDPR)";
+    private static final String REDACTED_NOTIFICATION_BODY = "[conținut șters - solicitare GDPR]";
     /** Romanian CNP (and most national ID numbers) are long runs of digits - a cheap, effective tripwire. */
     private static final Pattern LOOKS_LIKE_ID_NUMBER = Pattern.compile("\\d{8,}");
     private static final int MAX_VERIFICATION_NOTE_LENGTH = 300;
@@ -62,8 +83,10 @@ public class GdprService {
     private final ReservationRepository reservationRepository;
     private final PropertyLeadRepository propertyLeadRepository;
     private final MessageRepository messageRepository;
+    private final NotificationRepository notificationRepository;
     private final GdprRequestRepository gdprRequestRepository;
     private final AuditService auditService;
+    private final AppProperties appProperties;
 
     @Transactional(readOnly = true)
     public List<GdprSearchMatchResponse> search(String email) {
@@ -118,13 +141,10 @@ public class GdprService {
                 .toList();
 
         int recordsAffected = reservationExports.size() + leadExports.size();
-        String maskedEmail = PiiMasking.maskEmail(email);
-
-        auditService.record(AuditAction.GDPR_DATA_EXPORTED, actor,
-                "Export de date GDPR pentru " + maskedEmail + " (" + reservationExports.size() + " rezervări, "
-                        + leadExports.size() + " lead-uri)",
-                null, null);
-        recordComplianceEntry(GdprRequestType.EXPORT, actor, maskedEmail, verificationMethod, recordsAffected);
+        recordComplianceEntryAndAuditAfterCommit(GdprRequestType.EXPORT, AuditAction.GDPR_DATA_EXPORTED,
+                actor, email, verificationMethod, recordsAffected,
+                "Export de date GDPR pentru %s (%d rezervări, %d lead-uri)"
+                        .formatted(PiiMasking.maskEmail(email), reservationExports.size(), leadExports.size()));
 
         return new GdprExportResponse(email, Instant.now(), reservationExports, leadExports);
     }
@@ -143,7 +163,14 @@ public class GdprService {
         List<UUID> reservationIds = reservations.stream().map(Reservation::getId).toList();
         int messagesRedacted = reservationIds.isEmpty()
                 ? 0
-                : messageRepository.redactGuestMessagesForReservations(reservationIds, REDACTED_MESSAGE);
+                : messageRepository.redactMessagesForReservations(reservationIds, REDACTED_MESSAGE);
+
+        if (!reservationIds.isEmpty()) {
+            List<String> linkPaths = reservationIds.stream()
+                    .map(id -> "/dashboard/reservations/" + id)
+                    .toList();
+            notificationRepository.redactByLinkPaths(linkPaths, REDACTED_NOTIFICATION_TITLE, REDACTED_NOTIFICATION_BODY);
+        }
 
         for (Reservation r : reservations) {
             r.setGuestFirstName("Șters");
@@ -152,6 +179,10 @@ public class GdprService {
             r.setGuestPhone(null);
             r.setNotes(null);
             r.setAccessCode(null);
+            // revoke the unauthenticated self-service link - otherwise anyone still
+            // holding it can keep viewing, modifying, cancelling, or messaging about
+            // a booking whose guest asked to no longer be tracked.
+            r.setManagementToken(null);
         }
         reservationRepository.saveAll(reservations);
 
@@ -164,13 +195,10 @@ public class GdprService {
         propertyLeadRepository.saveAll(leads);
 
         int recordsAffected = reservations.size() + leads.size();
-        String maskedEmail = PiiMasking.maskEmail(email);
-
-        auditService.record(AuditAction.GDPR_DATA_ERASED, actor,
-                "Date GDPR șterse pentru " + maskedEmail + " (" + reservations.size() + " rezervări anonimizate, "
-                        + leads.size() + " lead-uri anonimizate, " + messagesRedacted + " mesaje redactate)",
-                null, null);
-        recordComplianceEntry(GdprRequestType.ERASE, actor, maskedEmail, verificationMethod, recordsAffected);
+        recordComplianceEntryAndAuditAfterCommit(GdprRequestType.ERASE, AuditAction.GDPR_DATA_ERASED,
+                actor, email, verificationMethod, recordsAffected,
+                "Date GDPR șterse pentru %s (%d rezervări anonimizate, %d lead-uri anonimizate, %d mesaje redactate)"
+                        .formatted(PiiMasking.maskEmail(email), reservations.size(), leads.size(), messagesRedacted));
 
         return new GdprEraseResultResponse(reservations.size(), leads.size(), messagesRedacted);
     }
@@ -192,15 +220,42 @@ public class GdprService {
         }
     }
 
-    private void recordComplianceEntry(GdprRequestType type, User actor, String maskedEmail,
-                                        GdprVerificationMethod verificationMethod, int recordsAffected) {
+    /**
+     * Persists the compliance-register row inside this transaction (so it
+     * rolls back together with the anonymization if anything fails), but
+     * defers the {@link AuditService#record} call - which commits
+     * independently via REQUIRES_NEW - until this transaction has actually
+     * committed. Without the deferral, a failure between this call and the
+     * method returning would leave an audit entry claiming success for an
+     * operation that was, in fact, rolled back.
+     */
+    private void recordComplianceEntryAndAuditAfterCommit(GdprRequestType type, AuditAction auditAction, User actor,
+                                                            String email, GdprVerificationMethod verificationMethod,
+                                                            int recordsAffected, String auditDescription) {
+        String maskedEmail = PiiMasking.maskEmail(email);
+        String fingerprint = PiiMasking.fingerprintEmail(email, appProperties.getJwt().getSecret());
+
         gdprRequestRepository.save(GdprRequest.builder()
                 .requestType(type)
                 .actor(actor)
                 .maskedEmail(maskedEmail)
+                .emailFingerprint(fingerprint)
                 .verificationMethod(verificationMethod)
                 .verifiedAt(Instant.now())
                 .recordsAffected(recordsAffected)
                 .build());
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    auditService.record(auditAction, actor, auditDescription, null, null);
+                }
+            });
+        } else {
+            // no active transaction synchronization (e.g. called outside a
+            // managed transaction in a test) - fall back to recording immediately.
+            auditService.record(auditAction, actor, auditDescription, null, null);
+        }
     }
 }

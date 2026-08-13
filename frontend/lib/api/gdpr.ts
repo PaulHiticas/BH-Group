@@ -8,17 +8,20 @@ export interface GdprVerification {
 
 export const gdprApi = {
   search: (email: string) =>
-    apiClient.get<GdprSearchMatchResponse[]>(`/admin/gdpr/search?email=${encodeURIComponent(email)}`),
+    apiClient.post<GdprSearchMatchResponse[]>("/admin/gdpr/search", { email }),
 
-  exportUrl: (email: string, verification: GdprVerification) =>
-    `/admin/gdpr/export?email=${encodeURIComponent(email)}` +
-    `&verificationMethod=${encodeURIComponent(verification.verificationMethod)}` +
-    `&verificationNote=${encodeURIComponent(verification.verificationNote)}`,
+  export: (email: string, verification: GdprVerification) =>
+    apiClient.post<unknown>("/admin/gdpr/export", {
+      email,
+      verificationMethod: verification.verificationMethod,
+      verificationNote: verification.verificationNote,
+    }),
 
-  erase: (email: string, verification: GdprVerification) =>
+  erase: (email: string, confirmationEmail: string, verification: GdprVerification) =>
     apiClient.post<GdprEraseResultResponse>("/admin/gdpr/erase", {
       email,
       confirm: true,
+      confirmationEmail,
       verificationMethod: verification.verificationMethod,
       verificationNote: verification.verificationNote,
     }),

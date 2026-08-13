@@ -57,6 +57,10 @@ public class GdprRequest extends BaseEntity {
     @Column(name = "masked_email", nullable = false)
     private String maskedEmail;
 
+    /** HMAC-SHA256 of the email - see {@link com.bhgroup.pms.common.PiiMasking#fingerprintEmail}. */
+    @Column(name = "email_fingerprint")
+    private String emailFingerprint;
+
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "verification_method", nullable = false)

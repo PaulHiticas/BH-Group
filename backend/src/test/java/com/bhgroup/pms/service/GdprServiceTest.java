@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.common.exception.BadRequestException;
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.GdprRequestType;
 import com.bhgroup.pms.domain.GdprVerificationMethod;
@@ -23,6 +24,7 @@ import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.repository.GdprRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
+import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ class GdprServiceTest {
     @Mock private ReservationRepository reservationRepository;
     @Mock private PropertyLeadRepository propertyLeadRepository;
     @Mock private MessageRepository messageRepository;
+    @Mock private NotificationRepository notificationRepository;
     @Mock private GdprRequestRepository gdprRequestRepository;
     @Mock private AuditService auditService;
 
@@ -51,8 +54,11 @@ class GdprServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppProperties appProperties = new AppProperties();
+        appProperties.getJwt().setSecret("test-secret-not-for-production");
+
         gdprService = new GdprService(reservationRepository, propertyLeadRepository, messageRepository,
-                gdprRequestRepository, auditService);
+                notificationRepository, gdprRequestRepository, auditService, appProperties);
         actor = new User();
         actor.setId(UUID.randomUUID());
     }
@@ -72,6 +78,7 @@ class GdprServiceTest {
                 .source(ReservationSource.DIRECT)
                 .notes("Ajunge seara")
                 .accessCode("1234")
+                .managementToken("abc123-still-live-link")
                 .totalAmount(new java.math.BigDecimal("500.00"))
                 .currency("RON")
                 .build();
@@ -94,14 +101,14 @@ class GdprServiceTest {
     }
 
     @Test
-    void erase_anonymizesReservationAndLeadAndRedactsGuestMessages() {
+    void erase_anonymizesReservationAndLeadRedactsMessagesAndRevokesManagementToken() {
         Reservation reservation = buildReservation();
         PropertyLead lead = PropertyLead.builder().fullName("Ion Popescu").email(email).phone("0722").message("Vreau info").build();
         lead.setId(UUID.randomUUID());
 
         when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(reservation));
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of(lead));
-        when(messageRepository.redactGuestMessagesForReservations(any(), any())).thenReturn(3);
+        when(messageRepository.redactMessagesForReservations(any(), any())).thenReturn(3);
         when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
         when(propertyLeadRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -116,6 +123,9 @@ class GdprServiceTest {
         assertThat(reservation.getNotes()).isNull();
         assertThat(reservation.getAccessCode()).isNull();
         assertThat(reservation.getGuestFirstName()).isEqualTo("Șters");
+        // the public self-service link must die with the guest's data - otherwise
+        // whoever still has the old link can keep viewing/modifying/messaging.
+        assertThat(reservation.getManagementToken()).isNull();
         // fiscally-relevant fields must survive erasure
         assertThat(reservation.getTotalAmount()).isEqualByComparingTo("500.00");
         assertThat(reservation.getCheckInDate()).isEqualTo(LocalDate.of(2026, 7, 1));
@@ -128,11 +138,16 @@ class GdprServiceTest {
         assertThat(lead.getPhone()).isNull();
         assertThat(lead.getMessage()).isNull();
 
+        verify(notificationRepository).redactByLinkPaths(
+                eq(List.of("/dashboard/reservations/" + reservation.getId())), any(), any());
+
         verify(gdprRequestRepository).save(argThat(req ->
                 req.getRequestType() == GdprRequestType.ERASE
                         && req.getRecordsAffected() == 2
                         && req.getMaskedEmail().equals("g***@example.com")
-                        && !req.getMaskedEmail().equals(email)));
+                        && !req.getMaskedEmail().equals(email)
+                        && req.getEmailFingerprint() != null
+                        && !req.getEmailFingerprint().contains(email)));
     }
 
     @Test
@@ -140,7 +155,7 @@ class GdprServiceTest {
         Reservation reservation = buildReservation();
         when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(reservation));
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
-        when(messageRepository.redactGuestMessagesForReservations(any(), any())).thenReturn(0);
+        when(messageRepository.redactMessagesForReservations(any(), any())).thenReturn(0);
         when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         gdprService.erase(email, method, note, actor);
@@ -190,7 +205,7 @@ class GdprServiceTest {
                 .thenReturn(List.of(buildReservation()))
                 .thenReturn(List.of());
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
-        when(messageRepository.redactGuestMessagesForReservations(any(), any())).thenReturn(0);
+        when(messageRepository.redactMessagesForReservations(any(), any())).thenReturn(0);
         when(reservationRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
 
         gdprService.erase(email, method, note, actor); // first run succeeds
@@ -205,7 +220,8 @@ class GdprServiceTest {
         when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
 
         assertThatThrownBy(() -> gdprService.erase(email, method, note, actor)).isInstanceOf(BadRequestException.class);
-        verify(messageRepository, never()).redactGuestMessagesForReservations(any(), any());
+        verify(messageRepository, never()).redactMessagesForReservations(any(), any());
+        verify(notificationRepository, never()).redactByLinkPaths(any(), any(), any());
     }
 
     @Test
@@ -225,6 +241,9 @@ class GdprServiceTest {
         assertThat(export.reservations().get(0).messages()).hasSize(1);
         assertThat(export.reservations().get(0).messages().get(0).body()).isEqualTo("Salut");
         verify(auditService).record(eq(AuditAction.GDPR_DATA_EXPORTED), eq(actor), any(), any(), any());
+        // export is read-only - it must never touch messages/notifications/tokens
+        verify(messageRepository, never()).redactMessagesForReservations(any(), any());
+        verify(notificationRepository, never()).redactByLinkPaths(any(), any(), any());
     }
 
     @Test
