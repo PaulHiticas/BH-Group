@@ -3,6 +3,7 @@ package com.bhgroup.pms.config;
 import com.bhgroup.pms.security.CustomUserDetailsService;
 import com.bhgroup.pms.security.JwtAuthenticationFilter;
 import com.bhgroup.pms.security.JwtService;
+import com.bhgroup.pms.security.MfaEnforcementFilter;
 import com.bhgroup.pms.security.RateLimitingFilter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -84,6 +85,11 @@ public class SecurityConfig {
     }
 
     @Bean
+    public MfaEnforcementFilter mfaEnforcementFilter() {
+        return new MfaEnforcementFilter();
+    }
+
+    @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
@@ -95,7 +101,8 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(mfaEnforcementFilter(), JwtAuthenticationFilter.class);
 
         return http.build();
     }
