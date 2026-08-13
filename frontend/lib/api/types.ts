@@ -548,6 +548,8 @@ export interface PublicPropertyResponse {
   bedrooms: number
   bathrooms: number
   maxGuests: number
+  minStayNights: number | null
+  maxStayNights: number | null
   sizeSqm: number | null
   basePricePerNight: number | null
   currency: string
