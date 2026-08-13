@@ -109,3 +109,26 @@ export function useCancelBookingByToken(token: string) {
     },
   })
 }
+
+export function useLateCheckoutByToken(token: string) {
+  return useQuery({
+    queryKey: ["booking-late-checkout", token],
+    queryFn: () => publicApi.getLateCheckoutByToken(token),
+    enabled: !!token,
+  })
+}
+
+export function useRequestLateCheckoutByToken(token: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (guestNote?: string) => publicApi.requestLateCheckoutByToken(token, guestNote),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["booking-late-checkout", token] })
+      toast.success("Cererea de check-out târziu a fost trimisă")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Trimiterea cererii a eșuat"))
+    },
+  })
+}

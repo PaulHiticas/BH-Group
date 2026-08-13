@@ -157,3 +157,47 @@ export function useDeleteReservation() {
     },
   })
 }
+
+export function useLateCheckout(reservationId: string) {
+  return useQuery({
+    queryKey: ["late-checkout", reservationId],
+    queryFn: () => reservationsApi.getLateCheckout(reservationId),
+    enabled: !!reservationId,
+  })
+}
+
+export function useApproveLateCheckout(reservationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => reservationsApi.approveLateCheckout(reservationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["late-checkout", reservationId] })
+      toast.success("Cerere de check-out târziu aprobată")
+    },
+    onError: (error) => toast.error(errorMessage(error, "Aprobarea a eșuat")),
+  })
+}
+
+export function useRejectLateCheckout(reservationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => reservationsApi.rejectLateCheckout(reservationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["late-checkout", reservationId] })
+      toast.success("Cerere de check-out târziu respinsă")
+    },
+    onError: (error) => toast.error(errorMessage(error, "Respingerea a eșuat")),
+  })
+}
+
+export function useMarkLateCheckoutPaid(reservationId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => reservationsApi.markLateCheckoutPaid(reservationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["late-checkout", reservationId] })
+      toast.success("Marcat ca plătit")
+    },
+    onError: (error) => toast.error(errorMessage(error, "Acțiunea a eșuat")),
+  })
+}

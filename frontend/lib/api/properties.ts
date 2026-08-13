@@ -52,6 +52,9 @@ export interface PropertyPayload {
   smartLockEnabled: boolean
   smartLockProvider?: string
   smartLockDeviceId?: string
+  lateCheckoutEnabled: boolean
+  lateCheckoutTime?: string | null
+  lateCheckoutFee?: number | null
 }
 
 export interface SeasonalRatePayload {
