@@ -63,6 +63,11 @@ public class Property extends BaseEntity {
     @Embedded
     private Address address;
 
+    /** When false (default), the public property page shows only an approximate location. */
+    @Column(name = "show_exact_address_publicly", nullable = false)
+    @Builder.Default
+    private boolean showExactAddressPublicly = false;
+
     @Column(nullable = false)
     @Builder.Default
     private int bedrooms = 0;

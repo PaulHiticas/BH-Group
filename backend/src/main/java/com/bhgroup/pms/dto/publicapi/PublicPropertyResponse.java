@@ -19,6 +19,7 @@ public record PublicPropertyResponse(
         String country,
         Double latitude,
         Double longitude,
+        boolean exactLocation,
         int bedrooms,
         int bathrooms,
         int maxGuests,
