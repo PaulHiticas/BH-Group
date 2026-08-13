@@ -52,6 +52,7 @@ const propertySchema = z.object({
   propertyType: z.enum(ALL_PROPERTY_TYPES as [string, ...string[]]),
   status: z.enum(ALL_PROPERTY_STATUSES as [string, ...string[]]),
   addressLine: z.string().min(1, "Adresa este obligatorie").max(255),
+  showExactAddressPublicly: z.boolean(),
   city: z.string().min(1, "Orașul este obligatoriu").max(100),
   county: z.string().max(100).optional(),
   postalCode: z.string().max(20).optional(),
@@ -93,6 +94,7 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       propertyType: "APARTMENT",
       status: "DRAFT",
       addressLine: "",
+      showExactAddressPublicly: false,
       city: "",
       county: "",
       postalCode: "",
@@ -131,6 +133,7 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     propertyType: property.propertyType,
     status: property.status,
     addressLine: property.address.addressLine,
+    showExactAddressPublicly: property.showExactAddressPublicly,
     city: property.address.city,
     county: property.address.county ?? "",
     postalCode: property.address.postalCode ?? "",
@@ -180,6 +183,7 @@ export function propertyFormValuesToPayload(
       latitude: values.latitude ?? null,
       longitude: values.longitude ?? null,
     },
+    showExactAddressPublicly: values.showExactAddressPublicly,
     bedrooms: values.bedrooms,
     bathrooms: values.bathrooms,
     maxGuests: values.maxGuests,
@@ -393,6 +397,22 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
                 }}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="showExactAddressPublicly"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    Afișează adresa exactă și locația precisă pe pagina publică
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Implicit dezactivat — pagina publică arată doar o zonă aproximativă
+                    (oraș/cartier) până activezi această opțiune.
+                  </p>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
