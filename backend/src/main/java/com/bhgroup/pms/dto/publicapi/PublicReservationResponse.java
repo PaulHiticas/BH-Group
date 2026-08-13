@@ -3,6 +3,7 @@ package com.bhgroup.pms.dto.publicapi;
 import com.bhgroup.pms.domain.ReservationStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 
 public record PublicReservationResponse(
@@ -19,6 +20,9 @@ public record PublicReservationResponse(
         ReservationStatus status,
         BigDecimal totalAmount,
         String currency,
-        String managementToken
+        String managementToken,
+        boolean lateCheckoutAvailable,
+        LocalTime lateCheckoutTime,
+        BigDecimal lateCheckoutFee
 ) {
 }

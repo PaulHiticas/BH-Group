@@ -136,6 +136,9 @@ public class PropertyService {
                 .smartLockEnabled(request.smartLockEnabled())
                 .smartLockProvider(request.smartLockProvider())
                 .smartLockDeviceId(request.smartLockDeviceId())
+                .lateCheckoutEnabled(request.lateCheckoutEnabled())
+                .lateCheckoutTime(request.lateCheckoutTime())
+                .lateCheckoutFee(request.lateCheckoutFee())
                 .build();
 
         property = propertyRepository.save(property);
@@ -175,6 +178,9 @@ public class PropertyService {
         property.setSmartLockEnabled(request.smartLockEnabled());
         property.setSmartLockProvider(request.smartLockProvider());
         property.setSmartLockDeviceId(request.smartLockDeviceId());
+        property.setLateCheckoutEnabled(request.lateCheckoutEnabled());
+        property.setLateCheckoutTime(request.lateCheckoutTime());
+        property.setLateCheckoutFee(request.lateCheckoutFee());
 
         property = propertyRepository.save(property);
         return toFullResponse(property);

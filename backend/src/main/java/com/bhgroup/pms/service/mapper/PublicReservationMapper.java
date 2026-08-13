@@ -22,7 +22,10 @@ public class PublicReservationMapper {
                 reservation.getStatus(),
                 reservation.getTotalAmount(),
                 reservation.getCurrency(),
-                reservation.getManagementToken()
+                reservation.getManagementToken(),
+                reservation.getProperty().isLateCheckoutEnabled(),
+                reservation.getProperty().getLateCheckoutTime(),
+                reservation.getProperty().getLateCheckoutFee()
         );
     }
 }

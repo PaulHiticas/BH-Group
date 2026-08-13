@@ -1,8 +1,10 @@
 package com.bhgroup.pms.controller;
 
 import com.bhgroup.pms.common.csv.CsvWriter;
+import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.common.response.ApiResponse;
 import com.bhgroup.pms.common.response.PageResponse;
+import com.bhgroup.pms.dto.latecheckout.LateCheckoutRequestResponse;
 import com.bhgroup.pms.dto.reservation.AccessCodeUpdateRequest;
 import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
 import com.bhgroup.pms.dto.reservation.CalendarEntryResponse;
@@ -11,6 +13,9 @@ import com.bhgroup.pms.dto.reservation.ReservationCreateRequest;
 import com.bhgroup.pms.dto.reservation.ReservationResponse;
 import com.bhgroup.pms.dto.reservation.ReservationStatusUpdateRequest;
 import com.bhgroup.pms.dto.reservation.ReservationUpdateRequest;
+import com.bhgroup.pms.repository.UserRepository;
+import com.bhgroup.pms.security.SecurityUtils;
+import com.bhgroup.pms.service.LateCheckoutService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
@@ -38,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationStatus;
+import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.service.ReservationService;
 @RestController
 @RequestMapping("/api/v1/reservations")
@@ -46,6 +52,8 @@ import com.bhgroup.pms.service.ReservationService;
 public class ReservationController {
 
     private final ReservationService reservationService;
+    private final LateCheckoutService lateCheckoutService;
+    private final UserRepository userRepository;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','ACCOUNTANT','SUPPORT_AGENT')")
@@ -160,5 +168,48 @@ public class ReservationController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
         reservationService.delete(id);
         return ResponseEntity.ok(ApiResponse.message("Reservation deleted successfully"));
+    }
+
+    @GetMapping("/{id}/late-checkout")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
+    @Operation(summary = "Get the late checkout request for a reservation, if any")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> getLateCheckout(@PathVariable UUID id) {
+        return ResponseEntity.ok(ApiResponse.success(
+                lateCheckoutService.getByReservationId(id).orElse(null)));
+    }
+
+    @PostMapping("/{id}/late-checkout/approve")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
+    @Operation(summary = "Approve a pending late checkout request")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> approveLateCheckout(@PathVariable UUID id) {
+        LateCheckoutRequestResponse existing = lateCheckoutService.getByReservationId(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
+        return ResponseEntity.ok(ApiResponse.success(
+                lateCheckoutService.approve(existing.id(), currentUser()), "Cerere aprobată"));
+    }
+
+    @PostMapping("/{id}/late-checkout/reject")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
+    @Operation(summary = "Reject a pending late checkout request")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> rejectLateCheckout(@PathVariable UUID id) {
+        LateCheckoutRequestResponse existing = lateCheckoutService.getByReservationId(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
+        return ResponseEntity.ok(ApiResponse.success(
+                lateCheckoutService.reject(existing.id(), currentUser()), "Cerere respinsă"));
+    }
+
+    @PostMapping("/{id}/late-checkout/mark-paid")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMINISTRATOR','SUPPORT_AGENT')")
+    @Operation(summary = "Mark an approved late checkout request as paid")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> markLateCheckoutPaid(@PathVariable UUID id) {
+        LateCheckoutRequestResponse existing = lateCheckoutService.getByReservationId(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
+        return ResponseEntity.ok(ApiResponse.success(
+                lateCheckoutService.markPaid(existing.id(), currentUser()), "Marcat ca plătit"));
+    }
+
+    private User currentUser() {
+        return userRepository.findById(SecurityUtils.requireCurrentUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

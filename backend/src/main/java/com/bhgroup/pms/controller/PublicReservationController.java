@@ -1,6 +1,8 @@
 package com.bhgroup.pms.controller;
 
 import com.bhgroup.pms.common.response.ApiResponse;
+import com.bhgroup.pms.dto.latecheckout.LateCheckoutRequestCreateRequest;
+import com.bhgroup.pms.dto.latecheckout.LateCheckoutRequestResponse;
 import com.bhgroup.pms.dto.messaging.MessageCreateRequest;
 import com.bhgroup.pms.dto.messaging.MessageResponse;
 import com.bhgroup.pms.dto.property.PriceQuoteResponse;
@@ -9,6 +11,7 @@ import com.bhgroup.pms.dto.publicapi.PublicBookingRequest;
 import com.bhgroup.pms.dto.publicapi.PublicBookingUpdateRequest;
 import com.bhgroup.pms.dto.publicapi.PublicReservationResponse;
 import com.bhgroup.pms.dto.reservation.AvailabilityResponse;
+import com.bhgroup.pms.service.LateCheckoutService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -36,6 +39,7 @@ import com.bhgroup.pms.service.PublicReservationService;
 public class PublicReservationController {
 
     private final PublicReservationService publicReservationService;
+    private final LateCheckoutService lateCheckoutService;
 
     @GetMapping("/availability")
     @Operation(summary = "Check property availability for a date range")
@@ -106,5 +110,22 @@ public class PublicReservationController {
             @PathVariable String token, @Valid @RequestBody MessageCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
                 publicReservationService.sendMessageByToken(token, request.body())));
+    }
+
+    @GetMapping("/manage/{token}/late-checkout")
+    @Operation(summary = "Get the late checkout request for this reservation, if any")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> getLateCheckout(@PathVariable String token) {
+        return ResponseEntity.ok(ApiResponse.success(
+                lateCheckoutService.getByManagementToken(token).orElse(null)));
+    }
+
+    @PostMapping("/manage/{token}/late-checkout")
+    @Operation(summary = "Request late checkout for this reservation")
+    public ResponseEntity<ApiResponse<LateCheckoutRequestResponse>> requestLateCheckout(
+            @PathVariable String token,
+            @Valid @RequestBody(required = false) LateCheckoutRequestCreateRequest request) {
+        String note = request != null ? request.guestNote() : null;
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
+                lateCheckoutService.requestByManagementToken(token, note), "Cererea a fost trimisă"));
     }
 }
