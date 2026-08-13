@@ -3,7 +3,7 @@ import Image from "next/image"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { ServicesSection } from "@/components/marketing/services-section"
 import { ProcessSection } from "@/components/marketing/process-section"
-import { RevenueCalculator } from "@/components/marketing/revenue-calculator"
+import { RevenueEstimateSection } from "@/components/marketing/revenue-estimate-section"
 import { FaqSection } from "@/components/marketing/faq-section"
 import { LeadFormSection } from "@/components/marketing/lead-form-section"
 import { SiteFooter } from "@/components/marketing/site-footer"
@@ -50,7 +50,7 @@ export default function PentruProprietariPage() {
         <ServicesSection />
       </div>
       <ProcessSection />
-      <RevenueCalculator />
+      <RevenueEstimateSection />
       <div id="faq">
         <FaqSection />
       </div>
