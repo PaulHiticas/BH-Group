@@ -47,6 +47,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID>,
 
     long countByPropertyIdAndStatus(UUID propertyId, ReservationStatus status);
 
+    /** Used to block late checkout when the next guest already checks in the same day (no cleaning buffer). */
+    boolean existsByPropertyIdAndCheckInDateAndStatusNotIn(
+            UUID propertyId, LocalDate checkInDate, Collection<ReservationStatus> excludedStatuses);
+
     long countByStatus(ReservationStatus status);
 
     @Query("select coalesce(sum(r.totalAmount), 0) from Reservation r where r.status not in :excludedStatuses")
