@@ -12,7 +12,7 @@ import { ChatWidget } from "@/components/marketing/chat-widget"
 export const metadata: Metadata = {
   title: "Listează-ți proprietatea",
   description:
-    "Administrare premium pentru proprietatea ta — curățenie, prețuri dinamice, comunicare cu oaspeții și rapoarte financiare transparente.",
+    "Administrare premium pentru proprietatea ta — curățenie, comunicare cu oaspeții și rapoarte financiare transparente.",
 }
 
 export default function PentruProprietariPage() {
@@ -40,7 +40,7 @@ export default function PentruProprietariPage() {
             Proprietatea ta, administrată ca un hotel de 5 stele.
           </h1>
           <p className="max-w-xl text-balance text-lg text-white/75">
-            Curățenie, prețuri dinamice, comunicare cu oaspeții și rapoarte financiare —
+            Curățenie, prețuri adaptate sezonului, comunicare cu oaspeții și rapoarte financiare —
             ne ocupăm de tot, tu încasezi venitul.
           </p>
         </div>
@@ -54,7 +54,9 @@ export default function PentruProprietariPage() {
       <div id="faq">
         <FaqSection />
       </div>
-      <LeadFormSection />
+      <div id="formular">
+        <LeadFormSection />
+      </div>
       <SiteFooter />
       <ChatWidget />
     </div>

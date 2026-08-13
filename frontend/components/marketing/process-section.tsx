@@ -13,17 +13,17 @@ const STEPS = [
   {
     icon: ClipboardList,
     title: "Pregătire & listare",
-    description: "Fotografiem profesional, scriem anunțul și publicăm pe Airbnb, Booking.com și direct.",
+    description: "Fotografiem profesional, scriem anunțul și publicăm pe canalele relevante și prin rezervare directă.",
   },
   {
     icon: CalendarCheck,
     title: "Preluăm operațiunea",
-    description: "Curățenie, check-in, comunicare cu oaspeții — totul rulează automat, din prima rezervare.",
+    description: "Curățenie, check-in, comunicare cu oaspeții — coordonate prin sistem, din prima rezervare.",
   },
   {
     icon: Rocket,
     title: "Tu încasezi venitul",
-    description: "Primești plata lunar, cu raport detaliat al veniturilor și cheltuielilor.",
+    description: "Primești deconturi periodice, cu raport detaliat al veniturilor și cheltuielilor.",
   },
 ]
 

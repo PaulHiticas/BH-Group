@@ -7,23 +7,23 @@ const SERVICES = [
   {
     icon: TrendingUp,
     number: "01",
-    title: "Preț dinamic, zi de zi",
+    title: "Prețuri adaptate sezonului",
     description:
-      "Ajustăm tariful proprietății tale în funcție de cerere, sezon și evenimente locale, pentru venitul maxim posibil.",
+      "Stabilim tarife diferite pe weekend și sezoane, ca proprietatea ta să rămână competitivă pe parcursul anului.",
     color: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
   },
   {
     icon: Sparkles,
     number: "02",
-    title: "Curățenie la standard hotelier",
+    title: "Curățenie gestionată pentru fiecare sejur",
     description:
-      "Echipă proprie de curățenie, verificată după fiecare sejur, cu protocoale de igienă profesionale.",
+      "Fiecare sejur are o sarcină de curățenie alocată și urmărită în sistem, cu protocoale de igienă profesionale.",
     color: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
   },
   {
     icon: MessageCircle,
     number: "03",
-    title: "Comunicare cu oaspeții 24/7",
+    title: "Comunicare directă cu oaspeții",
     description:
       "Răspundem întrebărilor, gestionăm check-in/check-out și rezolvăm orice situație — în română și engleză.",
     color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",

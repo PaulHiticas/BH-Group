@@ -68,7 +68,7 @@ export function LeadFormSection() {
             Lasă-ne datele tale, te contactăm noi
           </h2>
           <p className="mt-4 text-balance text-muted-foreground">
-            Completează formularul de mai jos — revenim cu o estimare de venit în cel mult 24h,
+            Completează formularul de mai jos — revenim cu o estimare de venit,
             fără niciun angajament din partea ta.
           </p>
         </Reveal>

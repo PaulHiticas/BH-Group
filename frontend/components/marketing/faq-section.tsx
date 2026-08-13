@@ -27,12 +27,12 @@ const FAQS = [
   {
     question: "Pe ce platforme listați proprietatea?",
     answer:
-      "Airbnb, Booking.com și rezervări directe prin platforma noastră proprie, ca să maximizăm vizibilitatea și să reducem comisioanele OTA.",
+      "Publicăm proprietățile pe canalele de distribuție relevante și prin rezervare directă pe platforma noastră; disponibilitatea exactă pe fiecare canal se stabilește proprietate cu proprietate.",
   },
   {
     question: "Cât durează până apare prima rezervare?",
     answer:
-      "În medie, prima rezervare vine în 5-10 zile de la publicarea anunțului optimizat, în funcție de sezon și locație.",
+      "Depinde de sezon, locație și cât de competitiv e anunțul — nu putem promite un termen fix, dar te ținem la curent pe tot parcursul.",
   },
 ]
 
