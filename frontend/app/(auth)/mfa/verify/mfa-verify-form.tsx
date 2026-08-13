@@ -22,24 +22,30 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useVerifyMfaLogin } from "@/hooks/use-auth"
+import { useVerifyMfaLogin, useVerifyMfaRecoveryLogin } from "@/hooks/use-auth"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
-const schema = z.object({
+const codeSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Codul trebuie să aibă 6 cifre"),
 })
 
-type FormValues = z.infer<typeof schema>
+const recoverySchema = z.object({
+  code: z.string().min(1, "Codul de recuperare este obligatoriu"),
+})
+
+type FormValues = { code: string }
 
 export function MfaVerifyForm() {
   const router = useRouter()
   const verifyMfaLogin = useVerifyMfaLogin()
+  const verifyMfaRecoveryLogin = useVerifyMfaRecoveryLogin()
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false)
   // Checked once on mount — a successful verification clears the challenge
   // token as part of navigating away, which must not re-trigger this guard.
   const [hadChallengeToken] = useState(() => !!useAuthStore.getState().mfaChallengeToken)
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(useRecoveryCode ? recoverySchema : codeSchema),
     defaultValues: { code: "" },
   })
 
@@ -50,15 +56,23 @@ export function MfaVerifyForm() {
   }, [hadChallengeToken, router])
 
   function onSubmit(values: FormValues) {
-    verifyMfaLogin.mutate(values.code)
+    if (useRecoveryCode) {
+      verifyMfaRecoveryLogin.mutate(values.code)
+    } else {
+      verifyMfaLogin.mutate(values.code)
+    }
   }
+
+  const isPending = verifyMfaLogin.isPending || verifyMfaRecoveryLogin.isPending
 
   return (
     <Card className="border-white/15 bg-background/95 shadow-2xl backdrop-blur-md">
       <CardHeader>
         <CardTitle className="text-xl">Verificare în doi pași</CardTitle>
         <CardDescription>
-          Introdu codul din aplicația de autentificare (Google Authenticator, Authy).
+          {useRecoveryCode
+            ? "Introdu unul dintre codurile de recuperare primite la activarea 2FA."
+            : "Introdu codul din aplicația de autentificare (Google Authenticator, Authy)."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -69,25 +83,41 @@ export function MfaVerifyForm() {
               name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cod de verificare</FormLabel>
+                  <FormLabel>{useRecoveryCode ? "Cod de recuperare" : "Cod de verificare"}</FormLabel>
                   <FormControl>
-                    <Input
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="123456"
-                      autoComplete="one-time-code"
-                      {...field}
-                    />
+                    {useRecoveryCode ? (
+                      <Input placeholder="7K9QX-4NPV2" autoComplete="off" {...field} />
+                    ) : (
+                      <Input
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="123456"
+                        autoComplete="one-time-code"
+                        {...field}
+                      />
+                    )}
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={verifyMfaLogin.isPending}>
-              {verifyMfaLogin.isPending ? "Se verifică..." : "Confirmă"}
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? "Se verifică..." : "Confirmă"}
             </Button>
           </form>
         </Form>
+        <button
+          type="button"
+          className="mt-4 text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          onClick={() => {
+            setUseRecoveryCode((v) => !v)
+            form.reset({ code: "" })
+          }}
+        >
+          {useRecoveryCode
+            ? "Folosește codul din aplicația de autentificare"
+            : "Ai pierdut accesul la aplicația de autentificare? Folosește un cod de recuperare"}
+        </button>
       </CardContent>
     </Card>
   )

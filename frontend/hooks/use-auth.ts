@@ -58,6 +58,29 @@ export function useVerifyMfaLogin() {
   })
 }
 
+export function useVerifyMfaRecoveryLogin() {
+  const router = useRouter()
+  const setSession = useAuthStore((state) => state.setSession)
+
+  return useMutation({
+    mutationFn: (recoveryCode: string) => {
+      const challengeToken = useAuthStore.getState().mfaChallengeToken
+      if (!challengeToken) {
+        throw new Error("Sesiunea de autentificare a expirat. Te rugăm să te autentifici din nou.")
+      }
+      return authApi.verifyMfaRecovery({ challengeToken, recoveryCode })
+    },
+    onSuccess: (result) => {
+      setSession(result)
+      toast.success(`Bine ai revenit, ${result.user.firstName}!`)
+      router.push("/dashboard")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Cod de recuperare invalid sau deja folosit."))
+    },
+  })
+}
+
 export function useForgotPassword() {
   return useMutation({
     mutationFn: (email: string) => authApi.forgotPassword(email),
@@ -122,18 +145,16 @@ export function useSetupMfa() {
   })
 }
 
+/**
+ * Deliberately no onSuccess side effects here (unlike other mutations in
+ * this file): the response carries one-time recovery codes that must be
+ * shown to the user before anything else happens (logout, redirect, etc.),
+ * so the calling component decides what "done" means once it has displayed
+ * and the user has acknowledged them - see MfaSetupFlow.
+ */
 export function useEnableMfa() {
-  const router = useRouter()
-  const clearSession = useAuthStore((state) => state.clearSession)
-
   return useMutation({
     mutationFn: (code: string) => authApi.enableMfa(code),
-    onSuccess: async () => {
-      await authApi.logout().catch(() => {})
-      clearSession()
-      toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
-      router.push("/login")
-    },
     onError: (error) => {
       toast.error(errorMessage(error, "Cod invalid. Încearcă din nou."))
     },

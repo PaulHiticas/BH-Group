@@ -16,9 +16,19 @@ export interface MfaVerifyLoginPayload {
   code: string
 }
 
+export interface MfaRecoveryLoginPayload {
+  challengeToken: string
+  recoveryCode: string
+}
+
 export interface MfaSetupResponse {
   secret: string
   otpAuthUrl: string
+}
+
+export interface MfaEnableResponse {
+  /** Shown to the user exactly once, right after enabling - never retrievable again. */
+  recoveryCodes: string[]
 }
 
 export const authApi = {
@@ -27,6 +37,11 @@ export const authApi = {
 
   verifyMfaLogin: (payload: MfaVerifyLoginPayload) =>
     apiClient.post<AuthResponse>("/auth/mfa/verify-login", payload, {
+      skipAuth: true,
+    }),
+
+  verifyMfaRecovery: (payload: MfaRecoveryLoginPayload) =>
+    apiClient.post<AuthResponse>("/auth/mfa/verify-recovery", payload, {
       skipAuth: true,
     }),
 
@@ -57,7 +72,7 @@ export const authApi = {
 
   setupMfa: () => apiClient.post<MfaSetupResponse>("/auth/mfa/setup"),
 
-  enableMfa: (code: string) => apiClient.post<void>("/auth/mfa/enable", { code }),
+  enableMfa: (code: string) => apiClient.post<MfaEnableResponse>("/auth/mfa/enable", { code }),
 
   disableMfa: (password: string) =>
     apiClient.post<void>("/auth/mfa/disable", { password }),
