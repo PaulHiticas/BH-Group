@@ -1,18 +1,19 @@
 "use client"
 
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { BedDouble, Building2, Calendar, Clock, MapPin, Users } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AvailabilityCalendar } from "@/components/booking/availability-calendar"
+import { PhotoLightbox } from "@/components/booking/photo-lightbox"
+import { StreetViewEmbed } from "@/components/booking/street-view-embed"
 import { usePublicProperty } from "@/hooks/use-public-booking"
-import { FACILITY_LABELS, PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
+import { FACILITY_ICONS, FACILITY_LABELS, PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
 import { cn } from "@/lib/utils"
 
 const LeafletMap = dynamic(() => import("@/components/map/leaflet-map"), {
@@ -23,6 +24,7 @@ const LeafletMap = dynamic(() => import("@/components/map/leaflet-map"), {
 function PropertyDetailInner({ id }: { id: string }) {
   const searchParams = useSearchParams()
   const { data: property, isLoading } = usePublicProperty(id)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
 
   if (isLoading || !property) {
     return (
@@ -54,29 +56,50 @@ function PropertyDetailInner({ id }: { id: string }) {
 
       {property.photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {property.photos.slice(0, 4).map((photo, index) => (
-            <div
-              key={photo.id}
-              className={cn(
-                "relative aspect-[4/3] overflow-hidden rounded-lg",
-                index === 0 && "col-span-2 row-span-2 aspect-square sm:aspect-[4/3]"
-              )}
-            >
-              <Image
-                src={photo.url}
-                alt={property.name}
-                fill
-                sizes={index === 0 ? "(min-width: 640px) 50vw, 100vw" : "(min-width: 640px) 25vw, 50vw"}
-                priority={index === 0}
-                className="object-cover"
-              />
-            </div>
-          ))}
+          {property.photos.slice(0, 4).map((photo, index) => {
+            const isLast = index === 3 && property.photos.length > 4
+            return (
+              <button
+                key={photo.id}
+                type="button"
+                onClick={() => setLightboxIndex(index)}
+                aria-label={`Vezi galeria foto — fotografia ${index + 1}`}
+                className={cn(
+                  "group relative aspect-[4/3] overflow-hidden rounded-lg",
+                  index === 0 && "col-span-2 row-span-2 aspect-square sm:aspect-[4/3]"
+                )}
+              >
+                <Image
+                  src={photo.url}
+                  alt={photo.caption || property.name}
+                  fill
+                  sizes={index === 0 ? "(min-width: 640px) 50vw, 100vw" : "(min-width: 640px) 25vw, 50vw"}
+                  priority={index === 0}
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                {isLast && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white">
+                    +{property.photos.length - 4} foto
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       ) : (
         <div className="flex aspect-[16/9] items-center justify-center rounded-lg bg-muted text-muted-foreground">
           <Building2 className="size-10" />
         </div>
+      )}
+
+      {lightboxIndex !== null && (
+        <PhotoLightbox
+          photos={property.photos}
+          index={lightboxIndex}
+          onIndexChange={setLightboxIndex}
+          onClose={() => setLightboxIndex(null)}
+          propertyName={property.name}
+        />
       )}
 
       <div className="grid gap-4 sm:grid-cols-4">
@@ -119,12 +142,16 @@ function PropertyDetailInner({ id }: { id: string }) {
           <CardHeader>
             <CardTitle className="text-base">Facilități</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {property.facilities.map((facility) => (
-              <Badge key={facility} variant="secondary">
-                {FACILITY_LABELS[facility]}
-              </Badge>
-            ))}
+          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {property.facilities.map((facility) => {
+              const Icon = FACILITY_ICONS[facility]
+              return (
+                <div key={facility} className="flex items-center gap-2.5 text-sm">
+                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  {FACILITY_LABELS[facility]}
+                </div>
+              )
+            })}
           </CardContent>
         </Card>
       )}
@@ -134,13 +161,25 @@ function PropertyDetailInner({ id }: { id: string }) {
           <CardHeader>
             <CardTitle className="text-base">Locație</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-3">
+            <p className="text-sm text-muted-foreground">
+              {property.exactLocation
+                ? "Adresa exactă e afișată mai jos."
+                : "Locație aproximativă — adresa exactă e trimisă după confirmarea rezervării."}
+            </p>
             <LeafletMap
               markers={[
                 { id: property.name, lat: property.latitude, lng: property.longitude, label: property.name },
               ]}
               height={320}
             />
+            {property.exactLocation && (
+              <StreetViewEmbed
+                latitude={property.latitude}
+                longitude={property.longitude}
+                label={property.name}
+              />
+            )}
           </CardContent>
         </Card>
       )}
