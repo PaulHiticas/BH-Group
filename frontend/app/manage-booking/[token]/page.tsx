@@ -34,9 +34,13 @@ import {
   useBookingByToken,
   useBookingCancellationQuote,
   useCancelBookingByToken,
+  useLateCheckoutByToken,
+  useRequestLateCheckoutByToken,
   useUpdateBookingByToken,
 } from "@/hooks/use-public-booking"
 import {
+  LATE_CHECKOUT_STATUS_BADGE_VARIANT,
+  LATE_CHECKOUT_STATUS_LABELS,
   RESERVATION_STATUS_BADGE_VARIANT,
   RESERVATION_STATUS_LABELS,
 } from "@/lib/reservation-labels"
@@ -61,6 +65,8 @@ export default function ManageBookingPage({
   const { data: cancellationQuote } = useBookingCancellationQuote(token, confirmCancelOpen)
   const { data: messages, isLoading: messagesLoading } = useBookingMessages(token)
   const sendGuestMessage = useSendGuestMessage(token)
+  const { data: lateCheckout } = useLateCheckoutByToken(token)
+  const requestLateCheckout = useRequestLateCheckoutByToken(token)
 
   const form = useForm({
     resolver: zodResolver(updateSchema),
@@ -143,6 +149,46 @@ export default function ManageBookingPage({
           )}
         </CardContent>
       </Card>
+
+      {reservation.lateCheckoutAvailable
+        && (reservation.status === "CONFIRMED" || reservation.status === "CHECKED_IN") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Check-out târziu</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 text-sm">
+            {lateCheckout ? (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">
+                  Check-out la {lateCheckout.requestedCheckoutTime.slice(0, 5)}
+                  {lateCheckout.fee ? ` — ${lateCheckout.fee} ${lateCheckout.currency}` : ""}
+                </span>
+                <Badge variant={LATE_CHECKOUT_STATUS_BADGE_VARIANT[lateCheckout.status]}>
+                  {LATE_CHECKOUT_STATUS_LABELS[lateCheckout.status]}
+                </Badge>
+              </div>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  Poți rămâne până la ora {reservation.lateCheckoutTime?.slice(0, 5)}
+                  {reservation.lateCheckoutFee
+                    ? ` pentru ${reservation.lateCheckoutFee} ${reservation.currency}`
+                    : ", fără costuri suplimentare"}
+                  . Cererea trebuie aprobată de echipă.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-fit"
+                  disabled={requestLateCheckout.isPending}
+                  onClick={() => requestLateCheckout.mutate(undefined)}
+                >
+                  {requestLateCheckout.isPending ? "Se trimite..." : "Solicită check-out târziu"}
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
