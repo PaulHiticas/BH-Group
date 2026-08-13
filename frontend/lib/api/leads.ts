@@ -1,5 +1,5 @@
 import { apiClient } from "@/lib/api/client"
-import type { LeadResponse, PageResponse } from "@/lib/api/types"
+import type { LeadResponse, LeadType, PageResponse } from "@/lib/api/types"
 
 export interface LeadCreatePayload {
   fullName: string
@@ -7,6 +7,14 @@ export interface LeadCreatePayload {
   phone?: string
   city?: string
   message?: string
+  leadType?: LeadType
+  bedrooms?: number
+  consentGiven: boolean
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
+  /** Honeypot - always sent empty by real users, never rendered visibly. */
+  website?: string
 }
 
 export const leadsApi = {
