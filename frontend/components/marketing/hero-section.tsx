@@ -76,8 +76,8 @@ export function HeroSection() {
           transition={{ duration: reduceMotion ? 0.2 : 0.9, delay: reduceMotion ? 0 : 0.2, ease: EASE_CINEMATIC }}
           className="max-w-xl text-balance text-lg text-white/75"
         >
-          O colecție curatoriată de apartamente moderne, verificate personal de echipa
-          noastră — pregătite pentru sejururi de business sau de vacanță.
+          O colecție curatoriată de apartamente moderne, selectate după standarde clare
+          de calitate — pregătite pentru sejururi de business sau de vacanță.
         </motion.p>
 
         <motion.div
