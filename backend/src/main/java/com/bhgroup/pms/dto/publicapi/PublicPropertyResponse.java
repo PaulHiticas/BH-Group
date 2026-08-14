@@ -22,6 +22,8 @@ public record PublicPropertyResponse(
         int bedrooms,
         int bathrooms,
         int maxGuests,
+        Integer minStayNights,
+        Integer maxStayNights,
         BigDecimal sizeSqm,
         BigDecimal basePricePerNight,
         String currency,

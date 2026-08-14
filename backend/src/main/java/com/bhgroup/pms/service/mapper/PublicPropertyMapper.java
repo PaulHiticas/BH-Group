@@ -57,6 +57,8 @@ public class PublicPropertyMapper {
                 property.getBedrooms(),
                 property.getBathrooms(),
                 property.getMaxGuests(),
+                property.getMinStayNights(),
+                property.getMaxStayNights(),
                 property.getSizeSqm(),
                 property.getBasePricePerNight(),
                 DEFAULT_CURRENCY,

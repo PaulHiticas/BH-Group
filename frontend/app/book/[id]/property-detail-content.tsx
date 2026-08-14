@@ -4,11 +4,12 @@ import { Suspense } from "react"
 import dynamic from "next/dynamic"
 import Image from "next/image"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
-import { BedDouble, Building2, Calendar, Clock, MapPin, Users } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { BedDouble, Building2, Clock, MapPin, Users } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AvailabilityCalendar } from "@/components/booking/availability-calendar"
 import { usePublicProperty } from "@/hooks/use-public-booking"
@@ -21,8 +22,33 @@ const LeafletMap = dynamic(() => import("@/components/map/leaflet-map"), {
 })
 
 function PropertyDetailInner({ id }: { id: string }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
   const { data: property, isLoading } = usePublicProperty(id)
+
+  const checkIn = searchParams.get("checkIn")
+  const checkOut = searchParams.get("checkOut")
+  const rawGuests = Number(searchParams.get("guests"))
+  const guests = property
+    ? Math.min(Math.max(rawGuests || 1, 1), property.maxGuests)
+    : rawGuests || 1
+
+  function updateSelection(next: { checkIn?: string | null; checkOut?: string | null; guests?: number }) {
+    const params = new URLSearchParams(searchParams.toString())
+    const merged = { checkIn, checkOut, guests, ...next }
+
+    if (merged.checkIn) params.set("checkIn", merged.checkIn)
+    else params.delete("checkIn")
+
+    if (merged.checkOut) params.set("checkOut", merged.checkOut)
+    else params.delete("checkOut")
+
+    if (merged.guests) params.set("guests", String(merged.guests))
+    else params.delete("guests")
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+  }
 
   if (isLoading || !property) {
     return (
@@ -34,22 +60,17 @@ function PropertyDetailInner({ id }: { id: string }) {
   }
 
   const bookingHref = `/book/${id}/rezerva${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+  const canContinue = !!checkIn && !!checkOut
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight">{property.name}</h1>
-          <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="size-3.5" />
-            {property.city}
-            {property.county ? `, ${property.county}` : ""}
-          </p>
-        </div>
-        <Link href={bookingHref} className={cn(buttonVariants({ size: "lg" }), "gap-2")}>
-          <Calendar className="size-4" />
-          Rezervă acum
-        </Link>
+      <div>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight">{property.name}</h1>
+        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+          <MapPin className="size-3.5" />
+          {property.city}
+          {property.county ? `, ${property.county}` : ""}
+        </p>
       </div>
 
       {property.photos.length > 0 ? (
@@ -149,15 +170,47 @@ function PropertyDetailInner({ id }: { id: string }) {
         <CardHeader>
           <CardTitle className="text-base">Disponibilitate</CardTitle>
         </CardHeader>
-        <CardContent>
-          <AvailabilityCalendar propertyId={property.id} />
+        <CardContent className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5 sm:w-56">
+            <label className="text-sm font-medium">Oaspeți</label>
+            <Select
+              value={String(guests)}
+              onValueChange={(value) => value && updateSelection({ guests: Number(value) })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: property.maxGuests }, (_, i) => i + 1).map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} {n === 1 ? "oaspete" : "oaspeți"}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Maximum {property.maxGuests} oaspeți pentru această proprietate.</p>
+          </div>
+
+          <AvailabilityCalendar
+            propertyId={property.id}
+            minStayNights={property.minStayNights}
+            maxStayNights={property.maxStayNights}
+            checkIn={checkIn}
+            checkOut={checkOut}
+            onSelect={(range) => updateSelection(range)}
+          />
         </CardContent>
       </Card>
 
-      <Link href={bookingHref} className={cn(buttonVariants({ size: "lg" }), "w-full gap-2 sm:w-auto sm:self-end")}>
-        <Calendar className="size-4" />
-        Rezervă acum
-      </Link>
+      {canContinue ? (
+        <Link href={bookingHref} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto sm:self-end")}>
+          Continuă către cererea de rezervare
+        </Link>
+      ) : (
+        <Button size="lg" disabled className="w-full sm:w-auto sm:self-end">
+          Selectează perioada
+        </Button>
+      )}
     </div>
   )
 }

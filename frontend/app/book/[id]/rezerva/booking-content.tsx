@@ -30,10 +30,11 @@ function BookingInner({ id }: { id: string }) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-4 text-center">
         <CheckCircle2 className="size-12 text-emerald-500" />
-        <h1 className="text-2xl font-semibold tracking-tight">Cerere de rezervare trimisă!</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Cererea a fost primită și așteaptă confirmarea</h1>
         <p className="text-sm text-muted-foreground">
-          Am trimis un email de confirmare la <strong>{confirmedReservation.guestEmail}</strong> cu
-          toate detaliile și un link pentru a-ți gestiona rezervarea.
+          Am trimis un email la <strong>{confirmedReservation.guestEmail}</strong> cu detaliile cererii
+          și un link pentru a o gestiona. Echipa noastră o confirmă manual, iar tu primești un nou
+          email imediat ce e aprobată.
         </p>
         <Card className="w-full text-left">
           <CardContent className="flex flex-col gap-2 text-sm">

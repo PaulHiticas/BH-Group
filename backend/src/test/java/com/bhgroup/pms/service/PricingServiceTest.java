@@ -167,6 +167,18 @@ class PricingServiceTest {
     }
 
     @Test
+    void validateGuestCount_rejectsBelowOne() {
+        assertThat(catchBadRequest(() -> pricingService.validateGuestCount(property, 0))).isTrue();
+    }
+
+    @Test
+    void validateGuestCount_rejectsAboveMaxGuests() {
+        property.setMaxGuests(4);
+        assertThat(catchBadRequest(() -> pricingService.validateGuestCount(property, 5))).isTrue();
+        pricingService.validateGuestCount(property, 4); // does not throw
+    }
+
+    @Test
     void validateStayLength_rejectsBelowMinimum() {
         property.setMinStayNights(3);
         assertThat(catchBadRequest(() -> pricingService.validateStayLength(property, 2))).isTrue();
