@@ -30,15 +30,12 @@ import { reservationsApi } from "@/lib/api/reservations"
 import { useProperties } from "@/hooks/use-properties"
 import { useCalendar } from "@/hooks/use-reservations"
 import { ApiError } from "@/lib/api/types"
+import { formatLocalDate } from "@/lib/date"
 
 const MONTH_LABELS = [
   "Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie",
   "Iulie", "August", "Septembrie", "Octombrie", "Noiembrie", "Decembrie",
 ]
-
-function toIsoDate(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString().slice(0, 10)
-}
 
 function BlockDatesDialog({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = useState(false)
@@ -129,8 +126,8 @@ export function CalendarView() {
 
   const activePropertyId = propertyId || properties?.content[0]?.id || ""
 
-  const rangeFrom = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1))
-  const rangeTo = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0))
+  const rangeFrom = formatLocalDate(new Date(month.getFullYear(), month.getMonth(), 1))
+  const rangeTo = formatLocalDate(new Date(month.getFullYear(), month.getMonth() + 1, 0))
   const { data: entries, isLoading: isLoadingEntries } = useCalendar(activePropertyId, rangeFrom, rangeTo)
 
   const monthLabel = useMemo(

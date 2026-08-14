@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { usePublicCalendar } from "@/hooks/use-public-booking"
+import { formatLocalDate, parseLocalDate } from "@/lib/date"
 import { cn } from "@/lib/utils"
 import type { PublicCalendarEntryResponse } from "@/lib/api/types"
 
@@ -16,24 +17,6 @@ const MONTH_LABELS = [
 
 function toDateOnly(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
-}
-
-function toIsoDate(date: Date) {
-  // Built from local Y/M/D components on purpose - toISOString() converts
-  // to UTC first, and Romania is UTC+2/+3, so local midnight becomes the
-  // previous day once converted (e.g. clicking Aug 14 would silently send
-  // "2026-08-13"). Check-in/check-out are plain calendar dates, never
-  // timezone-aware instants, so no UTC conversion belongs here at all.
-  const d = toDateOnly(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
-}
-
-function fromIsoDate(iso: string) {
-  const [year, month, day] = iso.split("-").map(Number)
-  return new Date(year, month - 1, day)
 }
 
 function addDays(date: Date, amount: number) {
@@ -58,8 +41,8 @@ function gridDaysForMonth(month: Date) {
 function isBookedNight(day: Date, ranges: PublicCalendarEntryResponse[]) {
   const d = toDateOnly(day)
   return ranges.some((range) => {
-    const checkIn = toDateOnly(fromIsoDate(range.checkInDate))
-    const checkOut = toDateOnly(fromIsoDate(range.checkOutDate))
+    const checkIn = toDateOnly(parseLocalDate(range.checkInDate))
+    const checkOut = toDateOnly(parseLocalDate(range.checkOutDate))
     return d >= checkIn && d < checkOut
   })
 }
@@ -94,13 +77,13 @@ export function AvailabilityCalendar({
   // Fetch a padded range covering both visible month grids (including the
   // leading/trailing days from adjacent months shown for calendar layout),
   // so those days reflect real availability instead of only the current month.
-  const rangeFrom = toIsoDate(firstGridDays[0])
-  const rangeTo = toIsoDate(secondGridDays[secondGridDays.length - 1])
+  const rangeFrom = formatLocalDate(firstGridDays[0])
+  const rangeTo = formatLocalDate(secondGridDays[secondGridDays.length - 1])
   const { data: bookedRanges, isLoading } = usePublicCalendar(propertyId, rangeFrom, rangeTo)
   const ranges = bookedRanges ?? []
 
-  const checkInDate = checkIn ? fromIsoDate(checkIn) : null
-  const checkOutDate = checkOut ? fromIsoDate(checkOut) : null
+  const checkInDate = checkIn ? parseLocalDate(checkIn) : null
+  const checkOutDate = checkOut ? parseLocalDate(checkOut) : null
 
   const canGoBack = anchorMonth > new Date(today.getFullYear(), today.getMonth(), 1)
 
@@ -122,13 +105,13 @@ export function AvailabilityCalendar({
     if (!checkInDate || checkOutDate) {
       // Starting a fresh selection.
       if (isBookedNight(day, ranges)) return
-      onSelect({ checkIn: toIsoDate(day), checkOut: null })
+      onSelect({ checkIn: formatLocalDate(day), checkOut: null })
       return
     }
 
     // A check-in is already selected; this click chooses the check-out.
     if (isValidCheckoutCandidate(day, checkInDate)) {
-      onSelect({ checkIn: toIsoDate(checkInDate), checkOut: toIsoDate(day) })
+      onSelect({ checkIn: formatLocalDate(checkInDate), checkOut: formatLocalDate(day) })
       return
     }
 
@@ -137,7 +120,7 @@ export function AvailabilityCalendar({
     // it as restarting the selection from this day instead, unless the
     // day itself is unavailable.
     if (isBookedNight(day, ranges)) return
-    onSelect({ checkIn: toIsoDate(day), checkOut: null })
+    onSelect({ checkIn: formatLocalDate(day), checkOut: null })
   }
 
   function renderMonth(month: Date, days: Date[], hiddenOnMobile: boolean) {
@@ -160,8 +143,8 @@ export function AvailabilityCalendar({
               const isCurrentMonth = day.getMonth() === monthIndex
               const isPast = day < today
               const booked = isBookedNight(day, ranges)
-              const isCheckIn = checkInDate && toIsoDate(day) === toIsoDate(checkInDate)
-              const isCheckOut = checkOutDate && toIsoDate(day) === toIsoDate(checkOutDate)
+              const isCheckIn = checkInDate && formatLocalDate(day) === formatLocalDate(checkInDate)
+              const isCheckOut = checkOutDate && formatLocalDate(day) === formatLocalDate(checkOutDate)
               const isInRange =
                 checkInDate && checkOutDate && day > checkInDate && day < checkOutDate
 
