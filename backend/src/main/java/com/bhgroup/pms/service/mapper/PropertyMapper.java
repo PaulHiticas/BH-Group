@@ -29,6 +29,7 @@ public class PropertyMapper {
                 property.getPropertyType(),
                 property.getStatus(),
                 toAddressDto(property.getAddress()),
+                property.isShowExactAddressPublicly(),
                 property.getBedrooms(),
                 property.getBathrooms(),
                 property.getMaxGuests(),

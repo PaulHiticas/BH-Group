@@ -29,6 +29,7 @@ export interface PropertyPayload {
   propertyType: PropertyType
   status?: PropertyStatus
   address: AddressPayload
+  showExactAddressPublicly: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number

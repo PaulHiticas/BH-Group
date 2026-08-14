@@ -20,6 +20,7 @@ public record PropertyResponse(
         PropertyType propertyType,
         PropertyStatus status,
         AddressDto address,
+        boolean showExactAddressPublicly,
         int bedrooms,
         int bathrooms,
         int maxGuests,

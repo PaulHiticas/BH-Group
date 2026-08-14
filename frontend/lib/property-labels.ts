@@ -1,3 +1,22 @@
+import {
+  AirVent,
+  ArrowUpDown,
+  Car,
+  ChefHat,
+  Coffee,
+  Dumbbell,
+  Flame,
+  KeyRound,
+  Laptop,
+  type LucideIcon,
+  PawPrint,
+  Sun,
+  Tv,
+  Waves,
+  WashingMachine,
+  Wifi,
+  Wind,
+} from "lucide-react"
 import type {
   CancellationPolicy,
   Facility,
@@ -54,6 +73,25 @@ export const FACILITY_LABELS: Record<Facility, string> = {
   GYM: "Sală fitness",
   WORKSPACE: "Spațiu de lucru",
   BREAKFAST: "Mic dejun",
+}
+
+export const FACILITY_ICONS: Record<Facility, LucideIcon> = {
+  WIFI: Wifi,
+  PARKING: Car,
+  POOL: Waves,
+  AIR_CONDITIONING: AirVent,
+  HEATING: Flame,
+  KITCHEN: ChefHat,
+  TV: Tv,
+  WASHER: WashingMachine,
+  DRYER: Wind,
+  ELEVATOR: ArrowUpDown,
+  PET_FRIENDLY: PawPrint,
+  SMART_LOCK: KeyRound,
+  BALCONY: Sun,
+  GYM: Dumbbell,
+  WORKSPACE: Laptop,
+  BREAKFAST: Coffee,
 }
 
 export const PROPERTY_DOCUMENT_TYPE_LABELS: Record<PropertyDocumentType, string> = {

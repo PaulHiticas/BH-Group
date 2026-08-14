@@ -111,6 +111,7 @@ public class PropertyService {
                 .propertyType(request.propertyType())
                 .status(PropertyStatus.DRAFT)
                 .address(propertyMapper.toAddress(request.address()))
+                .showExactAddressPublicly(request.showExactAddressPublicly())
                 .bedrooms(request.bedrooms())
                 .bathrooms(request.bathrooms())
                 .maxGuests(request.maxGuests())
@@ -151,6 +152,7 @@ public class PropertyService {
         property.setPropertyType(request.propertyType());
         property.setStatus(request.status());
         property.setAddress(propertyMapper.toAddress(request.address()));
+        property.setShowExactAddressPublicly(request.showExactAddressPublicly());
         property.setBedrooms(request.bedrooms());
         property.setBathrooms(request.bathrooms());
         property.setMaxGuests(request.maxGuests());

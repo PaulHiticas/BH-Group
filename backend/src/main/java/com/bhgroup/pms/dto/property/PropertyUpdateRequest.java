@@ -35,6 +35,8 @@ public record PropertyUpdateRequest(
         @Valid
         AddressDto address,
 
+        boolean showExactAddressPublicly,
+
         @Min(value = 0, message = "Bedrooms cannot be negative")
         int bedrooms,
 

@@ -178,6 +178,7 @@ export interface PropertyResponse {
   propertyType: PropertyType
   status: PropertyStatus
   address: AddressDto
+  showExactAddressPublicly: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number
@@ -540,11 +541,14 @@ export interface PublicPropertyResponse {
   name: string
   description: string | null
   propertyType: PropertyType
+  /** Only populated when exactLocation is true. */
+  addressLine: string | null
   city: string
   county: string | null
   country: string
   latitude: number | null
   longitude: number | null
+  exactLocation: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number
