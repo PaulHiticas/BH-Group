@@ -763,4 +763,5 @@ export interface GdprEraseResultResponse {
   reservationsErased: number
   leadsErased: number
   messagesRedacted: number
+  lateCheckoutNotesRedacted: number
 }

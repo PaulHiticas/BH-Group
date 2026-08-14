@@ -2,10 +2,12 @@ package com.bhgroup.pms.repository;
 
 import com.bhgroup.pms.domain.LateCheckoutRequest;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,4 +24,16 @@ public interface LateCheckoutRequestRepository extends JpaRepository<LateCheckou
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select r from LateCheckoutRequest r where r.id = :id")
     Optional<LateCheckoutRequest> findByIdForUpdate(@Param("id") UUID id);
+
+    /**
+     * guestNote is free text a guest submits directly (including through the
+     * unauthenticated management-token link) - nothing stops them writing
+     * their own name, phone number, or other identifying detail into it, so
+     * GDPR erasure has to clear it too, not just the Reservation fields it
+     * was requested against.
+     */
+    @Modifying
+    @Query("update LateCheckoutRequest r set r.guestNote = null "
+            + "where r.reservation.id in :reservationIds and r.guestNote is not null")
+    int redactGuestNoteForReservations(@Param("reservationIds") List<UUID> reservationIds);
 }

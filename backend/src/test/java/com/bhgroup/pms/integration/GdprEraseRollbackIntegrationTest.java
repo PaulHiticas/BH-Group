@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.bhgroup.pms.domain.Address;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.GdprVerificationMethod;
+import com.bhgroup.pms.domain.LateCheckoutRequest;
 import com.bhgroup.pms.domain.Message;
 import com.bhgroup.pms.domain.MessageSenderType;
 import com.bhgroup.pms.domain.Notification;
@@ -24,6 +25,7 @@ import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.repository.AuditLogRepository;
 import com.bhgroup.pms.repository.GdprRequestRepository;
+import com.bhgroup.pms.repository.LateCheckoutRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
 import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
@@ -32,6 +34,7 @@ import com.bhgroup.pms.repository.ReservationRepository;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.service.GdprService;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,11 +51,11 @@ import org.springframework.boot.test.mock.mockito.MockBean;
  *
  * Forces {@link GdprService#erase} to fail at the very last write in the
  * method - persisting the {@code gdpr_requests} compliance row, which
- * happens after the reservation, lead, message, and notification writes
- * have already been applied in this same transaction - then re-reads
- * every one of them fresh (a completely separate read, not the managed
- * entity still held in memory) to confirm nothing survived, and confirms
- * no audit log entry exists either.
+ * happens after the reservation, lead, message, notification, and late
+ * checkout request writes have already been applied in this same
+ * transaction - then re-reads every one of them fresh (a completely
+ * separate read, not the managed entity still held in memory) to confirm
+ * nothing survived, and confirms no audit log entry exists either.
  */
 class GdprEraseRollbackIntegrationTest extends AbstractIntegrationTest {
 
@@ -68,6 +71,8 @@ class GdprEraseRollbackIntegrationTest extends AbstractIntegrationTest {
     private MessageRepository messageRepository;
     @Autowired
     private NotificationRepository notificationRepository;
+    @Autowired
+    private LateCheckoutRequestRepository lateCheckoutRequestRepository;
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -141,6 +146,12 @@ class GdprEraseRollbackIntegrationTest extends AbstractIntegrationTest {
                 .message("Vreau să știu mai multe")
                 .build());
 
+        LateCheckoutRequest lateCheckoutRequest = lateCheckoutRequestRepository.save(LateCheckoutRequest.builder()
+                .reservation(reservation)
+                .requestedCheckoutTime(LocalTime.of(14, 0))
+                .guestNote("Sunt Ion Popescu, sunați la 0722000000 dacă e nevoie")
+                .build());
+
         long auditLogCountBefore = auditLogRepository.count();
 
         doThrow(new RuntimeException("simulated failure on the last write of the transaction"))
@@ -174,6 +185,11 @@ class GdprEraseRollbackIntegrationTest extends AbstractIntegrationTest {
         Notification rereadNotification = notificationRepository.findById(notification.getId()).orElseThrow();
         assertThat(rereadNotification.getTitle()).isEqualTo("Mesaj nou de la Ion Popescu");
         assertThat(rereadNotification.getBody()).isEqualTo("Pot ajunge mai devreme?");
+
+        LateCheckoutRequest rereadLateCheckoutRequest =
+                lateCheckoutRequestRepository.findById(lateCheckoutRequest.getId()).orElseThrow();
+        assertThat(rereadLateCheckoutRequest.getGuestNote())
+                .isEqualTo("Sunt Ion Popescu, sunați la 0722000000 dacă e nevoie");
 
         // the audit write is deferred until after commit - a rolled-back
         // transaction must never leave an audit trail claiming success.

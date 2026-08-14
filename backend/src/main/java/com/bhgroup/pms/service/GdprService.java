@@ -19,6 +19,7 @@ import com.bhgroup.pms.dto.gdpr.GdprMessageExport;
 import com.bhgroup.pms.dto.gdpr.GdprReservationExport;
 import com.bhgroup.pms.dto.gdpr.GdprSearchMatchResponse;
 import com.bhgroup.pms.repository.GdprRequestRepository;
+import com.bhgroup.pms.repository.LateCheckoutRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
 import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
@@ -53,9 +54,13 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * {@code managementToken} link (still usable to view/modify/cancel/
  * message the booking otherwise), every message in the thread (staff
  * replies can restate the guest's own details back at them, not just
- * their own messages), and the free-standing Notification rows a guest
- * message fans out to (title/body copied in at creation time, no FK
- * back to the reservation).
+ * their own messages), the free-standing Notification rows a guest
+ * message (or a late checkout request) fans out to (title/body copied in
+ * at creation time, no FK back to the reservation), and the free-text
+ * {@code guestNote} on any {@link com.bhgroup.pms.domain.LateCheckoutRequest}
+ * tied to the reservation - a guest can write anything in it, including
+ * their own name or phone number, via the unauthenticated
+ * management-token link.
  *
  * Neither the general audit log nor the {@link GdprRequest} compliance
  * register ever get the full email - only {@link PiiMasking#maskEmail}'d
@@ -84,6 +89,7 @@ public class GdprService {
     private final PropertyLeadRepository propertyLeadRepository;
     private final MessageRepository messageRepository;
     private final NotificationRepository notificationRepository;
+    private final LateCheckoutRequestRepository lateCheckoutRequestRepository;
     private final GdprRequestRepository gdprRequestRepository;
     private final AuditService auditService;
     private final AppProperties appProperties;
@@ -172,6 +178,13 @@ public class GdprService {
             notificationRepository.redactByLinkPaths(linkPaths, REDACTED_NOTIFICATION_TITLE, REDACTED_NOTIFICATION_BODY);
         }
 
+        // Late checkout requests carry their own free-text guestNote,
+        // submittable by the guest directly - not covered by clearing the
+        // Reservation fields above.
+        int lateCheckoutNotesRedacted = reservationIds.isEmpty()
+                ? 0
+                : lateCheckoutRequestRepository.redactGuestNoteForReservations(reservationIds);
+
         for (Reservation r : reservations) {
             r.setGuestFirstName("Șters");
             r.setGuestLastName("(GDPR)");
@@ -197,10 +210,13 @@ public class GdprService {
         int recordsAffected = reservations.size() + leads.size();
         recordComplianceEntryAndAuditAfterCommit(GdprRequestType.ERASE, AuditAction.GDPR_DATA_ERASED,
                 actor, email, verificationMethod, recordsAffected,
-                "Date GDPR șterse pentru %s (%d rezervări anonimizate, %d lead-uri anonimizate, %d mesaje redactate)"
-                        .formatted(PiiMasking.maskEmail(email), reservations.size(), leads.size(), messagesRedacted));
+                ("Date GDPR șterse pentru %s (%d rezervări anonimizate, %d lead-uri anonimizate, "
+                        + "%d mesaje redactate, %d note de check-out târziu redactate)")
+                        .formatted(PiiMasking.maskEmail(email), reservations.size(), leads.size(),
+                                messagesRedacted, lateCheckoutNotesRedacted));
 
-        return new GdprEraseResultResponse(reservations.size(), leads.size(), messagesRedacted);
+        return new GdprEraseResultResponse(
+                reservations.size(), leads.size(), messagesRedacted, lateCheckoutNotesRedacted);
     }
 
     private void requireValidVerification(GdprVerificationMethod verificationMethod, String verificationNote) {
