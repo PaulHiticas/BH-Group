@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { QRCodeSVG } from "qrcode.react"
+import { useRouter } from "next/navigation"
 import { ShieldAlert, ShieldCheck } from "lucide-react"
+import { toast } from "sonner"
 import {
   Card,
   CardContent,
@@ -10,43 +10,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { MfaSetupFlow } from "@/components/auth/mfa-setup-flow"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { useDisableMfa, useEnableMfa, useSetupMfa } from "@/hooks/use-auth"
+import { authApi } from "@/lib/api/auth"
+import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function SettingsView() {
+  const router = useRouter()
   const { data: user, isLoading } = useCurrentUser()
-  const setupMfa = useSetupMfa()
-  const enableMfa = useEnableMfa()
-  const disableMfa = useDisableMfa()
+  const clearSession = useAuthStore((state) => state.clearSession)
 
-  const [enableCode, setEnableCode] = useState("")
-  const [disablePassword, setDisablePassword] = useState("")
-  const [showDisableForm, setShowDisableForm] = useState(false)
-
-  function handleStartSetup() {
-    setupMfa.mutate()
-  }
-
-  function handleConfirmEnable() {
-    enableMfa.mutate(enableCode, {
-      onSuccess: () => {
-        setEnableCode("")
-        setupMfa.reset()
-      },
-    })
-  }
-
-  function handleDisable() {
-    disableMfa.mutate(disablePassword, {
-      onSuccess: () => {
-        setDisablePassword("")
-        setShowDisableForm(false)
-      },
-    })
+  async function handleMfaSetupComplete() {
+    await authApi.logout().catch(() => {})
+    clearSession()
+    toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
+    router.push("/login")
   }
 
   return (
@@ -77,43 +56,17 @@ export function SettingsView() {
                 <ShieldCheck className="size-4" />
                 2FA este activ pe contul tău.
               </div>
+              <p className="text-xs text-muted-foreground">
+                2FA este obligatoriu pentru toate conturile și nu poate fi dezactivat din cont. Dacă
+                ai pierdut accesul la aplicația de autentificare, poți reconfigura mai jos (necesită
+                parola) sau cere unui Super Admin să-l reseteze.
+              </p>
 
-              {!showDisableForm ? (
-                <Button variant="outline" onClick={() => setShowDisableForm(true)} className="w-fit">
-                  Dezactivează 2FA
-                </Button>
-              ) : (
-                <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-4">
-                  <Label htmlFor="disable-password">Confirmă parola pentru a dezactiva 2FA</Label>
-                  <Input
-                    id="disable-password"
-                    type="password"
-                    value={disablePassword}
-                    onChange={(e) => setDisablePassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={!disablePassword || disableMfa.isPending}
-                      onClick={handleDisable}
-                    >
-                      {disableMfa.isPending ? "Se dezactivează..." : "Confirmă dezactivarea"}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowDisableForm(false)
-                        setDisablePassword("")
-                      }}
-                    >
-                      Anulează
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <MfaSetupFlow
+                onComplete={handleMfaSetupComplete}
+                completeLabel="Continuă la autentificare"
+                requirePasswordConfirmation
+              />
             </>
           ) : (
             <>
@@ -122,46 +75,7 @@ export function SettingsView() {
                 2FA nu este activat momentan.
               </div>
 
-              {!setupMfa.data ? (
-                <Button onClick={handleStartSetup} disabled={setupMfa.isPending} className="w-fit">
-                  {setupMfa.isPending ? "Se generează..." : "Activează 2FA"}
-                </Button>
-              ) : (
-                <div className="flex flex-col items-center gap-4 rounded-lg border border-border/60 p-6">
-                  <p className="text-sm text-muted-foreground">
-                    Scanează codul cu Google Authenticator sau Authy, apoi introdu codul generat.
-                  </p>
-                  <div className="rounded-lg bg-white p-4">
-                    <QRCodeSVG value={setupMfa.data.otpAuthUrl} size={180} />
-                  </div>
-                  <p className="break-all text-center text-xs text-muted-foreground">
-                    Sau introdu manual cheia: <code className="font-mono">{setupMfa.data.secret}</code>
-                  </p>
-                  <div className="flex w-full max-w-52 flex-col gap-2">
-                    <Label htmlFor="enable-code">Cod de 6 cifre</Label>
-                    <Input
-                      id="enable-code"
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="123456"
-                      value={enableCode}
-                      onChange={(e) => setEnableCode(e.target.value.replace(/\D/g, ""))}
-                      className="text-center text-lg tracking-widest"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      disabled={enableCode.length !== 6 || enableMfa.isPending}
-                      onClick={handleConfirmEnable}
-                    >
-                      {enableMfa.isPending ? "Se confirmă..." : "Confirmă și activează"}
-                    </Button>
-                    <Button variant="ghost" onClick={() => setupMfa.reset()}>
-                      Anulează
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <MfaSetupFlow onComplete={handleMfaSetupComplete} completeLabel="Continuă la autentificare" />
             </>
           )}
         </CardContent>

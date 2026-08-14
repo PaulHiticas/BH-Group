@@ -13,6 +13,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -41,10 +52,16 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataPagination } from "@/components/ui/data-pagination"
-import { useCreateUser, useResendInvite, useUpdateUserStatus, useUsers } from "@/hooks/use-users"
+import {
+  useCreateUser,
+  useResendInvite,
+  useResetUserMfa,
+  useUpdateUserStatus,
+  useUsers,
+} from "@/hooks/use-users"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { ALL_ROLES, ROLE_LABELS, USER_STATUS_BADGE_VARIANT, USER_STATUS_LABELS } from "@/lib/roles"
-import type { Role, UserStatus } from "@/lib/api/types"
+import type { Role, UserResponse, UserStatus } from "@/lib/api/types"
 
 const createUserSchema = z.object({
   firstName: z.string().min(1, "Prenumele este obligatoriu").max(100),
@@ -196,11 +213,58 @@ function CreateUserDialog() {
   )
 }
 
+function DisableUserDialog({ user }: { user: UserResponse }) {
+  const [open, setOpen] = useState(false)
+  const [typedEmail, setTypedEmail] = useState("")
+  const updateStatus = useUpdateUserStatus()
+
+  function handleConfirm() {
+    updateStatus.mutate(
+      { id: user.id, status: "DISABLED", confirmEmail: typedEmail },
+      { onSuccess: () => { setOpen(false); setTypedEmail("") } }
+    )
+  }
+
+  return (
+    <AlertDialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) setTypedEmail("") }}>
+      <AlertDialogTrigger render={<Button variant="destructive" size="sm" />}>
+        Dezactivează definitiv
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Dezactivezi definitiv acest cont?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {user.firstName} {user.lastName} nu se va mai putea autentifica. Acțiunea este
+            greu de anulat. Scrie adresa de email a contului pentru a confirma:{" "}
+            <strong>{user.email}</strong>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <Input
+          value={typedEmail}
+          onChange={(e) => setTypedEmail(e.target.value)}
+          placeholder={user.email}
+          autoComplete="off"
+        />
+        <AlertDialogFooter>
+          <AlertDialogCancel>Anulează</AlertDialogCancel>
+          <AlertDialogAction
+            disabled={typedEmail.trim().toLowerCase() !== user.email.toLowerCase() || updateStatus.isPending}
+            onClick={handleConfirm}
+          >
+            Dezactivează definitiv
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 export function UsersView() {
   const { data: me } = useCurrentUser()
   const [page, setPage] = useState(0)
   const { data, isLoading } = useUsers({ page })
   const updateStatus = useUpdateUserStatus()
+  const resetMfa = useResetUserMfa()
 
   const resendInvite = useResendInvite()
   const isSuperAdmin = me?.role === "SUPER_ADMIN"
@@ -301,6 +365,19 @@ export function UsersView() {
                             >
                               {u.status === "ACTIVE" ? "Suspendă" : "Reactivează"}
                             </Button>
+                          )}
+                          {u.mfaEnabled && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={resetMfa.isPending}
+                              onClick={() => resetMfa.mutate(u.id)}
+                            >
+                              Resetează 2FA
+                            </Button>
+                          )}
+                          {u.id !== me?.id && u.status !== "DISABLED" && (
+                            <DisableUserDialog user={u} />
                           )}
                         </div>
                       </TableCell>

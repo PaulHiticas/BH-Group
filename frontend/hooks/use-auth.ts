@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { authApi, type LoginPayload } from "@/lib/api/auth"
@@ -54,6 +54,29 @@ export function useVerifyMfaLogin() {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Cod de verificare invalid."))
+    },
+  })
+}
+
+export function useVerifyMfaRecoveryLogin() {
+  const router = useRouter()
+  const setSession = useAuthStore((state) => state.setSession)
+
+  return useMutation({
+    mutationFn: (recoveryCode: string) => {
+      const challengeToken = useAuthStore.getState().mfaChallengeToken
+      if (!challengeToken) {
+        throw new Error("Sesiunea de autentificare a expirat. Te rugăm să te autentifici din nou.")
+      }
+      return authApi.verifyMfaRecovery({ challengeToken, recoveryCode })
+    },
+    onSuccess: (result) => {
+      setSession(result)
+      toast.success(`Bine ai revenit, ${result.user.firstName}!`)
+      router.push("/dashboard")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Cod de recuperare invalid sau deja folosit."))
     },
   })
 }
@@ -115,45 +138,29 @@ export function useAcceptInvite() {
 
 export function useSetupMfa() {
   return useMutation({
-    mutationFn: () => authApi.setupMfa(),
+    mutationFn: (password?: string) => authApi.setupMfa(password),
     onError: (error) => {
       toast.error(errorMessage(error, "Nu am putut porni configurarea 2FA."))
     },
   })
 }
 
+/**
+ * Deliberately no onSuccess side effects here (unlike other mutations in
+ * this file): the response carries one-time recovery codes that must be
+ * shown to the user before anything else happens (logout, redirect, etc.),
+ * so the calling component decides what "done" means once it has displayed
+ * and the user has acknowledged them - see MfaSetupFlow.
+ */
 export function useEnableMfa() {
-  const router = useRouter()
-  const clearSession = useAuthStore((state) => state.clearSession)
-
   return useMutation({
     mutationFn: (code: string) => authApi.enableMfa(code),
-    onSuccess: async () => {
-      await authApi.logout().catch(() => {})
-      clearSession()
-      toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
-      router.push("/login")
-    },
     onError: (error) => {
       toast.error(errorMessage(error, "Cod invalid. Încearcă din nou."))
     },
   })
 }
 
-export function useDisableMfa() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (password: string) => authApi.disableMfa(password),
-    onSuccess: () => {
-      toast.success("Autentificarea în doi pași a fost dezactivată.")
-      queryClient.invalidateQueries({ queryKey: ["current-user"] })
-    },
-    onError: (error) => {
-      toast.error(errorMessage(error, "Parolă incorectă."))
-    },
-  })
-}
 
 export function useLogout() {
   const router = useRouter()

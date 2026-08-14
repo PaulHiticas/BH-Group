@@ -19,6 +19,7 @@ public class UserPrincipal implements UserDetails {
     private final boolean emailVerified;
     private final boolean accountLocked;
     private final boolean accountEnabled;
+    private final boolean mfaEnabled;
 
     public UserPrincipal(User user) {
         this.id = user.getId();
@@ -27,6 +28,7 @@ public class UserPrincipal implements UserDetails {
         this.role = user.getRole().name();
         this.emailVerified = user.isEmailVerified();
         this.accountLocked = user.isAccountLocked();
+        this.mfaEnabled = user.isMfaEnabled();
         this.accountEnabled = switch (user.getStatus()) {
             case ACTIVE -> true;
             case PENDING, SUSPENDED, DISABLED -> false;

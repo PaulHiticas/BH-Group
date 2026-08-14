@@ -5,8 +5,10 @@ import com.bhgroup.pms.dto.auth.AuthResponse;
 import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
 import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
+import com.bhgroup.pms.dto.auth.MfaEnableResponse;
+import com.bhgroup.pms.dto.auth.MfaRecoveryLoginRequest;
+import com.bhgroup.pms.dto.auth.MfaSetupRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
@@ -73,6 +75,17 @@ public class AuthController {
                 .body(ApiResponse.success(response.withoutRefreshToken()));
     }
 
+    @PostMapping("/mfa/verify-recovery")
+    @Operation(summary = "Complete login using a one-time recovery code instead of a TOTP code")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyMfaRecovery(
+            @Valid @RequestBody MfaRecoveryLoginRequest request, HttpServletRequest servletRequest) {
+        AuthResponse response = authService.verifyMfaRecoveryLogin(request, clientIp(servletRequest),
+                servletRequest.getHeader("User-Agent"));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, refreshCookieFor(response).toString())
+                .body(ApiResponse.success(response.withoutRefreshToken()));
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Exchange the httpOnly refresh-token cookie for a new access/refresh token pair")
     public ResponseEntity<ApiResponse<AuthResponse>> refresh(
@@ -131,25 +144,29 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/setup")
-    @Operation(summary = "Generate a new TOTP secret for the authenticated user")
-    public ResponseEntity<ApiResponse<MfaSetupResponse>> setupMfa() {
-        MfaSetupResponse response = authService.setupMfa(SecurityUtils.requireCurrentUserId());
+    @Operation(summary = "Generate a new TOTP secret for the authenticated user. "
+            + "If MFA is already enabled, the current password is required to reconfigure it.")
+    public ResponseEntity<ApiResponse<MfaSetupResponse>> setupMfa(
+            @RequestBody(required = false) MfaSetupRequest request) {
+        String password = request != null ? request.password() : null;
+        MfaSetupResponse response = authService.setupMfa(SecurityUtils.requireCurrentUserId(), password);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PostMapping("/mfa/enable")
-    @Operation(summary = "Confirm and enable MFA by verifying a TOTP code")
-    public ResponseEntity<ApiResponse<Void>> enableMfa(@Valid @RequestBody MfaEnableRequest request) {
-        authService.enableMfa(SecurityUtils.requireCurrentUserId(), request);
-        return ResponseEntity.ok(ApiResponse.message("Two-factor authentication enabled"));
+    @Operation(summary = "Confirm and enable MFA by verifying a TOTP code. Returns one-time recovery codes shown only here.")
+    public ResponseEntity<ApiResponse<MfaEnableResponse>> enableMfa(@Valid @RequestBody MfaEnableRequest request) {
+        MfaEnableResponse response = authService.enableMfa(SecurityUtils.requireCurrentUserId(), request);
+        return ResponseEntity.ok(ApiResponse.success(response, "Two-factor authentication enabled"));
     }
 
-    @PostMapping("/mfa/disable")
-    @Operation(summary = "Disable MFA for the authenticated user")
-    public ResponseEntity<ApiResponse<Void>> disableMfa(@Valid @RequestBody MfaDisableRequest request) {
-        authService.disableMfa(SecurityUtils.requireCurrentUserId(), request);
-        return ResponseEntity.ok(ApiResponse.message("Two-factor authentication disabled"));
-    }
+    // No self-service /mfa/disable: MFA is mandatory for every account (see
+    // MfaEnforcementFilter), and letting the account owner turn it off with
+    // just their password would mean MFA adds no protection at all against
+    // a compromised password - the whole point of a second factor is that
+    // knowing the password isn't enough. The only way to remove MFA from
+    // an account is UserAdminController#resetMfa, a SUPER_ADMIN-only action
+    // for the lost-device-and-recovery-codes case.
 
     @GetMapping("/me")
     @Operation(summary = "Get the currently authenticated user")

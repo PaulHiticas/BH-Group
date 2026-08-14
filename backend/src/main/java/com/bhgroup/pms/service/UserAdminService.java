@@ -51,6 +51,7 @@ public class UserAdminService {
     );
 
     private final UserRepository userRepository;
+    private final com.bhgroup.pms.repository.PropertyRepository propertyRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final VerificationTokenRepository verificationTokenRepository;
     private final PasswordEncoder passwordEncoder;
@@ -133,10 +134,14 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserResponse update(UUID id, UserUpdateRequest request, String actingRole) {
+    public UserResponse update(UUID id, UserUpdateRequest request, UUID actingUserId, String actingRole) {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
         assertCanAssignRole(request.role(), actingRole);
+
+        if (user.getRole() == Role.SUPER_ADMIN && request.role() != Role.SUPER_ADMIN) {
+            assertCanRemoveSuperAdminRole(user, actingUserId);
+        }
 
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
@@ -148,16 +153,75 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserResponse updateStatus(UUID id, UserStatusUpdateRequest request, String actingRole) {
+    public UserResponse updateStatus(UUID id, UserStatusUpdateRequest request, UUID actingUserId, String actingRole) {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
+
+        if (request.status() == UserStatus.DISABLED || request.status() == UserStatus.SUSPENDED) {
+            assertCanDeactivate(user, actingUserId, request.confirmEmail());
+        }
 
         user.setStatus(request.status());
         if (request.status() != UserStatus.ACTIVE) {
             refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
         }
         user = userRepository.save(user);
+
+        auditService.record(AuditAction.USER_STATUS_CHANGED, null,
+                "User " + user.getId() + " (" + user.getEmail() + ") status changed to " + request.status(),
+                null, null);
+
         return userMapper.toResponse(user);
+    }
+
+    /**
+     * DISABLED is this system's "delete" and SUSPENDED is a temporary lockout,
+     * but both immediately end the account's ability to log in - the same
+     * "don't lock the whole team out or orphan an owner's properties with a
+     * single misclick" guards apply to either.
+     */
+    private void assertCanDeactivate(User user, UUID actingUserId, String confirmEmail) {
+        if (user.getId().equals(actingUserId)) {
+            throw new BadRequestException("You cannot change your own account's status");
+        }
+
+        if (confirmEmail == null || !confirmEmail.trim().equalsIgnoreCase(user.getEmail())) {
+            throw new BadRequestException("Type the account's email exactly to confirm this action");
+        }
+
+        if (user.getRole() == Role.SUPER_ADMIN && user.getStatus() == UserStatus.ACTIVE) {
+            long otherActiveSuperAdmins = userRepository
+                    .countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, user.getId());
+            if (otherActiveSuperAdmins == 0) {
+                throw new BadRequestException("Cannot deactivate the last active Super Admin account");
+            }
+        }
+
+        if (user.getRole() == Role.OWNER && !propertyRepository.findByOwnerId(user.getId()).isEmpty()) {
+            throw new BadRequestException(
+                    "Reassign this owner's properties to another owner before deactivating their account");
+        }
+    }
+
+    /**
+     * Same spirit as assertCanDeactivate: changing a Super Admin's role away
+     * from SUPER_ADMIN is functionally equivalent to disabling their admin
+     * access, so it needs the same self-action and last-admin protection
+     * even though the account itself stays ACTIVE.
+     */
+    private void assertCanRemoveSuperAdminRole(User user, UUID actingUserId) {
+        if (user.getId().equals(actingUserId)) {
+            throw new BadRequestException(
+                    "You cannot change your own role away from Super Admin - ask another Super Admin to do it");
+        }
+
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            long otherActiveSuperAdmins = userRepository
+                    .countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, user.getId());
+            if (otherActiveSuperAdmins == 0) {
+                throw new BadRequestException("Cannot remove the last active Super Admin's role");
+            }
+        }
     }
 
     private User findOrThrow(UUID id) {

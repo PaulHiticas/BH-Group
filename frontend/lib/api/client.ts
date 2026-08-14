@@ -86,7 +86,15 @@ export async function apiRequest<T>(
   const body = isJson ? await response.json() : null
 
   if (!response.ok) {
-    throw new ApiError(response.status, body as ApiErrorEnvelope)
+    const envelope = body as ApiErrorEnvelope
+    if (
+      envelope?.errorCode === "MFA_SETUP_REQUIRED" &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/mfa/setup-required")
+    ) {
+      window.location.assign("/mfa/setup-required")
+    }
+    throw new ApiError(response.status, envelope)
   }
 
   return (body as ApiSuccessEnvelope<T>)?.data as T
