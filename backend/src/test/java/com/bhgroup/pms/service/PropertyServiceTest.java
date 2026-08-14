@@ -127,12 +127,21 @@ class PropertyServiceTest {
 
     private PropertyCreateRequest createRequest(boolean lateCheckoutEnabled, LocalTime lateCheckoutTime,
                                                  BigDecimal lateCheckoutFee) {
+        // Positional record - must track PropertyCreateRequest's field order exactly.
+        // name, description, propertyType, address, showExactAddressPublicly,
         return new PropertyCreateRequest(
-                "Test Apartment", null, PropertyType.APARTMENT, null, 1, 1, 2,
+                "Test Apartment", null, PropertyType.APARTMENT, null, false,
+                // bedrooms, bathrooms, maxGuests,
+                1, 1, 2,
+                // sizeSqm, basePricePerNight, weekendPricePerNight, cleaningFee, extraGuestFee,
+                // baseGuestsIncluded, weeklyDiscountPercent, monthlyDiscountPercent,
                 null, null, null, null, null, null, null, null,
-                null, null, null, null, null, null,
-                null, null, null,
+                // minStayNights, maxStayNights, cancellationPolicy, ownerId, commissionPercent,
+                // cleaningChecklist, checkInTime, checkOutTime, facilities,
+                null, null, null, null, null, null, null, null, null,
+                // smartLockEnabled, smartLockProvider, smartLockDeviceId,
                 false, null, null,
+                // lateCheckoutEnabled, lateCheckoutTime, lateCheckoutFee
                 lateCheckoutEnabled, lateCheckoutTime, lateCheckoutFee);
     }
 }
