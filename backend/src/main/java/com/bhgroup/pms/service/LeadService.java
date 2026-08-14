@@ -19,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.bhgroup.pms.domain.PropertyLead;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
@@ -37,10 +39,13 @@ public class LeadService {
     private final LeadMapper leadMapper;
 
     /**
-     * Persist-first-then-notify: the lead is saved before any notification
-     * is attempted, and notifications (especially email) never roll back or
-     * block the response if they fail - see EmailService, whose send()
-     * methods are @Async and catch their own exceptions.
+     * Persist-first-then-notify: notification (in-app and email) is
+     * deferred to run only after this transaction actually commits, via
+     * registerSynchronization().afterCommit() - calling notifyAdmins()
+     * directly here would still run inside this transaction, before the
+     * lead row is durably committed, so a commit failure (or an @Async
+     * email thread racing ahead of the commit) could notify staff about a
+     * lead that was never actually saved.
      */
     @Transactional
     public LeadResponse create(LeadCreateRequest request) {
@@ -68,18 +73,38 @@ public class LeadService {
         lead = leadRepository.save(lead);
         log.info("New {} lead received from {}", lead.getLeadType(), maskEmail(lead.getEmail()));
 
-        notifyAdmins(lead);
+        PropertyLead savedLead = lead;
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    notifyAdmins(savedLead);
+                }
+            });
+        } else {
+            // No active transaction to defer to (e.g. called outside the
+            // normal @Transactional proxy, such as directly in a unit
+            // test) - notify immediately rather than silently dropping it.
+            notifyAdmins(savedLead);
+        }
 
         return leadMapper.toResponse(lead);
     }
 
+    /**
+     * The in-app notification deliberately carries no PII (name, city,
+     * message) - it's a permanent row in the notifications table with no
+     * link back to a specific lead id to redact later, so anything written
+     * here would survive that lead being deleted. Staff get the actual
+     * details (which do need to be real) only in the alert email, sent
+     * directly to them, not stored in the app's own database.
+     */
     private void notifyAdmins(PropertyLead lead) {
         String leadTypeLabel = lead.getLeadType() == LeadType.REVENUE_ESTIMATE
                 ? "Cerere estimare venit" : "Lead nou";
 
         notificationService.notifyAdmins(NotificationType.NEW_LEAD, leadTypeLabel,
-                lead.getFullName() + (lead.getCity() != null ? " — " + lead.getCity() : ""),
-                "/dashboard/leads");
+                "Un lead nou așteaptă să fie contactat", "/dashboard/leads");
 
         for (User admin : userRepository.findByRoleInAndStatus(ADMIN_ROLES, UserStatus.ACTIVE)) {
             if (admin.getEmail() != null) {

@@ -71,6 +71,26 @@ class LeadServiceTest {
     }
 
     @Test
+    void create_inAppNotificationCarriesNoPii() {
+        when(leadRepository.save(any(PropertyLead.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.findByRoleInAndStatus(any(), any())).thenReturn(List.of());
+
+        LeadCreateRequest request = new LeadCreateRequest(
+                "Ana Popescu", "ana@example.com", null, "Cluj-Napoca", null,
+                LeadType.REVENUE_ESTIMATE, 2, true, null, null, null, "");
+
+        leadService.create(request);
+
+        // The in-app notification has no reservation-style link to redact on
+        // GDPR erasure, so it must never carry the lead's name/city/message
+        // in the first place - unlike the alert email, which goes straight
+        // to staff and isn't stored in the app's own database.
+        org.mockito.ArgumentCaptor<String> bodyCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(notificationService).notifyAdmins(eq(NotificationType.NEW_LEAD), any(), bodyCaptor.capture(), any());
+        assertThat(bodyCaptor.getValue()).doesNotContain("Ana Popescu").doesNotContain("Cluj-Napoca");
+    }
+
+    @Test
     void create_discardsSilentlyWhenHoneypotIsFilled() {
         LeadCreateRequest request = new LeadCreateRequest(
                 "Bot", "bot@example.com", null, null, null,
