@@ -15,26 +15,35 @@ Flyway, MapStruct, Maven, Docker, springdoc-openapi (Swagger).
 controller), DTO pattern, global exception handling, audit logging, environment-based
 configuration, Docker Compose.
 
-## Status: Etapa 1 — Fundație & Autentificare
+## Module implementate
 
-Implementat în această etapă:
-
-- Structură monorepo (`backend/`, `frontend/`), Docker Compose, configurare `.env`
-- Schema PostgreSQL (Flyway): `users`, `refresh_tokens`, `verification_tokens`, `audit_logs`
-- Spring Security + JWT (access token + refresh token cu rotație), roluri (`SUPER_ADMIN`,
-  `ADMINISTRATOR`, `OWNER`, `EMPLOYEE`, `CLEANER`, `MAINTENANCE`, `GUEST`)
-- Autentificare completă: register, login, refresh, logout, verificare email, resend
-  verificare, forgot/reset password, autentificare în doi pași (TOTP / 2FA)
-- Audit logging pentru evenimentele de autentificare
-- Global exception handler + envelope de răspuns standard (`ApiResponse` / `ApiError`)
-- Swagger UI la `/swagger-ui.html`
-- Frontend: pagini de autentificare (login, register, forgot/reset password, verify
-  email, verificare 2FA), dashboard minimal protejat, dark mode, temă premium
-  (Stripe/Linear/Notion inspired)
-
-Modulele de business (Property Management, Rezervări, Curățenie, Mentenanță, Owner/
-Employee Portal, Booking Engine, Plăți, Chat, AI, Mobile) urmează în etapele următoare,
-conform planului de implementare.
+- **Autentificare & securitate** — login/refresh/logout cu JWT (refresh token rotit și
+  stocat hash-uit), 2FA obligatoriu (TOTP, coduri de recuperare hash-uite), invitații de
+  cont, resetare parolă, RBAC pe 7 roluri (`SUPER_ADMIN`, `ADMINISTRATOR`, `OWNER`,
+  `CLEANER`, `MAINTENANCE`, `ACCOUNTANT`, `SUPPORT_AGENT`), rate limiting pe
+  endpoint-urile sensibile, audit log
+- **Properties** — CRUD proprietăți, facilități, fotografii, documente, prețuri, adresă
+  cu control de confidențialitate publică, configurare late checkout
+- **Rezervări** — creare/editare, calendar, protecție la suprapunere (constraint la
+  nivel de bază de date), cod de acces check-in, late checkout, mesagerie oaspete-staff
+- **Booking engine public** — căutare și disponibilitate publică, cerere de rezervare
+  fără cont, gestionare rezervare prin link cu token dedicat
+- **Pricing engine** — tarife sezoniere/weekend, taxă de curățenie, taxă oaspete
+  suplimentar, discount săptămânal/lunar, validare min/max nopți
+- **Curățenie** — sarcini de curățenie legate de rezervări, portal dedicat pentru
+  cleaneri
+- **Mentenanță** — tichete de mentenanță, portal dedicat pentru echipa de mentenanță
+- **Plăți** — tranzacții manuale, Stripe și Netopia, webhook-uri de confirmare
+- **Cheltuieli** — înregistrare cheltuieli pe proprietate, atașare chitanțe
+- **Decontări proprietari** — generare și urmărire deconturi (owner statements)
+- **Portal proprietari** — acces la proprietățile, rezervările, cheltuielile și
+  deconturile proprii
+- **Sincronizare iCal** — import/export calendare Airbnb și Booking.com
+- **Lead-uri** — capturare lead-uri și cereri de estimare venit din site-ul public
+- **Rapoarte financiare & dashboard** — panou central cu indicatori agregați
+- **Notificări** — notificări in-app pentru evenimente relevante pe rol
+- **GDPR** — căutare, export și anonimizare a datelor unui oaspete la cerere
+  (drepturile persoanei vizate)
 
 ## Rulare locală
 
@@ -52,7 +61,9 @@ docker compose up --build
 
 La primul start, dacă `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` sunt setate și nu
 există încă niciun cont `SUPER_ADMIN`, backend-ul creează automat primul cont de
-administrator al platformei (înregistrarea publică creează doar conturi `GUEST`).
+administrator al platformei. Nu există înregistrare publică — conturile de staff se
+creează exclusiv prin invitație de la un administrator, iar oaspeții nu au cont, doar
+rezervări identificate prin email/token.
 
 ### Rulare separată (dezvoltare)
 
@@ -88,6 +99,8 @@ docs/       Documentație tehnică
 - Parolele sunt hash-uite cu BCrypt (cost factor 12)
 - Refresh token-urile sunt rotite la fiecare folosire și stocate hash-uit (SHA-256) în
   baza de date, nu în clar
-- 2FA folosește TOTP (RFC 6238), compatibil cu Google Authenticator / Authy
+- 2FA este obligatoriu pentru toate conturile de staff, folosește TOTP (RFC 6238,
+  compatibil cu Google Authenticator / Authy) și coduri de recuperare hash-uite,
+  cu resetare disponibilă doar de către un `SUPER_ADMIN`
 - Toate secretele (JWT, DB, SMTP) se configurează exclusiv prin variabile de mediu —
   nu există secrete hardcodate în cod
