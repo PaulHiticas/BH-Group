@@ -1,33 +1,27 @@
 "use client"
 
-import { Suspense, useState } from "react"
-import dynamic from "next/dynamic"
-import Image from "next/image"
-import Link from "next/link"
+import { Suspense, useRef } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { BedDouble, Building2, Clock, MapPin, Users } from "lucide-react"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { MapPin } from "lucide-react"
+import { motion, useReducedMotion } from "motion/react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AvailabilityCalendar } from "@/components/booking/availability-calendar"
-import { PhotoLightbox } from "@/components/booking/photo-lightbox"
-import { StreetViewEmbed } from "@/components/booking/street-view-embed"
-import { usePublicProperty } from "@/hooks/use-public-booking"
-import { FACILITY_ICONS, FACILITY_LABELS, PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
-import { cn } from "@/lib/utils"
-
-const LeafletMap = dynamic(() => import("@/components/map/leaflet-map"), {
-  ssr: false,
-  loading: () => <Skeleton className="h-72 w-full" />,
-})
+import { MobileBookingBar } from "@/components/booking/mobile-booking-bar"
+import { PropertyAmenities } from "@/components/booking/property-amenities"
+import { PropertyBookingCard } from "@/components/booking/property-booking-card"
+import { PropertyFacts } from "@/components/booking/property-facts"
+import { PropertyGallery } from "@/components/booking/property-gallery"
+import { PropertyLocation } from "@/components/booking/property-location"
+import { usePublicProperty, usePublicQuote } from "@/hooks/use-public-booking"
+import { PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
 
 function PropertyDetailInner({ id }: { id: string }) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const { data: property, isLoading } = usePublicProperty(id)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
+  const availabilityRef = useRef<HTMLDivElement>(null)
+  const reduceMotion = useReducedMotion()
 
   const checkIn = searchParams.get("checkIn")
   const checkOut = searchParams.get("checkOut")
@@ -36,6 +30,10 @@ function PropertyDetailInner({ id }: { id: string }) {
     ? Math.min(Math.max(rawGuests || 1, 1), property.maxGuests)
     : rawGuests || 1
 
+  // Single source of truth for checkIn/checkOut/guests: the URL search
+  // params. The calendar and the booking card both read the same values
+  // from here and both write back through this same function, so there is
+  // never a second, out-of-sync copy of the selection.
   function updateSelection(next: { checkIn?: string | null; checkOut?: string | null; guests?: number }) {
     const params = new URLSearchParams(searchParams.toString())
     const merged = { checkIn, checkOut, guests, ...next }
@@ -52,210 +50,122 @@ function PropertyDetailInner({ id }: { id: string }) {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
   }
 
+  const quoteQuery = usePublicQuote(property?.id ?? "", checkIn ?? "", checkOut ?? "", guests)
+
+  function scrollToAvailability() {
+    availabilityRef.current?.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "center",
+    })
+  }
+
   if (isLoading || !property) {
     return (
-      <div className="mx-auto flex max-w-4xl flex-col gap-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-96 w-full" />
+      <div className="mx-auto flex max-w-7xl flex-col gap-8">
+        <Skeleton className="h-[280px] w-full rounded-2xl sm:h-[360px] lg:h-[440px]" />
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="h-96 w-full rounded-2xl" />
+        </div>
       </div>
     )
   }
 
   const bookingHref = `/book/${id}/rezerva${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
-  const canContinue = !!checkIn && !!checkOut
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <div>
-        <h1 className="font-heading text-2xl font-semibold tracking-tight">{property.name}</h1>
-        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-          <MapPin className="size-3.5" />
-          {property.city}
-          {property.county ? `, ${property.county}` : ""}
+    <motion.div
+      initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="mx-auto flex max-w-7xl flex-col gap-8 pb-8 lg:pb-0"
+    >
+      <PropertyGallery photos={property.photos} propertyName={property.name} />
+
+      <div className="flex flex-col gap-3">
+        <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">{property.name}</h1>
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <MapPin className="size-3.5" />
+            {property.city}
+            {property.county ? `, ${property.county}` : ""}
+          </span>
+          <span className="text-border">·</span>
+          <span>{PROPERTY_TYPE_LABELS[property.propertyType]}</span>
+          {property.sizeSqm != null && (
+            <>
+              <span className="text-border">·</span>
+              <span>{property.sizeSqm} m²</span>
+            </>
+          )}
         </p>
+        <PropertyFacts property={property} />
       </div>
 
-      {property.photos.length > 0 ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {property.photos.slice(0, 4).map((photo, index) => {
-            const isLast = index === 3 && property.photos.length > 4
-            return (
-              <button
-                key={photo.id}
-                type="button"
-                onClick={() => setLightboxIndex(index)}
-                aria-label={`Vezi galeria foto — fotografia ${index + 1}`}
-                className={cn(
-                  "group relative aspect-[4/3] overflow-hidden rounded-lg",
-                  index === 0 && "col-span-2 row-span-2 aspect-square sm:aspect-[4/3]"
-                )}
-              >
-                <Image
-                  src={photo.url}
-                  alt={photo.caption || property.name}
-                  fill
-                  sizes={index === 0 ? "(min-width: 640px) 50vw, 100vw" : "(min-width: 640px) 25vw, 50vw"}
-                  priority={index === 0}
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                />
-                {isLast && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium text-white">
-                    +{property.photos.length - 4} foto
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      ) : (
-        <div className="flex aspect-[16/9] items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Building2 className="size-10" />
-        </div>
-      )}
-
-      {lightboxIndex !== null && (
-        <PhotoLightbox
-          photos={property.photos}
-          index={lightboxIndex}
-          onIndexChange={setLightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-          propertyName={property.name}
-        />
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-2 text-sm">
-            <BedDouble className="size-4 text-muted-foreground" />
-            {property.bedrooms} dormitoare
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-2 text-sm">
-            <Users className="size-4 text-muted-foreground" />
-            max {property.maxGuests} oaspeți
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-2 text-sm">
-            <Clock className="size-4 text-muted-foreground" />
-            {property.checkInTime.slice(0, 5)} - {property.checkOutTime.slice(0, 5)}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="text-sm">{PROPERTY_TYPE_LABELS[property.propertyType]}</CardContent>
-        </Card>
-      </div>
-
-      {property.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Descriere</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-line text-sm text-muted-foreground">{property.description}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {property.facilities.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Facilități</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {property.facilities.map((facility) => {
-              const Icon = FACILITY_ICONS[facility]
-              return (
-                <div key={facility} className="flex items-center gap-2.5 text-sm">
-                  <Icon className="size-4 shrink-0 text-muted-foreground" />
-                  {FACILITY_LABELS[facility]}
-                </div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      )}
-
-      {property.latitude != null && property.longitude != null && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Locație</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {property.exactLocation && property.addressLine ? (
-              <p className="text-sm">
-                {property.addressLine}, {property.city}
-                {property.county ? `, ${property.county}` : ""}
-              </p>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Locație aproximativă — adresa exactă e trimisă după confirmarea rezervării.
-              </p>
-            )}
-            <LeafletMap
-              markers={[
-                { id: property.name, lat: property.latitude, lng: property.longitude, label: property.name },
-              ]}
-              height={320}
-            />
-            {property.exactLocation && (
-              <StreetViewEmbed
-                latitude={property.latitude}
-                longitude={property.longitude}
-                label={property.name}
-              />
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Disponibilitate</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex flex-col gap-1.5 sm:w-56">
-            <label className="text-sm font-medium">Oaspeți</label>
-            <Select
-              value={String(guests)}
-              onValueChange={(value) => value && updateSelection({ guests: Number(value) })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: property.maxGuests }, (_, i) => i + 1).map((n) => (
-                  <SelectItem key={n} value={String(n)}>
-                    {n} {n === 1 ? "oaspete" : "oaspeți"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Maximum {property.maxGuests} oaspeți pentru această proprietate.</p>
-          </div>
-
-          <AvailabilityCalendar
-            propertyId={property.id}
-            minStayNights={property.minStayNights}
-            maxStayNights={property.maxStayNights}
+      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <aside className="lg:order-2 lg:sticky lg:top-24">
+          <PropertyBookingCard
+            property={property}
             checkIn={checkIn}
             checkOut={checkOut}
-            onSelect={(range) => updateSelection(range)}
+            guests={guests}
+            quote={quoteQuery.data}
+            isQuoteLoading={quoteQuery.isLoading}
+            bookingHref={bookingHref}
+            onGuestsChange={(next) => updateSelection({ guests: next })}
+            onScrollToCalendar={scrollToAvailability}
           />
-        </CardContent>
-      </Card>
+        </aside>
 
-      {canContinue ? (
-        <Link href={bookingHref} className={cn(buttonVariants({ size: "lg" }), "w-full sm:w-auto sm:self-end")}>
-          Continuă către cererea de rezervare
-        </Link>
-      ) : (
-        <Button size="lg" disabled className="w-full sm:w-auto sm:self-end">
-          Selectează perioada
-        </Button>
-      )}
-    </div>
+        <div className="flex flex-col gap-8 lg:order-1">
+          {property.description && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-heading text-lg font-semibold tracking-tight">Despre acest loc</h2>
+              <p className="max-w-prose whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
+                {property.description}
+              </p>
+            </section>
+          )}
+
+          <div className="border-t border-border/60 pt-8">
+            <PropertyAmenities facilities={property.facilities} />
+          </div>
+
+          <div className="border-t border-border/60 pt-8">
+            <PropertyLocation property={property} />
+          </div>
+
+          <div ref={availabilityRef} className="scroll-mt-24 border-t border-border/60 pt-8">
+            <section className="flex flex-col gap-4">
+              <h2 className="font-heading text-lg font-semibold tracking-tight">Disponibilitate</h2>
+              <AvailabilityCalendar
+                propertyId={property.id}
+                minStayNights={property.minStayNights}
+                maxStayNights={property.maxStayNights}
+                checkIn={checkIn}
+                checkOut={checkOut}
+                onSelect={(range) => updateSelection(range)}
+              />
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <MobileBookingBar
+        property={property}
+        checkIn={checkIn}
+        checkOut={checkOut}
+        quote={quoteQuery.data}
+        isQuoteLoading={quoteQuery.isLoading}
+        bookingHref={bookingHref}
+      />
+      {/* Compensates for the fixed mobile bar so the last section isn't hidden behind it. */}
+      <div className="h-24 lg:hidden" aria-hidden />
+    </motion.div>
   )
 }
 
