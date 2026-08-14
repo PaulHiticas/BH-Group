@@ -15,6 +15,8 @@ public interface LateCheckoutRequestRepository extends JpaRepository<LateCheckou
 
     Optional<LateCheckoutRequest> findByReservationId(UUID reservationId);
 
+    List<LateCheckoutRequest> findByReservationIdIn(List<UUID> reservationIds);
+
     /**
      * Row-level lock for approve/reject/markPaid: without it, two concurrent
      * decisions on the same request (e.g. a double-click, or two staff

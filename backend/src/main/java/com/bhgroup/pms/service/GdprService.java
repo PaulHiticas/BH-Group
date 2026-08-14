@@ -8,12 +8,14 @@ import com.bhgroup.pms.domain.GdprRecordType;
 import com.bhgroup.pms.domain.GdprRequest;
 import com.bhgroup.pms.domain.GdprRequestType;
 import com.bhgroup.pms.domain.GdprVerificationMethod;
+import com.bhgroup.pms.domain.LateCheckoutRequest;
 import com.bhgroup.pms.domain.Message;
 import com.bhgroup.pms.domain.PropertyLead;
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.dto.gdpr.GdprEraseResultResponse;
 import com.bhgroup.pms.dto.gdpr.GdprExportResponse;
+import com.bhgroup.pms.dto.gdpr.GdprLateCheckoutExport;
 import com.bhgroup.pms.dto.gdpr.GdprLeadExport;
 import com.bhgroup.pms.dto.gdpr.GdprMessageExport;
 import com.bhgroup.pms.dto.gdpr.GdprReservationExport;
@@ -124,11 +126,17 @@ public class GdprService {
             throw new BadRequestException("Nu s-au găsit înregistrări pentru acest email");
         }
 
-        Map<UUID, List<Message>> messagesByReservation = reservations.isEmpty()
+        List<UUID> reservationIdsForExport = reservations.stream().map(Reservation::getId).toList();
+
+        Map<UUID, List<Message>> messagesByReservation = reservationIdsForExport.isEmpty()
                 ? Map.of()
-                : messageRepository.findByReservationIdInOrderByCreatedAtAsc(
-                        reservations.stream().map(Reservation::getId).toList())
+                : messageRepository.findByReservationIdInOrderByCreatedAtAsc(reservationIdsForExport)
                     .stream().collect(Collectors.groupingBy(m -> m.getReservation().getId()));
+
+        Map<UUID, List<LateCheckoutRequest>> lateCheckoutByReservation = reservationIdsForExport.isEmpty()
+                ? Map.of()
+                : lateCheckoutRequestRepository.findByReservationIdIn(reservationIdsForExport)
+                    .stream().collect(Collectors.groupingBy(r -> r.getReservation().getId()));
 
         List<GdprReservationExport> reservationExports = reservations.stream()
                 .map(r -> new GdprReservationExport(
@@ -138,6 +146,9 @@ public class GdprService {
                         r.getNotes(), r.getCreatedAt(),
                         messagesByReservation.getOrDefault(r.getId(), List.of()).stream()
                                 .map(m -> new GdprMessageExport(m.getSenderType(), m.getBody(), m.getCreatedAt()))
+                                .toList(),
+                        lateCheckoutByReservation.getOrDefault(r.getId(), List.of()).stream()
+                                .map(lc -> new GdprLateCheckoutExport(lc.getStatus(), lc.getGuestNote(), lc.getCreatedAt()))
                                 .toList()))
                 .toList();
 

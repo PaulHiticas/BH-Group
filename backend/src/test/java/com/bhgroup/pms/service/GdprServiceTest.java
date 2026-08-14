@@ -14,6 +14,8 @@ import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.GdprRequestType;
 import com.bhgroup.pms.domain.GdprVerificationMethod;
+import com.bhgroup.pms.domain.LateCheckoutRequest;
+import com.bhgroup.pms.domain.LateCheckoutStatus;
 import com.bhgroup.pms.domain.Message;
 import com.bhgroup.pms.domain.MessageSenderType;
 import com.bhgroup.pms.domain.Property;
@@ -253,6 +255,30 @@ class GdprServiceTest {
         verify(messageRepository, never()).redactMessagesForReservations(any(), any());
         verify(notificationRepository, never()).redactByLinkPaths(any(), any(), any());
         verify(lateCheckoutRequestRepository, never()).redactGuestNoteForReservations(any());
+    }
+
+    @Test
+    void export_includesLateCheckoutRequestsGroupedByReservation() {
+        Reservation reservation = buildReservation();
+        LateCheckoutRequest lateCheckoutRequest = LateCheckoutRequest.builder()
+                .reservation(reservation)
+                .status(LateCheckoutStatus.REQUESTED)
+                .guestNote("Sunt Ion, ajung cu întârziere")
+                .build();
+
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(reservation));
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(messageRepository.findByReservationIdInOrderByCreatedAtAsc(any())).thenReturn(List.of());
+        when(lateCheckoutRequestRepository.findByReservationIdIn(List.of(reservation.getId())))
+                .thenReturn(List.of(lateCheckoutRequest));
+
+        var export = gdprService.export(email, method, note, actor);
+
+        assertThat(export.reservations().get(0).lateCheckoutRequests()).hasSize(1);
+        assertThat(export.reservations().get(0).lateCheckoutRequests().get(0).guestNote())
+                .isEqualTo("Sunt Ion, ajung cu întârziere");
+        assertThat(export.reservations().get(0).lateCheckoutRequests().get(0).status())
+                .isEqualTo(LateCheckoutStatus.REQUESTED);
     }
 
     @Test

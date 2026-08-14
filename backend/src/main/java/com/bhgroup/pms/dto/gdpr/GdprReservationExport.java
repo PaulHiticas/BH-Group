@@ -24,6 +24,7 @@ public record GdprReservationExport(
         String currency,
         String notes,
         Instant createdAt,
-        List<GdprMessageExport> messages
+        List<GdprMessageExport> messages,
+        List<GdprLateCheckoutExport> lateCheckoutRequests
 ) {
 }
