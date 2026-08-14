@@ -541,6 +541,8 @@ export interface PublicPropertyResponse {
   name: string
   description: string | null
   propertyType: PropertyType
+  /** Only populated when exactLocation is true. */
+  addressLine: string | null
   city: string
   county: string | null
   country: string

@@ -57,6 +57,7 @@ public class PublicPropertyMapper {
                 property.getName(),
                 property.getDescription(),
                 property.getPropertyType(),
+                publicAddressLine(property),
                 property.getAddress().getCity(),
                 property.getAddress().getCounty(),
                 property.getAddress().getCountry(),
@@ -74,6 +75,10 @@ public class PublicPropertyMapper {
                 property.getFacilities(),
                 photos.stream().map(propertyMapper::toPhotoResponse).toList()
         );
+    }
+
+    private String publicAddressLine(Property property) {
+        return property.isShowExactAddressPublicly() ? property.getAddress().getAddressLine() : null;
     }
 
     private Double publicLatitude(Property property) {

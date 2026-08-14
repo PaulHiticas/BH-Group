@@ -14,6 +14,8 @@ public record PublicPropertyResponse(
         String name,
         String description,
         PropertyType propertyType,
+        /** Only populated when exactLocation is true - null otherwise, never a partial/misleading value. */
+        String addressLine,
         String city,
         String county,
         String country,

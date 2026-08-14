@@ -162,11 +162,16 @@ function PropertyDetailInner({ id }: { id: string }) {
             <CardTitle className="text-base">Locație</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              {property.exactLocation
-                ? "Adresa exactă e afișată mai jos."
-                : "Locație aproximativă — adresa exactă e trimisă după confirmarea rezervării."}
-            </p>
+            {property.exactLocation && property.addressLine ? (
+              <p className="text-sm">
+                {property.addressLine}, {property.city}
+                {property.county ? `, ${property.county}` : ""}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Locație aproximativă — adresa exactă e trimisă după confirmarea rezervării.
+              </p>
+            )}
             <LeafletMap
               markers={[
                 { id: property.name, lat: property.latitude, lng: property.longitude, label: property.name },
