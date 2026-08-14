@@ -20,7 +20,7 @@ export default function PentruProprietariPage() {
     <div className="flex flex-1 flex-col overflow-x-hidden">
       <SiteHeader />
 
-      <section className="relative flex min-h-[60vh] items-end overflow-hidden bg-neutral-950 text-white">
+      <section className="relative flex min-h-[60vh] items-end overflow-hidden bg-navy text-white">
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=2000&q=80&auto=format&fit=crop"
