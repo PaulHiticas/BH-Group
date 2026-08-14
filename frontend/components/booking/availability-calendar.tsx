@@ -19,7 +19,16 @@ function toDateOnly(date: Date) {
 }
 
 function toIsoDate(date: Date) {
-  return toDateOnly(date).toISOString().slice(0, 10)
+  // Built from local Y/M/D components on purpose - toISOString() converts
+  // to UTC first, and Romania is UTC+2/+3, so local midnight becomes the
+  // previous day once converted (e.g. clicking Aug 14 would silently send
+  // "2026-08-13"). Check-in/check-out are plain calendar dates, never
+  // timezone-aware instants, so no UTC conversion belongs here at all.
+  const d = toDateOnly(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 function fromIsoDate(iso: string) {
