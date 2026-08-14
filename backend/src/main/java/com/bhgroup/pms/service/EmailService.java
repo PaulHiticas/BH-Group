@@ -1,5 +1,6 @@
 package com.bhgroup.pms.service;
 
+import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.config.AppProperties;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -130,7 +131,7 @@ public class EmailService {
             helper.setText(templateEngine.process(template, context), true);
             mailSender.send(message);
         } catch (Exception ex) {
-            log.error("Failed to send email to {} using template {}", toEmail, template, ex);
+            log.error("Failed to send email to {} using template {}", PiiMasking.maskEmail(toEmail), template, ex);
         }
     }
 }
