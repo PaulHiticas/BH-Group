@@ -5,6 +5,7 @@ import com.bhgroup.pms.security.JwtAuthenticationFilter;
 import com.bhgroup.pms.security.JwtService;
 import com.bhgroup.pms.security.MfaEnforcementFilter;
 import com.bhgroup.pms.security.RateLimitingFilter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -56,6 +57,7 @@ public class SecurityConfig {
     private final CustomUserDetailsService userDetailsService;
     private final JwtService jwtService;
     private final AppProperties appProperties;
+    private final ObjectMapper objectMapper;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -81,12 +83,12 @@ public class SecurityConfig {
 
     @Bean
     public RateLimitingFilter rateLimitingFilter() {
-        return new RateLimitingFilter();
+        return new RateLimitingFilter(objectMapper);
     }
 
     @Bean
     public MfaEnforcementFilter mfaEnforcementFilter() {
-        return new MfaEnforcementFilter();
+        return new MfaEnforcementFilter(objectMapper);
     }
 
     @Bean
