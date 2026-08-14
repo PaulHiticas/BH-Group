@@ -13,21 +13,21 @@ import com.bhgroup.pms.repository.UserRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.bhgroup.pms.domain.PropertyLead;
 import com.bhgroup.pms.repository.PropertyLeadRepository;
 import com.bhgroup.pms.service.mapper.LeadMapper;
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class LeadService {
 
     private static final List<Role> ADMIN_ROLES = List.of(Role.SUPER_ADMIN, Role.ADMINISTRATOR);
@@ -37,6 +37,20 @@ public class LeadService {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final LeadMapper leadMapper;
+    private final TransactionTemplate requiresNewTransactionTemplate;
+
+    public LeadService(PropertyLeadRepository leadRepository, UserRepository userRepository,
+                        EmailService emailService, NotificationService notificationService,
+                        LeadMapper leadMapper, PlatformTransactionManager transactionManager) {
+        this.leadRepository = leadRepository;
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+        this.notificationService = notificationService;
+        this.leadMapper = leadMapper;
+        this.requiresNewTransactionTemplate = new TransactionTemplate(transactionManager);
+        this.requiresNewTransactionTemplate.setPropagationBehavior(
+                org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     /**
      * Persist-first-then-notify: notification (in-app and email) is
@@ -46,6 +60,16 @@ public class LeadService {
      * lead row is durably committed, so a commit failure (or an @Async
      * email thread racing ahead of the commit) could notify staff about a
      * lead that was never actually saved.
+     *
+     * afterCommit() runs after the physical commit but before this
+     * transaction's resources are fully unbound from the thread, which
+     * makes plain @Transactional(REQUIRED) on the notification path
+     * unreliable at that exact point (confirmed by a real Testcontainers
+     * run: the insert silently found no admins instead of throwing).
+     * requiresNewTransactionTemplate forces a genuinely new, independent
+     * transaction/connection for the notification write, scoped to just
+     * this call site rather than changing NotificationService's
+     * propagation for its other (non-afterCommit) callers.
      */
     @Transactional
     public LeadResponse create(LeadCreateRequest request) {
@@ -78,7 +102,7 @@ public class LeadService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    notifyAdmins(savedLead);
+                    requiresNewTransactionTemplate.executeWithoutResult(status -> notifyAdmins(savedLead));
                 }
             });
         } else {

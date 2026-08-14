@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
 class LeadServiceTest {
@@ -36,13 +37,16 @@ class LeadServiceTest {
     private EmailService emailService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PlatformTransactionManager transactionManager;
 
     private LeadService leadService;
 
     @BeforeEach
     void setUp() {
         leadService = new LeadService(
-                leadRepository, userRepository, emailService, notificationService, new LeadMapper());
+                leadRepository, userRepository, emailService, notificationService, new LeadMapper(),
+                transactionManager);
     }
 
     @Test
