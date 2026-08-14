@@ -30,7 +30,7 @@ export function SiteFooter() {
             <p className="text-sm font-medium">Proprietari</p>
             <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
               <li><Link href="/pentru-proprietari" className="hover:text-foreground">Servicii de administrare</Link></li>
-              <li><Link href="/pentru-proprietari#calculator" className="hover:text-foreground">Calculator venit</Link></li>
+              <li><Link href="/pentru-proprietari#calculator" className="hover:text-foreground">Estimare venit</Link></li>
               <li><Link href="/pentru-proprietari#faq" className="hover:text-foreground">Întrebări frecvente</Link></li>
             </ul>
           </div>

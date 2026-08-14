@@ -60,6 +60,7 @@ export function LeadsView() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nume</TableHead>
+                <TableHead>Tip</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Oraș</TableHead>
                 <TableHead>Mesaj</TableHead>
@@ -71,6 +72,12 @@ export function LeadsView() {
               {data.content.map((lead) => (
                 <TableRow key={lead.id}>
                   <TableCell className="font-medium">{lead.fullName}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {lead.leadType === "REVENUE_ESTIMATE" ? "Estimare venit" : "General"}
+                      {lead.bedrooms != null ? ` · ${lead.bedrooms} dorm.` : ""}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">

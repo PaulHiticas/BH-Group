@@ -104,6 +104,22 @@ public class EmailService {
                 "email/new-message-email", context);
     }
 
+    @Async
+    public void sendNewLeadAlertEmail(String toEmail, String adminFirstName, String leadFullName,
+                                       String leadEmail, String leadPhone, String leadTypeLabel) {
+        Context context = new Context();
+        context.setVariable("appName", appProperties.getName());
+        context.setVariable("firstName", adminFirstName);
+        context.setVariable("leadFullName", leadFullName);
+        context.setVariable("leadEmail", leadEmail);
+        context.setVariable("leadPhone", leadPhone);
+        context.setVariable("leadTypeLabel", leadTypeLabel);
+        context.setVariable("leadsUrl", appProperties.getBaseUrl() + "/dashboard/leads");
+
+        send(toEmail, leadTypeLabel + " - " + appProperties.getName(),
+                "email/new-lead-alert-email", context);
+    }
+
     private void send(String toEmail, String subject, String template, Context context) {
         try {
             MimeMessage message = mailSender.createMimeMessage();

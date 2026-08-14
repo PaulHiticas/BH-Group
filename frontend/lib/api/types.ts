@@ -605,6 +605,8 @@ export interface PublicReservationResponse {
 // Leads (property owners interested in listing)
 // ---------------------------------------------------------------------------
 
+export type LeadType = "GENERAL" | "REVENUE_ESTIMATE"
+
 export interface LeadResponse {
   id: string
   fullName: string
@@ -613,6 +615,12 @@ export interface LeadResponse {
   city: string | null
   message: string | null
   contacted: boolean
+  leadType: LeadType
+  bedrooms: number | null
+  consentGiven: boolean
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
   createdAt: string
 }
 

@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Form,
   FormControl,
@@ -24,7 +25,9 @@ import {
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { HoneypotField } from "@/components/marketing/honeypot-field"
 import { useCreateLead } from "@/hooks/use-leads"
+import { useUtmParams } from "@/hooks/use-utm-params"
 
 const leadSchema = z.object({
   fullName: z.string().min(1, "Numele este obligatoriu").max(150),
@@ -32,16 +35,19 @@ const leadSchema = z.object({
   phone: z.string().max(30).optional(),
   city: z.string().max(100).optional(),
   message: z.string().max(2000).optional(),
+  consentGiven: z.boolean().refine((v) => v, "Este necesar consimțământul pentru a fi contactat"),
 })
 
 type LeadFormValues = z.infer<typeof leadSchema>
 
 export function LeadDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false)
+  const [honeypot, setHoneypot] = useState("")
   const createLead = useCreateLead()
+  const utm = useUtmParams()
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
-    defaultValues: { fullName: "", email: "", phone: "", city: "", message: "" },
+    defaultValues: { fullName: "", email: "", phone: "", city: "", message: "", consentGiven: false },
   })
 
   function onSubmit(values: LeadFormValues) {
@@ -52,6 +58,11 @@ export function LeadDialog({ trigger }: { trigger: ReactNode }) {
         phone: values.phone || undefined,
         city: values.city || undefined,
         message: values.message || undefined,
+        consentGiven: values.consentGiven,
+        utmSource: utm.utmSource,
+        utmMedium: utm.utmMedium,
+        utmCampaign: utm.utmCampaign,
+        website: honeypot,
       },
       {
         onSuccess: () => {
@@ -74,6 +85,7 @@ export function LeadDialog({ trigger }: { trigger: ReactNode }) {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <HoneypotField name="website" value={honeypot} onChange={setHoneypot} />
             <FormField
               control={form.control}
               name="fullName"
@@ -141,13 +153,25 @@ export function LeadDialog({ trigger }: { trigger: ReactNode }) {
                 </FormItem>
               )}
             />
-            <p className="text-xs text-muted-foreground">
-              Prin trimiterea formularului ești de acord cu{" "}
-              <Link href="/confidentialitate" className="underline hover:text-foreground" target="_blank">
-                Politica de confidențialitate
-              </Link>
-              .
-            </p>
+            <FormField
+              control={form.control}
+              name="consentGiven"
+              render={({ field }) => (
+                <FormItem>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
+                    <span>
+                      Sunt de acord să fiu contactat de BH Group și am citit{" "}
+                      <Link href="/confidentialitate" className="underline hover:text-foreground" target="_blank">
+                        Politica de confidențialitate
+                      </Link>
+                      .
+                    </span>
+                  </label>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button type="submit" className="w-full" disabled={createLead.isPending}>
               {createLead.isPending ? "Se trimite..." : "Trimite"}
             </Button>

@@ -16,6 +16,12 @@ public class LeadMapper {
                 lead.getCity(),
                 lead.getMessage(),
                 lead.isContacted(),
+                lead.getLeadType(),
+                lead.getBedrooms(),
+                lead.isConsentGiven(),
+                lead.getUtmSource(),
+                lead.getUtmMedium(),
+                lead.getUtmCampaign(),
                 lead.getCreatedAt()
         );
     }
