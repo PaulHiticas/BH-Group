@@ -12,15 +12,23 @@ interface MfaSetupFlowProps {
   /** Called after the user has acknowledged their recovery codes. */
   onComplete: () => void
   completeLabel: string
+  /**
+   * The account already has MFA enabled (reconfiguring/replacing a lost
+   * device), so the backend requires the current password before it will
+   * regenerate the secret - proof beyond just holding a valid access token.
+   */
+  requirePasswordConfirmation?: boolean
 }
 
-export function MfaSetupFlow({ onComplete, completeLabel }: MfaSetupFlowProps) {
+export function MfaSetupFlow({ onComplete, completeLabel, requirePasswordConfirmation }: MfaSetupFlowProps) {
   const setupMfa = useSetupMfa()
   const enableMfa = useEnableMfa()
   const [enableCode, setEnableCode] = useState("")
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null)
   const [copied, setCopied] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
+  const [confirmingPassword, setConfirmingPassword] = useState(false)
+  const [password, setPassword] = useState("")
 
   function handleConfirmEnable() {
     enableMfa.mutate(enableCode, {
@@ -77,8 +85,51 @@ export function MfaSetupFlow({ onComplete, completeLabel }: MfaSetupFlowProps) {
   }
 
   if (!setupMfa.data) {
+    if (requirePasswordConfirmation && !confirmingPassword) {
+      return (
+        <Button onClick={() => setConfirmingPassword(true)} className="w-fit">
+          Reconfigurează 2FA
+        </Button>
+      )
+    }
+
+    if (requirePasswordConfirmation) {
+      return (
+        <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-4">
+          <Label htmlFor="setup-password">Confirmă parola pentru a reconfigura 2FA</Label>
+          <Input
+            id="setup-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={!password || setupMfa.isPending}
+              onClick={() => setupMfa.mutate(password)}
+            >
+              {setupMfa.isPending ? "Se generează..." : "Continuă"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setConfirmingPassword(false)
+                setPassword("")
+              }}
+            >
+              Anulează
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
     return (
-      <Button onClick={() => setupMfa.mutate()} disabled={setupMfa.isPending} className="w-fit">
+      <Button onClick={() => setupMfa.mutate(undefined)} disabled={setupMfa.isPending} className="w-fit">
         {setupMfa.isPending ? "Se generează..." : "Configurează 2FA"}
       </Button>
     )

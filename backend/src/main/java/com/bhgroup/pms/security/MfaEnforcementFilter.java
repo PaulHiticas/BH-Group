@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -24,6 +25,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * already-public endpoints, pass straight through - this only restricts
  * what a logged-in-but-not-yet-MFA'd user can reach.
  */
+@RequiredArgsConstructor
 public class MfaEnforcementFilter extends OncePerRequestFilter {
 
     private static final Set<String> ALLOWED_PRE_MFA_PATHS = Set.of(
@@ -33,7 +35,11 @@ public class MfaEnforcementFilter extends OncePerRequestFilter {
             "/api/v1/auth/logout"
     );
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    // Must be the application's shared, Spring-managed ObjectMapper (with
+    // JavaTimeModule registered) - a bare `new ObjectMapper()` can't
+    // serialize ApiError.timestamp (an Instant) and throws, turning every
+    // blocked request into an unhandled 500 instead of a clean 403.
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

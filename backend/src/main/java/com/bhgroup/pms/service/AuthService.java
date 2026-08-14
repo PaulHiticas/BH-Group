@@ -7,7 +7,6 @@ import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
 import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
 import com.bhgroup.pms.dto.auth.MfaChallengeResponse;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableResponse;
 import com.bhgroup.pms.dto.auth.MfaRecoveryLoginRequest;
@@ -250,10 +249,27 @@ public class AuthService {
         return issueAuthResponse(user, ipAddress);
     }
 
+    /**
+     * Regenerating the TOTP secret disables MFA until the new secret is
+     * confirmed via enableMfa() - fine for a first-time setup (the account
+     * has no protection to lose yet), but if the account already has MFA
+     * enabled this is effectively a takeover primitive: anyone holding a
+     * stolen access token (XSS, a leaked log line, whatever) could call
+     * this with no further proof and silently re-enroll their own
+     * authenticator in place of the real owner's. When MFA is already on,
+     * the current password is required - something an access-token thief
+     * doesn't necessarily have.
+     */
     @Transactional
-    public MfaSetupResponse setupMfa(UUID userId) {
+    public MfaSetupResponse setupMfa(UUID userId, String password) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.isMfaEnabled()) {
+            if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+                throw new UnauthorizedException("Password is required to reconfigure two-factor authentication");
+            }
+        }
 
         String secret = totpService.generateSecret();
         user.setMfaSecret(secret);
@@ -303,9 +319,8 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("Invalid MFA challenge"));
 
         String submittedHash = secureTokenGenerator.hash(request.recoveryCode().trim().toUpperCase());
-        MfaRecoveryCode matched = mfaRecoveryCodeRepository.findByUserIdAndUsedAtIsNull(user.getId()).stream()
-                .filter(code -> code.getCodeHash().equals(submittedHash))
-                .findFirst()
+        MfaRecoveryCode matched = mfaRecoveryCodeRepository
+                .findByUserIdAndCodeHashAndUsedAtIsNull(user.getId(), submittedHash)
                 .orElse(null);
 
         if (!user.isMfaEnabled() || matched == null) {
@@ -313,8 +328,15 @@ public class AuthService {
             throw new UnauthorizedException("Invalid or already-used recovery code");
         }
 
-        matched.setUsedAt(Instant.now());
-        mfaRecoveryCodeRepository.save(matched);
+        // Atomic flip - if a concurrent request already consumed this exact
+        // code between the lookup above and this update, updated == 0 and we
+        // reject both as invalid rather than letting two logins succeed off
+        // one code.
+        int updated = mfaRecoveryCodeRepository.markUsedIfUnused(matched.getId(), Instant.now());
+        if (updated == 0) {
+            auditService.record(AuditAction.MFA_CHALLENGE_FAILED, user, "Invalid MFA recovery code", ipAddress, userAgent);
+            throw new UnauthorizedException("Invalid or already-used recovery code");
+        }
 
         user.setLastLoginAt(Instant.now());
         user.setLastLoginIp(ipAddress);
@@ -346,20 +368,6 @@ public class AuthService {
                 "MFA reset for user " + user.getId() + " (" + user.getEmail() + ")", null, null);
     }
 
-    @Transactional
-    public void disableMfa(UUID userId, MfaDisableRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid password");
-        }
-
-        user.setMfaEnabled(false);
-        user.setMfaSecret(null);
-        userRepository.save(user);
-        auditService.record(AuditAction.MFA_DISABLED, user, "MFA disabled", null, null);
-    }
 
     private void registerFailedLoginAttempt(User user, String ipAddress) {
         int attempts = user.getFailedLoginAttempts() + 1;

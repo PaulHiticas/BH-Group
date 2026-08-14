@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery } from "@tanstack/react-query"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { authApi, type LoginPayload } from "@/lib/api/auth"
@@ -138,7 +138,7 @@ export function useAcceptInvite() {
 
 export function useSetupMfa() {
   return useMutation({
-    mutationFn: () => authApi.setupMfa(),
+    mutationFn: (password?: string) => authApi.setupMfa(password),
     onError: (error) => {
       toast.error(errorMessage(error, "Nu am putut porni configurarea 2FA."))
     },
@@ -161,20 +161,6 @@ export function useEnableMfa() {
   })
 }
 
-export function useDisableMfa() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (password: string) => authApi.disableMfa(password),
-    onSuccess: () => {
-      toast.success("Autentificarea în doi pași a fost dezactivată.")
-      queryClient.invalidateQueries({ queryKey: ["current-user"] })
-    },
-    onError: (error) => {
-      toast.error(errorMessage(error, "Parolă incorectă."))
-    },
-  })
-}
 
 export function useLogout() {
   const router = useRouter()

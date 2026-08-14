@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { ShieldAlert, ShieldCheck } from "lucide-react"
 import { toast } from "sonner"
@@ -11,39 +10,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MfaSetupFlow } from "@/components/auth/mfa-setup-flow"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { useDisableMfa } from "@/hooks/use-auth"
 import { authApi } from "@/lib/api/auth"
 import { useAuthStore } from "@/lib/stores/auth-store"
 
 export function SettingsView() {
   const router = useRouter()
   const { data: user, isLoading } = useCurrentUser()
-  const disableMfa = useDisableMfa()
   const clearSession = useAuthStore((state) => state.clearSession)
-
-  const [disablePassword, setDisablePassword] = useState("")
-  const [showDisableForm, setShowDisableForm] = useState(false)
 
   async function handleMfaSetupComplete() {
     await authApi.logout().catch(() => {})
     clearSession()
     toast.success("2FA activat! Autentifică-te din nou pentru a confirma.")
     router.push("/login")
-  }
-
-  function handleDisable() {
-    disableMfa.mutate(disablePassword, {
-      onSuccess: () => {
-        setDisablePassword("")
-        setShowDisableForm(false)
-      },
-    })
   }
 
   return (
@@ -74,43 +56,17 @@ export function SettingsView() {
                 <ShieldCheck className="size-4" />
                 2FA este activ pe contul tău.
               </div>
+              <p className="text-xs text-muted-foreground">
+                2FA este obligatoriu pentru toate conturile și nu poate fi dezactivat din cont. Dacă
+                ai pierdut accesul la aplicația de autentificare, poți reconfigura mai jos (necesită
+                parola) sau cere unui Super Admin să-l reseteze.
+              </p>
 
-              {!showDisableForm ? (
-                <Button variant="outline" onClick={() => setShowDisableForm(true)} className="w-fit">
-                  Dezactivează 2FA
-                </Button>
-              ) : (
-                <div className="flex flex-col gap-3 rounded-lg border border-border/60 p-4">
-                  <Label htmlFor="disable-password">Confirmă parola pentru a dezactiva 2FA</Label>
-                  <Input
-                    id="disable-password"
-                    type="password"
-                    value={disablePassword}
-                    onChange={(e) => setDisablePassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={!disablePassword || disableMfa.isPending}
-                      onClick={handleDisable}
-                    >
-                      {disableMfa.isPending ? "Se dezactivează..." : "Confirmă dezactivarea"}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowDisableForm(false)
-                        setDisablePassword("")
-                      }}
-                    >
-                      Anulează
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <MfaSetupFlow
+                onComplete={handleMfaSetupComplete}
+                completeLabel="Continuă la autentificare"
+                requirePasswordConfirmation
+              />
             </>
           ) : (
             <>

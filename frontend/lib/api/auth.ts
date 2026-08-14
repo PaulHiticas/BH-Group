@@ -70,12 +70,13 @@ export const authApi = {
       { skipAuth: true }
     ),
 
-  setupMfa: () => apiClient.post<MfaSetupResponse>("/auth/mfa/setup"),
+  // Password is required (and checked server-side) only when the account
+  // already has MFA enabled - reconfiguring/re-enrolling needs proof beyond
+  // just holding a valid access token. Omitted for first-time setup.
+  setupMfa: (password?: string) =>
+    apiClient.post<MfaSetupResponse>("/auth/mfa/setup", password ? { password } : undefined),
 
   enableMfa: (code: string) => apiClient.post<MfaEnableResponse>("/auth/mfa/enable", { code }),
-
-  disableMfa: (password: string) =>
-    apiClient.post<void>("/auth/mfa/disable", { password }),
 
   me: () => apiClient.get<UserResponse>("/auth/me"),
 }

@@ -5,10 +5,10 @@ import com.bhgroup.pms.dto.auth.AuthResponse;
 import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
 import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableResponse;
 import com.bhgroup.pms.dto.auth.MfaRecoveryLoginRequest;
+import com.bhgroup.pms.dto.auth.MfaSetupRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
@@ -144,9 +144,12 @@ public class AuthController {
     }
 
     @PostMapping("/mfa/setup")
-    @Operation(summary = "Generate a new TOTP secret for the authenticated user")
-    public ResponseEntity<ApiResponse<MfaSetupResponse>> setupMfa() {
-        MfaSetupResponse response = authService.setupMfa(SecurityUtils.requireCurrentUserId());
+    @Operation(summary = "Generate a new TOTP secret for the authenticated user. "
+            + "If MFA is already enabled, the current password is required to reconfigure it.")
+    public ResponseEntity<ApiResponse<MfaSetupResponse>> setupMfa(
+            @RequestBody(required = false) MfaSetupRequest request) {
+        String password = request != null ? request.password() : null;
+        MfaSetupResponse response = authService.setupMfa(SecurityUtils.requireCurrentUserId(), password);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -157,12 +160,13 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.success(response, "Two-factor authentication enabled"));
     }
 
-    @PostMapping("/mfa/disable")
-    @Operation(summary = "Disable MFA for the authenticated user")
-    public ResponseEntity<ApiResponse<Void>> disableMfa(@Valid @RequestBody MfaDisableRequest request) {
-        authService.disableMfa(SecurityUtils.requireCurrentUserId(), request);
-        return ResponseEntity.ok(ApiResponse.message("Two-factor authentication disabled"));
-    }
+    // No self-service /mfa/disable: MFA is mandatory for every account (see
+    // MfaEnforcementFilter), and letting the account owner turn it off with
+    // just their password would mean MFA adds no protection at all against
+    // a compromised password - the whole point of a second factor is that
+    // knowing the password isn't enough. The only way to remove MFA from
+    // an account is UserAdminController#resetMfa, a SUPER_ADMIN-only action
+    // for the lost-device-and-recovery-codes case.
 
     @GetMapping("/me")
     @Operation(summary = "Get the currently authenticated user")
