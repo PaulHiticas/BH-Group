@@ -79,7 +79,7 @@ class LateCheckoutServiceTest {
         when(lateCheckoutRequestRepository.findByReservationId(reservation.getId())).thenReturn(Optional.empty());
         when(reservationRepository.existsByPropertyIdAndCheckInDateAndStatusNotIn(
                 eq(property.getId()), eq(reservation.getCheckOutDate()), any())).thenReturn(false);
-        when(lateCheckoutRequestRepository.save(any(LateCheckoutRequest.class)))
+        when(lateCheckoutRequestRepository.saveAndFlush(any(LateCheckoutRequest.class)))
                 .thenAnswer(invocation -> {
                     LateCheckoutRequest r = invocation.getArgument(0);
                     r.setId(UUID.randomUUID());
@@ -138,16 +138,43 @@ class LateCheckoutServiceTest {
     @Test
     void approve_rejectsWhenRequestIsNotInRequestedStatus() {
         LateCheckoutRequest request = existingRequest(LateCheckoutStatus.APPROVED);
-        when(lateCheckoutRequestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        when(lateCheckoutRequestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> lateCheckoutService.approve(request.getId(), mockUser()))
                 .isInstanceOf(BadRequestException.class);
     }
 
     @Test
+    void approve_reChecksTheCleaningBufferAndRejectsIfAConflictAppearedSinceTheRequest() {
+        LateCheckoutRequest request = existingRequest(LateCheckoutStatus.REQUESTED);
+        when(lateCheckoutRequestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(request));
+        // A conflicting reservation now exists, even though it didn't when the guest first asked.
+        when(reservationRepository.existsByPropertyIdAndCheckInDateAndStatusNotIn(
+                eq(property.getId()), eq(reservation.getCheckOutDate()), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> lateCheckoutService.approve(request.getId(), mockUser()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("fără timp pentru curățenie");
+    }
+
+    @Test
+    void approve_succeedsWhenTheCleaningBufferIsStillAvailable() {
+        LateCheckoutRequest request = existingRequest(LateCheckoutStatus.REQUESTED);
+        when(lateCheckoutRequestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(request));
+        when(reservationRepository.existsByPropertyIdAndCheckInDateAndStatusNotIn(
+                eq(property.getId()), eq(reservation.getCheckOutDate()), any())).thenReturn(false);
+        when(lateCheckoutRequestRepository.save(any(LateCheckoutRequest.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = lateCheckoutService.approve(request.getId(), mockUser());
+
+        assertThat(response.status()).isEqualTo(LateCheckoutStatus.APPROVED);
+    }
+
+    @Test
     void markPaid_rejectsUnlessRequestIsApproved() {
         LateCheckoutRequest request = existingRequest(LateCheckoutStatus.REQUESTED);
-        when(lateCheckoutRequestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        when(lateCheckoutRequestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(request));
 
         assertThatThrownBy(() -> lateCheckoutService.markPaid(request.getId(), mockUser()))
                 .isInstanceOf(BadRequestException.class)
@@ -157,7 +184,7 @@ class LateCheckoutServiceTest {
     @Test
     void markPaid_succeedsWhenRequestIsApproved() {
         LateCheckoutRequest request = existingRequest(LateCheckoutStatus.APPROVED);
-        when(lateCheckoutRequestRepository.findById(request.getId())).thenReturn(Optional.of(request));
+        when(lateCheckoutRequestRepository.findByIdForUpdate(request.getId())).thenReturn(Optional.of(request));
         when(lateCheckoutRequestRepository.save(any(LateCheckoutRequest.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 

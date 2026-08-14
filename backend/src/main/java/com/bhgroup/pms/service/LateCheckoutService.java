@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,13 +66,7 @@ public class LateCheckoutService {
             throw new BadRequestException("Check-out târziu nu este disponibil pentru această proprietate");
         }
 
-        boolean nextGuestSameDay = reservationRepository.existsByPropertyIdAndCheckInDateAndStatusNotIn(
-                property.getId(), reservation.getCheckOutDate(), ReservationStatus.NON_BLOCKING);
-        if (nextGuestSameDay) {
-            throw new BadRequestException(
-                    "Check-out târziu nu este disponibil: următorul oaspete face check-in chiar în ziua "
-                            + "check-out-ului, fără timp pentru curățenie");
-        }
+        assertCleaningBufferAvailable(reservation);
 
         LateCheckoutRequest request = LateCheckoutRequest.builder()
                 .reservation(reservation)
@@ -81,7 +76,15 @@ public class LateCheckoutService {
                 .status(LateCheckoutStatus.REQUESTED)
                 .guestNote(guestNote)
                 .build();
-        request = lateCheckoutRequestRepository.save(request);
+        try {
+            request = lateCheckoutRequestRepository.saveAndFlush(request);
+        } catch (DataIntegrityViolationException ex) {
+            // The unique constraint on reservation_id is the real guard against
+            // two concurrent requests for the same reservation both landing -
+            // the findByReservationId check above narrows the window but can't
+            // close it on its own.
+            throw new BadRequestException("Există deja o cerere de check-out târziu pentru această rezervare");
+        }
 
         notificationService.notifyAdmins(NotificationType.LATE_CHECKOUT_REQUEST,
                 "Cerere check-out târziu",
@@ -108,10 +111,17 @@ public class LateCheckoutService {
 
     @Transactional
     public LateCheckoutRequestResponse approve(UUID requestId, User actor) {
-        LateCheckoutRequest request = findOrThrow(requestId);
+        LateCheckoutRequest request = lateCheckoutRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
         if (request.getStatus() != LateCheckoutStatus.REQUESTED) {
             throw new BadRequestException("Doar cererile în așteptare pot fi aprobate");
         }
+
+        // Re-check: a new reservation with same-day check-in may have been
+        // created between the original request and this approval - the
+        // buffer that justified approving no longer necessarily exists.
+        assertCleaningBufferAvailable(request.getReservation());
+
         request.setStatus(LateCheckoutStatus.APPROVED);
         request.setDecidedBy(actor);
         request.setDecidedAt(Instant.now());
@@ -123,9 +133,20 @@ public class LateCheckoutService {
         return toResponse(request);
     }
 
+    private void assertCleaningBufferAvailable(Reservation reservation) {
+        boolean nextGuestSameDay = reservationRepository.existsByPropertyIdAndCheckInDateAndStatusNotIn(
+                reservation.getProperty().getId(), reservation.getCheckOutDate(), ReservationStatus.NON_BLOCKING);
+        if (nextGuestSameDay) {
+            throw new BadRequestException(
+                    "Check-out târziu nu este disponibil: următorul oaspete face check-in chiar în ziua "
+                            + "check-out-ului, fără timp pentru curățenie");
+        }
+    }
+
     @Transactional
     public LateCheckoutRequestResponse reject(UUID requestId, User actor) {
-        LateCheckoutRequest request = findOrThrow(requestId);
+        LateCheckoutRequest request = lateCheckoutRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
         if (request.getStatus() != LateCheckoutStatus.REQUESTED) {
             throw new BadRequestException("Doar cererile în așteptare pot fi respinse");
         }
@@ -142,7 +163,8 @@ public class LateCheckoutService {
 
     @Transactional
     public LateCheckoutRequestResponse markPaid(UUID requestId, User actor) {
-        LateCheckoutRequest request = findOrThrow(requestId);
+        LateCheckoutRequest request = lateCheckoutRequestRepository.findByIdForUpdate(requestId)
+                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
         if (request.getStatus() != LateCheckoutStatus.APPROVED) {
             throw new BadRequestException("Doar cererile aprobate pot fi marcate ca plătite");
         }
@@ -154,11 +176,6 @@ public class LateCheckoutService {
                 "Late checkout request " + request.getId() + " marked paid", null, null);
 
         return toResponse(request);
-    }
-
-    private LateCheckoutRequest findOrThrow(UUID id) {
-        return lateCheckoutRequestRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Late checkout request not found"));
     }
 
     private LateCheckoutRequestResponse toResponse(LateCheckoutRequest request) {
