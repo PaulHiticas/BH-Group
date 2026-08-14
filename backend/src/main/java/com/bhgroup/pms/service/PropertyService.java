@@ -105,6 +105,11 @@ public class PropertyService {
 
     @Transactional
     public PropertyResponse create(PropertyCreateRequest request) {
+        java.time.LocalTime effectiveCheckOutTime =
+                request.checkOutTime() != null ? request.checkOutTime() : java.time.LocalTime.of(11, 0);
+        assertValidLateCheckoutConfig(request.lateCheckoutEnabled(), request.lateCheckoutTime(),
+                request.lateCheckoutFee(), effectiveCheckOutTime);
+
         Property property = Property.builder()
                 .name(request.name())
                 .description(request.description())
@@ -137,6 +142,9 @@ public class PropertyService {
                 .smartLockEnabled(request.smartLockEnabled())
                 .smartLockProvider(request.smartLockProvider())
                 .smartLockDeviceId(request.smartLockDeviceId())
+                .lateCheckoutEnabled(request.lateCheckoutEnabled())
+                .lateCheckoutTime(request.lateCheckoutTime())
+                .lateCheckoutFee(request.lateCheckoutFee())
                 .build();
 
         property = propertyRepository.save(property);
@@ -177,6 +185,11 @@ public class PropertyService {
         property.setSmartLockEnabled(request.smartLockEnabled());
         property.setSmartLockProvider(request.smartLockProvider());
         property.setSmartLockDeviceId(request.smartLockDeviceId());
+        assertValidLateCheckoutConfig(request.lateCheckoutEnabled(), request.lateCheckoutTime(),
+                request.lateCheckoutFee(), property.getCheckOutTime());
+        property.setLateCheckoutEnabled(request.lateCheckoutEnabled());
+        property.setLateCheckoutTime(request.lateCheckoutTime());
+        property.setLateCheckoutFee(request.lateCheckoutFee());
 
         property = propertyRepository.save(property);
         return toFullResponse(property);
@@ -397,6 +410,25 @@ public class PropertyService {
     private Property findPropertyOrThrow(UUID id) {
         return propertyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
+    }
+
+    private void assertValidLateCheckoutConfig(boolean enabled, java.time.LocalTime lateCheckoutTime,
+                                                java.math.BigDecimal lateCheckoutFee,
+                                                java.time.LocalTime effectiveCheckOutTime) {
+        if (lateCheckoutFee != null && lateCheckoutFee.signum() < 0) {
+            throw new com.bhgroup.pms.common.exception.BadRequestException(
+                    "Taxa de check-out târziu nu poate fi negativă");
+        }
+        if (enabled) {
+            if (lateCheckoutTime == null) {
+                throw new com.bhgroup.pms.common.exception.BadRequestException(
+                        "Este necesară o oră de check-out târziu cât timp opțiunea este activă");
+            }
+            if (!lateCheckoutTime.isAfter(effectiveCheckOutTime)) {
+                throw new com.bhgroup.pms.common.exception.BadRequestException(
+                        "Ora de check-out târziu trebuie să fie după ora normală de check-out");
+            }
+        }
     }
 
     /**

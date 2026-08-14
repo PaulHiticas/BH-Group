@@ -87,6 +87,12 @@ public record PropertyUpdateRequest(
         String smartLockProvider,
 
         @Size(max = 150)
-        String smartLockDeviceId
+        String smartLockDeviceId,
+
+        boolean lateCheckoutEnabled,
+
+        LocalTime lateCheckoutTime,
+
+        BigDecimal lateCheckoutFee
 ) {
 }

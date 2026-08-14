@@ -82,6 +82,9 @@ const propertySchema = z.object({
   smartLockEnabled: z.boolean(),
   smartLockProvider: z.string().max(100).optional(),
   smartLockDeviceId: z.string().max(150).optional(),
+  lateCheckoutEnabled: z.boolean(),
+  lateCheckoutTime: z.string().optional(),
+  lateCheckoutFee: z.coerce.number().min(0).optional(),
 })
 
 export type PropertyFormValues = z.infer<typeof propertySchema>
@@ -124,6 +127,9 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       smartLockEnabled: false,
       smartLockProvider: "",
       smartLockDeviceId: "",
+      lateCheckoutEnabled: false,
+      lateCheckoutTime: "14:00",
+      lateCheckoutFee: undefined,
     }
   }
 
@@ -163,6 +169,9 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     smartLockEnabled: property.smartLockEnabled,
     smartLockProvider: property.smartLockProvider ?? "",
     smartLockDeviceId: property.smartLockDeviceId ?? "",
+    lateCheckoutEnabled: property.lateCheckoutEnabled,
+    lateCheckoutTime: property.lateCheckoutTime?.slice(0, 5) ?? "14:00",
+    lateCheckoutFee: property.lateCheckoutFee ?? undefined,
   }
 }
 
@@ -207,6 +216,9 @@ export function propertyFormValuesToPayload(
     smartLockEnabled: values.smartLockEnabled,
     smartLockProvider: values.smartLockProvider || undefined,
     smartLockDeviceId: values.smartLockDeviceId || undefined,
+    lateCheckoutEnabled: values.lateCheckoutEnabled,
+    lateCheckoutTime: values.lateCheckoutTime ? `${values.lateCheckoutTime}:00` : null,
+    lateCheckoutFee: values.lateCheckoutFee ?? null,
   }
 }
 
@@ -224,6 +236,7 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
   })
 
   const smartLockEnabled = form.watch("smartLockEnabled")
+  const lateCheckoutEnabled = form.watch("lateCheckoutEnabled")
   const { data: owners } = useUsers({ role: "OWNER", size: 100 })
 
   return (
@@ -866,6 +879,62 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
                       <FormLabel>ID Dispozitiv</FormLabel>
                       <FormControl>
                         <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Check-out târziu</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="lateCheckoutEnabled"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    Oferă opțiunea de check-out târziu (cerere, fără plată automată)
+                  </label>
+                </FormItem>
+              )}
+            />
+            {lateCheckoutEnabled && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="lateCheckoutTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Oră check-out târziu</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lateCheckoutFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Taxă (RON, opțional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          {...field}
+                          value={(field.value as number | undefined) ?? ""}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

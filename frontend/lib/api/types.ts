@@ -203,6 +203,9 @@ export interface PropertyResponse {
   smartLockEnabled: boolean
   smartLockProvider: string | null
   smartLockDeviceId: string | null
+  lateCheckoutEnabled: boolean
+  lateCheckoutTime: string | null
+  lateCheckoutFee: number | null
   icalExportUrl: string | null
   integrationMode: IntegrationMode
   photos: PropertyPhotoResponse[]
@@ -493,6 +496,21 @@ export interface CancellationQuoteResponse {
   currency: string
 }
 
+export type LateCheckoutStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "PAID"
+
+export interface LateCheckoutRequestResponse {
+  id: string
+  reservationId: string
+  requestedCheckoutTime: string
+  fee: number | null
+  currency: string
+  status: LateCheckoutStatus
+  guestNote: string | null
+  createdAt: string
+  decidedAt: string | null
+  paidAt: string | null
+}
+
 export interface PriceQuoteResponse {
   available: boolean
   unavailableReason: string | null
@@ -578,6 +596,9 @@ export interface PublicReservationResponse {
   totalAmount: number | null
   currency: string
   managementToken: string
+  lateCheckoutAvailable: boolean
+  lateCheckoutTime: string | null
+  lateCheckoutFee: number | null
 }
 
 // ---------------------------------------------------------------------------

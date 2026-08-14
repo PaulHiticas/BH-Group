@@ -3,6 +3,7 @@ import type {
   AvailabilityResponse,
   CancellationQuoteResponse,
   Facility,
+  LateCheckoutRequestResponse,
   MessageResponse,
   PageResponse,
   PriceQuoteResponse,
@@ -126,6 +127,19 @@ export const publicApi = {
     apiClient.post<MessageResponse>(
       `/public/reservations/manage/${token}/messages`,
       { body },
+      { skipAuth: true }
+    ),
+
+  getLateCheckoutByToken: (token: string) =>
+    apiClient.get<LateCheckoutRequestResponse | null>(
+      `/public/reservations/manage/${token}/late-checkout`,
+      { skipAuth: true }
+    ),
+
+  requestLateCheckoutByToken: (token: string, guestNote?: string) =>
+    apiClient.post<LateCheckoutRequestResponse>(
+      `/public/reservations/manage/${token}/late-checkout`,
+      guestNote ? { guestNote } : undefined,
       { skipAuth: true }
     ),
 }

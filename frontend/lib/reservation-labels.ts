@@ -1,4 +1,21 @@
-import type { ReservationSource, ReservationStatus } from "@/lib/api/types"
+import type { LateCheckoutStatus, ReservationSource, ReservationStatus } from "@/lib/api/types"
+
+export const LATE_CHECKOUT_STATUS_LABELS: Record<LateCheckoutStatus, string> = {
+  REQUESTED: "În așteptare",
+  APPROVED: "Aprobat",
+  REJECTED: "Respins",
+  PAID: "Plătit",
+}
+
+export const LATE_CHECKOUT_STATUS_BADGE_VARIANT: Record<
+  LateCheckoutStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  REQUESTED: "outline",
+  APPROVED: "default",
+  REJECTED: "destructive",
+  PAID: "secondary",
+}
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   PENDING: "În așteptare",
