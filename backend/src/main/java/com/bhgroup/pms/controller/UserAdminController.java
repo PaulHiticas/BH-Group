@@ -72,7 +72,8 @@ public class UserAdminController {
     @Operation(summary = "Update a user's profile and role")
     public ResponseEntity<ApiResponse<UserResponse>> update(@PathVariable UUID id,
                                                              @Valid @RequestBody UserUpdateRequest request) {
-        UserResponse response = userAdminService.update(id, request, currentRole());
+        UserResponse response = userAdminService.update(
+                id, request, SecurityUtils.requireCurrentUserId(), currentRole());
         return ResponseEntity.ok(ApiResponse.success(response, "User updated successfully"));
     }
 

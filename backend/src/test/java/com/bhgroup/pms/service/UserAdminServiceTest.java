@@ -12,6 +12,7 @@ import com.bhgroup.pms.domain.Role;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.dto.user.UserStatusUpdateRequest;
+import com.bhgroup.pms.dto.user.UserUpdateRequest;
 import com.bhgroup.pms.repository.PropertyRepository;
 import com.bhgroup.pms.repository.RefreshTokenRepository;
 import com.bhgroup.pms.repository.UserRepository;
@@ -141,15 +142,87 @@ class UserAdminServiceTest {
     }
 
     @Test
-    void updateStatus_suspendingDoesNotRequireEmailConfirmationOrGuards() {
+    void updateStatus_rejectsSelfSuspend() {
         when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserStatusUpdateRequest request = new UserStatusUpdateRequest(UserStatus.SUSPENDED, "target@bhgroup.io");
+
+        assertThatThrownBy(() -> userAdminService.updateStatus(
+                targetUser.getId(), request, targetUser.getId(), "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("own account");
+    }
+
+    @Test
+    void updateStatus_rejectsSuspendingTheLastActiveSuperAdmin() {
+        targetUser.setRole(Role.SUPER_ADMIN);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+        when(userRepository.countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, targetUser.getId()))
+                .thenReturn(0L);
+        UUID actingUserId = UUID.randomUUID();
+
+        UserStatusUpdateRequest request = new UserStatusUpdateRequest(UserStatus.SUSPENDED, "target@bhgroup.io");
+
+        assertThatThrownBy(() -> userAdminService.updateStatus(
+                targetUser.getId(), request, actingUserId, "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("last active Super Admin");
+    }
+
+    @Test
+    void updateStatus_suspendingRequiresMatchingEmailConfirmation() {
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
         UUID actingUserId = UUID.randomUUID();
 
         UserStatusUpdateRequest request = new UserStatusUpdateRequest(UserStatus.SUSPENDED, null);
 
-        var response = userAdminService.updateStatus(targetUser.getId(), request, actingUserId, "SUPER_ADMIN");
+        assertThatThrownBy(() -> userAdminService.updateStatus(
+                targetUser.getId(), request, actingUserId, "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Type the account's email");
+    }
 
-        assertThat(response.status()).isEqualTo(UserStatus.SUSPENDED);
+    @Test
+    void update_rejectsChangingOwnRoleAwayFromSuperAdmin() {
+        targetUser.setRole(Role.SUPER_ADMIN);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+
+        UserUpdateRequest request = new UserUpdateRequest("Target", "User", null, Role.ADMINISTRATOR);
+
+        assertThatThrownBy(() -> userAdminService.update(
+                targetUser.getId(), request, targetUser.getId(), "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("own role");
+    }
+
+    @Test
+    void update_rejectsRemovingTheLastActiveSuperAdminsRole() {
+        targetUser.setRole(Role.SUPER_ADMIN);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+        when(userRepository.countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, targetUser.getId()))
+                .thenReturn(0L);
+        UUID actingUserId = UUID.randomUUID();
+
+        UserUpdateRequest request = new UserUpdateRequest("Target", "User", null, Role.ADMINISTRATOR);
+
+        assertThatThrownBy(() -> userAdminService.update(targetUser.getId(), request, actingUserId, "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("last active Super Admin");
+    }
+
+    @Test
+    void update_allowsRemovingASuperAdminsRoleWhenAnotherOneIsActive() {
+        targetUser.setRole(Role.SUPER_ADMIN);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+        when(userRepository.countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, targetUser.getId()))
+                .thenReturn(1L);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UUID actingUserId = UUID.randomUUID();
+
+        UserUpdateRequest request = new UserUpdateRequest("Target", "User", null, Role.ADMINISTRATOR);
+
+        var response = userAdminService.update(targetUser.getId(), request, actingUserId, "SUPER_ADMIN");
+
+        assertThat(response.role()).isEqualTo(Role.ADMINISTRATOR);
     }
 }

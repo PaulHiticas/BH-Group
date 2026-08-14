@@ -134,10 +134,14 @@ public class UserAdminService {
     }
 
     @Transactional
-    public UserResponse update(UUID id, UserUpdateRequest request, String actingRole) {
+    public UserResponse update(UUID id, UserUpdateRequest request, UUID actingUserId, String actingRole) {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
         assertCanAssignRole(request.role(), actingRole);
+
+        if (user.getRole() == Role.SUPER_ADMIN && request.role() != Role.SUPER_ADMIN) {
+            assertCanRemoveSuperAdminRole(user, actingUserId);
+        }
 
         user.setFirstName(request.firstName());
         user.setLastName(request.lastName());
@@ -153,8 +157,8 @@ public class UserAdminService {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
 
-        if (request.status() == UserStatus.DISABLED) {
-            assertCanDisable(user, actingUserId, request.confirmEmail());
+        if (request.status() == UserStatus.DISABLED || request.status() == UserStatus.SUSPENDED) {
+            assertCanDeactivate(user, actingUserId, request.confirmEmail());
         }
 
         user.setStatus(request.status());
@@ -171,14 +175,14 @@ public class UserAdminService {
     }
 
     /**
-     * Disabling is treated as this system's "delete" - the account can no
-     * longer log in and its status is effectively permanent. These guards
-     * exist because it's easy to lock the whole team out or orphan an
-     * owner's properties with a single misclick.
+     * DISABLED is this system's "delete" and SUSPENDED is a temporary lockout,
+     * but both immediately end the account's ability to log in - the same
+     * "don't lock the whole team out or orphan an owner's properties with a
+     * single misclick" guards apply to either.
      */
-    private void assertCanDisable(User user, UUID actingUserId, String confirmEmail) {
+    private void assertCanDeactivate(User user, UUID actingUserId, String confirmEmail) {
         if (user.getId().equals(actingUserId)) {
-            throw new BadRequestException("You cannot disable your own account");
+            throw new BadRequestException("You cannot change your own account's status");
         }
 
         if (confirmEmail == null || !confirmEmail.trim().equalsIgnoreCase(user.getEmail())) {
@@ -189,13 +193,34 @@ public class UserAdminService {
             long otherActiveSuperAdmins = userRepository
                     .countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, user.getId());
             if (otherActiveSuperAdmins == 0) {
-                throw new BadRequestException("Cannot disable the last active Super Admin account");
+                throw new BadRequestException("Cannot deactivate the last active Super Admin account");
             }
         }
 
         if (user.getRole() == Role.OWNER && !propertyRepository.findByOwnerId(user.getId()).isEmpty()) {
             throw new BadRequestException(
-                    "Reassign this owner's properties to another owner before disabling their account");
+                    "Reassign this owner's properties to another owner before deactivating their account");
+        }
+    }
+
+    /**
+     * Same spirit as assertCanDeactivate: changing a Super Admin's role away
+     * from SUPER_ADMIN is functionally equivalent to disabling their admin
+     * access, so it needs the same self-action and last-admin protection
+     * even though the account itself stays ACTIVE.
+     */
+    private void assertCanRemoveSuperAdminRole(User user, UUID actingUserId) {
+        if (user.getId().equals(actingUserId)) {
+            throw new BadRequestException(
+                    "You cannot change your own role away from Super Admin - ask another Super Admin to do it");
+        }
+
+        if (user.getStatus() == UserStatus.ACTIVE) {
+            long otherActiveSuperAdmins = userRepository
+                    .countByRoleAndStatusAndIdNot(Role.SUPER_ADMIN, UserStatus.ACTIVE, user.getId());
+            if (otherActiveSuperAdmins == 0) {
+                throw new BadRequestException("Cannot remove the last active Super Admin's role");
+            }
         }
     }
 
