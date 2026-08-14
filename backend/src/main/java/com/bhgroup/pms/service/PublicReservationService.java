@@ -38,6 +38,7 @@ public class PublicReservationService {
     public PriceQuoteResponse quote(UUID propertyId, LocalDate checkIn, LocalDate checkOut, int guests) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
+        pricingService.validateGuestCount(property, guests);
         return pricingService.quote(property, checkIn, checkOut, guests);
     }
 

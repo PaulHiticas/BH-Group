@@ -1,10 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Reveal } from "@/components/marketing/reveal"
+import { HoneypotField } from "@/components/marketing/honeypot-field"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Form,
   FormControl,
@@ -16,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useCreateLead } from "@/hooks/use-leads"
+import { useUtmParams } from "@/hooks/use-utm-params"
 
 const leadSchema = z.object({
   fullName: z.string().min(1, "Numele este obligatoriu").max(150),
@@ -23,15 +27,18 @@ const leadSchema = z.object({
   phone: z.string().max(30).optional(),
   city: z.string().max(100).optional(),
   message: z.string().max(2000).optional(),
+  consentGiven: z.boolean().refine((v) => v, "Este necesar consimțământul pentru a fi contactat"),
 })
 
 type LeadFormValues = z.infer<typeof leadSchema>
 
 export function LeadFormSection() {
   const createLead = useCreateLead()
+  const utm = useUtmParams()
+  const [honeypot, setHoneypot] = useState("")
   const form = useForm<LeadFormValues>({
     resolver: zodResolver(leadSchema),
-    defaultValues: { fullName: "", email: "", phone: "", city: "", message: "" },
+    defaultValues: { fullName: "", email: "", phone: "", city: "", message: "", consentGiven: false },
   })
 
   function onSubmit(values: LeadFormValues) {
@@ -42,6 +49,11 @@ export function LeadFormSection() {
         phone: values.phone || undefined,
         city: values.city || undefined,
         message: values.message || undefined,
+        consentGiven: values.consentGiven,
+        utmSource: utm.utmSource,
+        utmMedium: utm.utmMedium,
+        utmCampaign: utm.utmCampaign,
+        website: honeypot,
       },
       { onSuccess: () => form.reset() }
     )
@@ -64,6 +76,7 @@ export function LeadFormSection() {
         <Reveal delay={0.1} className="mt-10 rounded-3xl border border-border/60 bg-card p-8 shadow-sm">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
+              <HoneypotField name="website" value={honeypot} onChange={setHoneypot} />
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -129,6 +142,23 @@ export function LeadFormSection() {
                     <FormControl>
                       <Textarea rows={4} placeholder="Detalii despre proprietate..." {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="consentGiven"
+                render={({ field }) => (
+                  <FormItem>
+                    <label className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        className="mt-0.5"
+                      />
+                      Sunt de acord să fiu contactat de BH Group în legătură cu această solicitare.
+                    </label>
                     <FormMessage />
                   </FormItem>
                 )}

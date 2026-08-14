@@ -29,6 +29,7 @@ public class PropertyMapper {
                 property.getPropertyType(),
                 property.getStatus(),
                 toAddressDto(property.getAddress()),
+                property.isShowExactAddressPublicly(),
                 property.getBedrooms(),
                 property.getBathrooms(),
                 property.getMaxGuests(),
@@ -54,6 +55,9 @@ public class PropertyMapper {
                 property.isSmartLockEnabled(),
                 property.getSmartLockProvider(),
                 property.getSmartLockDeviceId(),
+                property.isLateCheckoutEnabled(),
+                property.getLateCheckoutTime(),
+                property.getLateCheckoutFee(),
                 property.getIcalExportToken() != null
                         ? appProperties.getApiBaseUrl() + "/public/properties/" + property.getId()
                                 + "/calendar.ics?token=" + property.getIcalExportToken()

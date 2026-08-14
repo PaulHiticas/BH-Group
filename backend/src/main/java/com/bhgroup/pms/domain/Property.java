@@ -63,6 +63,11 @@ public class Property extends BaseEntity {
     @Embedded
     private Address address;
 
+    /** When false (default), the public property page shows only an approximate location. */
+    @Column(name = "show_exact_address_publicly", nullable = false)
+    @Builder.Default
+    private boolean showExactAddressPublicly = false;
+
     @Column(nullable = false)
     @Builder.Default
     private int bedrooms = 0;
@@ -152,6 +157,17 @@ public class Property extends BaseEntity {
 
     @Column(name = "smart_lock_device_id")
     private String smartLockDeviceId;
+
+    @Column(name = "late_checkout_enabled", nullable = false)
+    @Builder.Default
+    private boolean lateCheckoutEnabled = false;
+
+    /** The later checkout time offered, e.g. 14:00 instead of the default checkOutTime. */
+    @Column(name = "late_checkout_time")
+    private LocalTime lateCheckoutTime;
+
+    @Column(name = "late_checkout_fee")
+    private BigDecimal lateCheckoutFee;
 
     @Column(name = "ical_export_token", unique = true)
     private String icalExportToken;

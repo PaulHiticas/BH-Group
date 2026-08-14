@@ -31,6 +31,7 @@ import { useCreateExpense, useDeleteExpense, useExpenses, useUploadExpenseReceip
 import { useFinancialReport } from "@/hooks/use-financial-reports"
 import { useProperties } from "@/hooks/use-properties"
 import { ALL_EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expense-labels"
+import { formatLocalDate } from "@/lib/date"
 import { OwnerStatementsSection } from "./owner-statements-section"
 import type { ExpenseCategory } from "@/lib/api/types"
 
@@ -335,7 +336,7 @@ function CreateExpenseForm({ onCreated }: { onCreated: () => void }) {
   const [category, setCategory] = useState<ExpenseCategory>("OTHER")
   const [amount, setAmount] = useState("")
   const [vendor, setVendor] = useState("")
-  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [expenseDate, setExpenseDate] = useState(() => formatLocalDate(new Date()))
   const [notes, setNotes] = useState("")
   const [chargeToOwner, setChargeToOwner] = useState(false)
 

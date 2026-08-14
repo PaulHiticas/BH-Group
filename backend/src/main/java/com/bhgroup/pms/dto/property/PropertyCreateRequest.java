@@ -31,6 +31,8 @@ public record PropertyCreateRequest(
         @Valid
         AddressDto address,
 
+        boolean showExactAddressPublicly,
+
         @Min(value = 0, message = "Bedrooms cannot be negative")
         int bedrooms,
 
@@ -81,6 +83,12 @@ public record PropertyCreateRequest(
         String smartLockProvider,
 
         @Size(max = 150)
-        String smartLockDeviceId
+        String smartLockDeviceId,
+
+        boolean lateCheckoutEnabled,
+
+        LocalTime lateCheckoutTime,
+
+        BigDecimal lateCheckoutFee
 ) {
 }

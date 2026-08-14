@@ -5,7 +5,7 @@ import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { CheckCircle2, XCircle } from "lucide-react"
+import { CheckCircle2, Pencil, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useCreatePublicBooking, usePublicAvailability, usePublicQuote } from "@/hooks/use-public-booking"
 import type { PublicBookingPayload } from "@/lib/api/public"
@@ -92,6 +93,8 @@ export function BookingForm({
   )
 
   const stayNights = nights(checkInDate, checkOutDate)
+  const datesLockedFromCalendar = !!defaultCheckIn && !!defaultCheckOut
+  const editSelectionHref = `/book/${property.id}?checkIn=${checkInDate}&checkOut=${checkOutDate}&guests=${numberOfGuests}`
 
   function handleSubmit(values: z.infer<typeof bookingSchema>) {
     const payload: PublicBookingPayload = { ...values, propertyId: property.id, idempotencyKey }
@@ -106,41 +109,75 @@ export function BookingForm({
             <CardTitle className="text-base">Perioadă & oaspeți</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="checkInDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Check-in</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="checkOutDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Check-out</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {datesLockedFromCalendar ? (
+              <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 p-3 text-sm sm:col-span-2">
+                <div>
+                  <p className="font-medium">
+                    {checkInDate} → {checkOutDate}
+                  </p>
+                  <p className="text-muted-foreground">{stayNights} nopți selectate</p>
+                </div>
+                <Link
+                  href={editSelectionHref}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  <Pencil className="size-3" />
+                  Modifică perioada
+                </Link>
+              </div>
+            ) : (
+              <>
+                <FormField
+                  control={form.control}
+                  name="checkInDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-in</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="checkOutDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Check-out</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
             <FormField
               control={form.control}
               name="numberOfGuests"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Oaspeți (max {property.maxGuests})</FormLabel>
-                  <FormControl>
-                    <Input type="number" min={1} max={property.maxGuests} {...field} value={field.value as number} />
-                  </FormControl>
+                  <FormLabel>Oaspeți</FormLabel>
+                  <Select
+                    value={String(field.value ?? 1)}
+                    onValueChange={(value) => value && field.onChange(Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {Array.from({ length: property.maxGuests }, (_, i) => i + 1).map((n) => (
+                        <SelectItem key={n} value={String(n)}>
+                          {n} {n === 1 ? "oaspete" : "oaspeți"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

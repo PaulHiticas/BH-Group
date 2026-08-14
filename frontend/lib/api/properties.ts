@@ -29,6 +29,7 @@ export interface PropertyPayload {
   propertyType: PropertyType
   status?: PropertyStatus
   address: AddressPayload
+  showExactAddressPublicly: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number
@@ -52,6 +53,9 @@ export interface PropertyPayload {
   smartLockEnabled: boolean
   smartLockProvider?: string
   smartLockDeviceId?: string
+  lateCheckoutEnabled: boolean
+  lateCheckoutTime?: string | null
+  lateCheckoutFee?: number | null
 }
 
 export interface SeasonalRatePayload {

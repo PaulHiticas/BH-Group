@@ -27,7 +27,7 @@ export function WelcomeSection() {
           </h2>
           <p className="mt-4 text-balance text-muted-foreground">
             Administrăm o colecție curatoriată de apartamente moderne, gata pregătite pentru sejururi
-            de business sau de vacanță. Fiecare proprietate e verificată personal de echipa noastră,
+            de business sau de vacanță. Fiecare proprietate respectă standardele noastre de calitate,
             pentru un sejur fără surprize — de la check-in până la check-out.
           </p>
           <Link href="/book" className={cn(buttonVariants({ size: "lg" }), "mt-6 gap-2")}>

@@ -7,10 +7,13 @@ import com.bhgroup.pms.dto.auth.ForgotPasswordRequest;
 import com.bhgroup.pms.dto.auth.InviteInfoResponse;
 import com.bhgroup.pms.dto.auth.LoginRequest;
 import com.bhgroup.pms.dto.auth.MfaChallengeResponse;
-import com.bhgroup.pms.dto.auth.MfaDisableRequest;
 import com.bhgroup.pms.dto.auth.MfaEnableRequest;
+import com.bhgroup.pms.dto.auth.MfaEnableResponse;
+import com.bhgroup.pms.dto.auth.MfaRecoveryLoginRequest;
 import com.bhgroup.pms.dto.auth.MfaSetupResponse;
 import com.bhgroup.pms.dto.auth.MfaVerifyLoginRequest;
+import com.bhgroup.pms.domain.MfaRecoveryCode;
+import com.bhgroup.pms.repository.MfaRecoveryCodeRepository;
 import com.bhgroup.pms.dto.auth.ResetPasswordRequest;
 import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.common.exception.BadRequestException;
@@ -28,6 +31,7 @@ import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.repository.UserRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -42,6 +46,8 @@ import com.bhgroup.pms.service.mapper.UserMapper;
 @RequiredArgsConstructor
 public class AuthService {
 
+    private static final int RECOVERY_CODE_COUNT = 8;
+
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final VerificationTokenRepository verificationTokenRepository;
@@ -50,6 +56,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final SecureTokenGenerator secureTokenGenerator;
     private final TotpService totpService;
+    private final MfaRecoveryCodeRepository mfaRecoveryCodeRepository;
     private final EmailService emailService;
     private final AuditService auditService;
     private final UserMapper userMapper;
@@ -242,10 +249,27 @@ public class AuthService {
         return issueAuthResponse(user, ipAddress);
     }
 
+    /**
+     * Regenerating the TOTP secret disables MFA until the new secret is
+     * confirmed via enableMfa() - fine for a first-time setup (the account
+     * has no protection to lose yet), but if the account already has MFA
+     * enabled this is effectively a takeover primitive: anyone holding a
+     * stolen access token (XSS, a leaked log line, whatever) could call
+     * this with no further proof and silently re-enroll their own
+     * authenticator in place of the real owner's. When MFA is already on,
+     * the current password is required - something an access-token thief
+     * doesn't necessarily have.
+     */
     @Transactional
-    public MfaSetupResponse setupMfa(UUID userId) {
+    public MfaSetupResponse setupMfa(UUID userId, String password) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.isMfaEnabled()) {
+            if (password == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
+                throw new UnauthorizedException("Password is required to reconfigure two-factor authentication");
+            }
+        }
 
         String secret = totpService.generateSecret();
         user.setMfaSecret(secret);
@@ -257,7 +281,7 @@ public class AuthService {
     }
 
     @Transactional
-    public void enableMfa(UUID userId, MfaEnableRequest request) {
+    public MfaEnableResponse enableMfa(UUID userId, MfaEnableRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
@@ -267,23 +291,83 @@ public class AuthService {
 
         user.setMfaEnabled(true);
         userRepository.save(user);
+
+        // Any codes from a previous enable/reset cycle are no longer valid.
+        mfaRecoveryCodeRepository.deleteByUserId(user.getId());
+        List<String> rawCodes = new java.util.ArrayList<>();
+        for (int i = 0; i < RECOVERY_CODE_COUNT; i++) {
+            String rawCode = secureTokenGenerator.generateRecoveryCode();
+            rawCodes.add(rawCode);
+            mfaRecoveryCodeRepository.save(MfaRecoveryCode.builder()
+                    .user(user)
+                    .codeHash(secureTokenGenerator.hash(rawCode))
+                    .build());
+        }
+
         auditService.record(AuditAction.MFA_ENABLED, user, "MFA enabled", null, null);
+        return new MfaEnableResponse(rawCodes);
     }
 
+    /** Completes login using a one-time recovery code instead of a TOTP code, e.g. when the device with the authenticator app is lost. */
     @Transactional
-    public void disableMfa(UUID userId, MfaDisableRequest request) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new UnauthorizedException("Invalid password");
+    public AuthResponse verifyMfaRecoveryLogin(MfaRecoveryLoginRequest request, String ipAddress, String userAgent) {
+        if (!jwtService.isTokenValidOfType(request.challengeToken(), JwtService.TOKEN_TYPE_MFA_CHALLENGE)) {
+            throw new UnauthorizedException("MFA challenge expired or invalid, please login again");
         }
+        UUID userId = jwtService.getUserId(request.challengeToken());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Invalid MFA challenge"));
+
+        String submittedHash = secureTokenGenerator.hash(request.recoveryCode().trim().toUpperCase());
+        MfaRecoveryCode matched = mfaRecoveryCodeRepository
+                .findByUserIdAndCodeHashAndUsedAtIsNull(user.getId(), submittedHash)
+                .orElse(null);
+
+        if (!user.isMfaEnabled() || matched == null) {
+            auditService.record(AuditAction.MFA_CHALLENGE_FAILED, user, "Invalid MFA recovery code", ipAddress, userAgent);
+            throw new UnauthorizedException("Invalid or already-used recovery code");
+        }
+
+        // Atomic flip - if a concurrent request already consumed this exact
+        // code between the lookup above and this update, updated == 0 and we
+        // reject both as invalid rather than letting two logins succeed off
+        // one code.
+        int updated = mfaRecoveryCodeRepository.markUsedIfUnused(matched.getId(), Instant.now());
+        if (updated == 0) {
+            auditService.record(AuditAction.MFA_CHALLENGE_FAILED, user, "Invalid MFA recovery code", ipAddress, userAgent);
+            throw new UnauthorizedException("Invalid or already-used recovery code");
+        }
+
+        user.setLastLoginAt(Instant.now());
+        user.setLastLoginIp(ipAddress);
+        userRepository.save(user);
+
+        auditService.record(AuditAction.MFA_CHALLENGE_SUCCESS, user, "MFA challenge passed via recovery code",
+                ipAddress, userAgent);
+        return issueAuthResponse(user, ipAddress);
+    }
+
+    /**
+     * SUPER_ADMIN-triggered reset for a user who lost both their
+     * authenticator device and their recovery codes. Forces them back
+     * through mandatory MFA setup on their next login - see
+     * MfaEnforcementFilter.
+     */
+    @Transactional
+    public void resetMfaByAdmin(UUID targetUserId, User actor) {
+        User user = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         user.setMfaEnabled(false);
         user.setMfaSecret(null);
         userRepository.save(user);
-        auditService.record(AuditAction.MFA_DISABLED, user, "MFA disabled", null, null);
+        mfaRecoveryCodeRepository.deleteByUserId(user.getId());
+        refreshTokenRepository.revokeAllByUserId(user.getId(), Instant.now());
+
+        auditService.record(AuditAction.MFA_RESET_BY_ADMIN, actor,
+                "MFA reset for user " + user.getId() + " (" + user.getEmail() + ")", null, null);
     }
+
 
     private void registerFailedLoginAttempt(User user, String ipAddress) {
         int attempts = user.getFailedLoginAttempts() + 1;

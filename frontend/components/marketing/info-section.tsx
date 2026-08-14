@@ -30,8 +30,8 @@ const INFO_ITEMS = [
   },
   {
     icon: Wifi,
-    title: "Facilități verificate",
-    description: "Wifi de mare viteză, bucătărie complet utilată și climatizare — verificate personal înainte de fiecare sejur.",
+    title: "Facilități incluse",
+    description: "Wifi de mare viteză, bucătărie complet utilată și climatizare, disponibile la fiecare proprietate.",
     color: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
   },
   {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,6 +17,7 @@ import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.dto.reservation.ReservationCreateRequest;
 import com.bhgroup.pms.dto.reservation.ReservationStatusUpdateRequest;
+import com.bhgroup.pms.dto.reservation.ReservationUpdateRequest;
 import com.bhgroup.pms.repository.PropertyRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
 import com.bhgroup.pms.security.SecureTokenGenerator;
@@ -98,6 +100,20 @@ class ReservationServiceTest {
     }
 
     @Test
+    void create_rejectsGuestCountAboveMax() {
+        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
+        doThrow(new BadRequestException("This property accepts a maximum of 2 guests"))
+                .when(pricingService).validateGuestCount(eq(property), org.mockito.ArgumentMatchers.anyInt());
+
+        ReservationCreateRequest request = createRequest(
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12));
+
+        assertThatThrownBy(() -> reservationService.create(request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("maximum");
+    }
+
+    @Test
     void create_succeedsWhenDatesAreValidAndFree() {
         when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
         when(reservationRepository.findOverlapping(eq(property.getId()), any(), any(), eq(null), any()))
@@ -176,6 +192,48 @@ class ReservationServiceTest {
 
         org.mockito.Mockito.verify(paymentService)
                 .autoRefundForCancellation(eq(reservation.getId()), eq(BigDecimal.valueOf(100)));
+    }
+
+    @Test
+    void update_rejectsGuestCountAboveMax() {
+        Reservation reservation = existingReservation(ReservationStatus.CONFIRMED);
+        when(reservationRepository.findById(reservation.getId())).thenReturn(Optional.of(reservation));
+        doThrow(new BadRequestException("This property accepts a maximum of 2 guests"))
+                .when(pricingService).validateGuestCount(eq(property), org.mockito.ArgumentMatchers.anyInt());
+
+        ReservationUpdateRequest request = new ReservationUpdateRequest(
+                "Ana", "Popescu", "ana@example.com", "0700000000",
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12), 5, null, null, null, null);
+
+        assertThatThrownBy(() -> reservationService.update(reservation.getId(), request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("maximum");
+    }
+
+    @Test
+    void createGuestBooking_rejectsGuestCountAboveMax() {
+        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
+        doThrow(new BadRequestException("This property accepts a maximum of 2 guests"))
+                .when(pricingService).validateGuestCount(eq(property), org.mockito.ArgumentMatchers.anyInt());
+
+        assertThatThrownBy(() -> reservationService.createGuestBooking(
+                property.getId(), "Ana", "Popescu", "ana@example.com", "0700000000",
+                LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12), 5, null, null))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("maximum");
+    }
+
+    @Test
+    void updateByManagementToken_rejectsGuestCountAboveMax() {
+        Reservation reservation = existingReservation(ReservationStatus.CONFIRMED);
+        when(reservationRepository.findByManagementToken("token123")).thenReturn(Optional.of(reservation));
+        doThrow(new BadRequestException("This property accepts a maximum of 2 guests"))
+                .when(pricingService).validateGuestCount(eq(property), org.mockito.ArgumentMatchers.anyInt());
+
+        assertThatThrownBy(() -> reservationService.updateByManagementToken(
+                "token123", LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 12), 5))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("maximum");
     }
 
     private ReservationCreateRequest createRequest(LocalDate checkIn, LocalDate checkOut) {

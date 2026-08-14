@@ -35,12 +35,18 @@ import { MessageThread } from "@/components/messaging/message-thread"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useReservationMessages, useSendStaffMessage } from "@/hooks/use-messages"
 import {
+  useApproveLateCheckout,
   useDeleteReservation,
+  useLateCheckout,
+  useMarkLateCheckoutPaid,
   useReservation,
+  useRejectLateCheckout,
   useSendCheckinInstructions,
   useUpdateAccessCode,
 } from "@/hooks/use-reservations"
 import {
+  LATE_CHECKOUT_STATUS_BADGE_VARIANT,
+  LATE_CHECKOUT_STATUS_LABELS,
   RESERVATION_SOURCE_LABELS,
   RESERVATION_STATUS_BADGE_VARIANT,
   RESERVATION_STATUS_LABELS,
@@ -68,6 +74,10 @@ export default function ReservationDetailPage({
 
   const { data: messages, isLoading: messagesLoading } = useReservationMessages(id, canManage)
   const sendStaffMessage = useSendStaffMessage(id)
+  const { data: lateCheckout } = useLateCheckout(id)
+  const approveLateCheckout = useApproveLateCheckout(id)
+  const rejectLateCheckout = useRejectLateCheckout(id)
+  const markLateCheckoutPaid = useMarkLateCheckoutPaid(id)
 
   if (isLoading || !reservation) {
     return (
@@ -248,6 +258,59 @@ export default function ReservationDetailPage({
               Recomandat: folosește un cod diferit la fiecare rezervare și schimbă-l fizic pe
               încuietoare/lockbox după fiecare oaspete.
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && lateCheckout && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Check-out târziu</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                Check-out la {lateCheckout.requestedCheckoutTime.slice(0, 5)}
+                {lateCheckout.fee ? ` — ${lateCheckout.fee} ${lateCheckout.currency}` : " — fără taxă"}
+              </span>
+              <Badge variant={LATE_CHECKOUT_STATUS_BADGE_VARIANT[lateCheckout.status]}>
+                {LATE_CHECKOUT_STATUS_LABELS[lateCheckout.status]}
+              </Badge>
+            </div>
+            {lateCheckout.guestNote && (
+              <p className="text-sm text-muted-foreground">„{lateCheckout.guestNote}”</p>
+            )}
+            <div className="flex gap-2">
+              {lateCheckout.status === "REQUESTED" && (
+                <>
+                  <Button
+                    size="sm"
+                    disabled={approveLateCheckout.isPending}
+                    onClick={() => approveLateCheckout.mutate()}
+                  >
+                    Aprobă
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={rejectLateCheckout.isPending}
+                    onClick={() => rejectLateCheckout.mutate()}
+                  >
+                    Respinge
+                  </Button>
+                </>
+              )}
+              {lateCheckout.status === "APPROVED" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={markLateCheckoutPaid.isPending}
+                  onClick={() => markLateCheckoutPaid.mutate()}
+                >
+                  Marchează ca plătit
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

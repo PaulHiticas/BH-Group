@@ -41,8 +41,10 @@ export const usersApi = {
   update: (id: string, payload: UserUpdatePayload) =>
     apiClient.put<UserResponse>(`/users/${id}`, payload),
 
-  updateStatus: (id: string, status: UserStatus) =>
-    apiClient.patch<UserResponse>(`/users/${id}/status`, { status }),
+  updateStatus: (id: string, status: UserStatus, confirmEmail?: string) =>
+    apiClient.patch<UserResponse>(`/users/${id}/status`, { status, confirmEmail }),
 
   resendInvite: (id: string) => apiClient.post<void>(`/users/${id}/resend-invite`),
+
+  resetMfa: (id: string) => apiClient.post<void>(`/users/${id}/reset-mfa`),
 }

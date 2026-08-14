@@ -72,14 +72,29 @@ export function useUpdateUserStatus() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: UserStatus }) =>
-      usersApi.updateStatus(id, status),
+    mutationFn: ({ id, status, confirmEmail }: { id: string; status: UserStatus; confirmEmail?: string }) =>
+      usersApi.updateStatus(id, status, confirmEmail),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       toast.success("Status actualizat.")
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Nu am putut actualiza statusul."))
+    },
+  })
+}
+
+export function useResetUserMfa() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => usersApi.resetMfa(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] })
+      toast.success("2FA resetat. Utilizatorul îl va configura din nou la următoarea autentificare.")
+    },
+    onError: (error) => {
+      toast.error(errorMessage(error, "Nu am putut reseta 2FA."))
     },
   })
 }

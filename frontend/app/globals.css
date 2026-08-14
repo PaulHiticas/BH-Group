@@ -39,6 +39,8 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-navy: var(--navy);
+  --color-terracotta: var(--terracotta);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -48,73 +50,93 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * Design tokens — warm/navy/terracotta system.
+ * Hue anchors: ~75 = warm cream neutrals, ~260 = navy, ~35 = terracotta.
+ * Same variable names as before on purpose - every `bg-primary`,
+ * `text-muted-foreground`, etc. across the app repaints from these values
+ * with no component changes required.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: oklch(0.985 0.008 75);
+  --foreground: oklch(0.22 0.02 260);
+  --card: oklch(1 0.005 75);
+  --card-foreground: oklch(0.22 0.02 260);
+  --popover: oklch(1 0.005 75);
+  --popover-foreground: oklch(0.22 0.02 260);
+  /* L dropped from 0.58 to 0.56 - at 0.58, primary-foreground on primary
+     was 4.30:1, just under WCAG AA's 4.5:1 for text (e.g. button labels). */
+  --primary: oklch(0.56 0.14 35);
+  --primary-foreground: oklch(0.98 0.01 75);
+  --secondary: oklch(0.94 0.015 75);
+  --secondary-foreground: oklch(0.25 0.03 260);
+  --muted: oklch(0.95 0.012 75);
+  --muted-foreground: oklch(0.5 0.02 260);
+  --accent: oklch(0.91 0.03 35);
+  --accent-foreground: oklch(0.3 0.08 35);
+  --destructive: oklch(0.577 0.22 27);
+  --border: oklch(0.88 0.015 75);
+  --input: oklch(0.88 0.015 75);
+  --ring: oklch(0.56 0.14 35);
+  --navy: oklch(0.22 0.05 255);
+  --terracotta: oklch(0.56 0.14 35);
+  /* Categorical chart palette spanning 5 hues from the same brand
+     anchors (terracotta 35, navy 255) plus 3 more spaced around the
+     wheel (gold 85, teal 195, plum 330) so series stay distinguishable
+     by hue, not just lightness. Each clears 3:1 (WCAG 1.4.11) against
+     both --background and --card. */
+  --chart-1: oklch(0.56 0.14 35);
+  --chart-2: oklch(0.4 0.1 255);
+  --chart-3: oklch(0.6 0.15 85);
+  --chart-4: oklch(0.55 0.11 195);
+  --chart-5: oklch(0.5 0.13 330);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: oklch(0.98 0.008 75);
+  --sidebar-foreground: oklch(0.22 0.02 260);
+  --sidebar-primary: oklch(0.56 0.14 35);
+  --sidebar-primary-foreground: oklch(0.98 0.01 75);
+  --sidebar-accent: oklch(0.94 0.015 75);
+  --sidebar-accent-foreground: oklch(0.25 0.03 260);
+  --sidebar-border: oklch(0.88 0.015 75);
+  --sidebar-ring: oklch(0.56 0.14 35);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --background: oklch(0.16 0.02 260);
+  --foreground: oklch(0.96 0.01 75);
+  --card: oklch(0.21 0.025 260);
+  --card-foreground: oklch(0.96 0.01 75);
+  --popover: oklch(0.21 0.025 260);
+  --popover-foreground: oklch(0.96 0.01 75);
+  --primary: oklch(0.66 0.16 35);
+  --primary-foreground: oklch(0.15 0.02 260);
+  --secondary: oklch(0.27 0.03 260);
+  --secondary-foreground: oklch(0.95 0.01 75);
+  --muted: oklch(0.25 0.025 260);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --accent: oklch(0.3 0.05 35);
+  --accent-foreground: oklch(0.9 0.04 35);
+  --destructive: oklch(0.704 0.19 22);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.66 0.16 35);
+  --navy: oklch(0.22 0.05 255);
+  --terracotta: oklch(0.66 0.16 35);
+  /* Same 5 hues as the light-mode chart palette, raised in lightness to
+     stay >=3:1 against the dark background/card. */
+  --chart-1: oklch(0.66 0.16 35);
+  --chart-2: oklch(0.65 0.09 255);
+  --chart-3: oklch(0.78 0.14 85);
+  --chart-4: oklch(0.72 0.12 195);
+  --chart-5: oklch(0.7 0.13 330);
+  --sidebar: oklch(0.21 0.025 260);
+  --sidebar-foreground: oklch(0.96 0.01 75);
+  --sidebar-primary: oklch(0.66 0.16 35);
+  --sidebar-primary-foreground: oklch(0.15 0.02 260);
+  --sidebar-accent: oklch(0.27 0.03 260);
+  --sidebar-accent-foreground: oklch(0.95 0.01 75);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.66 0.16 35);
 }
 
 @layer base {

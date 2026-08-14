@@ -52,6 +52,7 @@ const propertySchema = z.object({
   propertyType: z.enum(ALL_PROPERTY_TYPES as [string, ...string[]]),
   status: z.enum(ALL_PROPERTY_STATUSES as [string, ...string[]]),
   addressLine: z.string().min(1, "Adresa este obligatorie").max(255),
+  showExactAddressPublicly: z.boolean(),
   city: z.string().min(1, "Orașul este obligatoriu").max(100),
   county: z.string().max(100).optional(),
   postalCode: z.string().max(20).optional(),
@@ -81,6 +82,9 @@ const propertySchema = z.object({
   smartLockEnabled: z.boolean(),
   smartLockProvider: z.string().max(100).optional(),
   smartLockDeviceId: z.string().max(150).optional(),
+  lateCheckoutEnabled: z.boolean(),
+  lateCheckoutTime: z.string().optional(),
+  lateCheckoutFee: z.coerce.number().min(0).optional(),
 })
 
 export type PropertyFormValues = z.infer<typeof propertySchema>
@@ -93,6 +97,7 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       propertyType: "APARTMENT",
       status: "DRAFT",
       addressLine: "",
+      showExactAddressPublicly: false,
       city: "",
       county: "",
       postalCode: "",
@@ -122,6 +127,9 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
       smartLockEnabled: false,
       smartLockProvider: "",
       smartLockDeviceId: "",
+      lateCheckoutEnabled: false,
+      lateCheckoutTime: "14:00",
+      lateCheckoutFee: undefined,
     }
   }
 
@@ -131,6 +139,7 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     propertyType: property.propertyType,
     status: property.status,
     addressLine: property.address.addressLine,
+    showExactAddressPublicly: property.showExactAddressPublicly,
     city: property.address.city,
     county: property.address.county ?? "",
     postalCode: property.address.postalCode ?? "",
@@ -160,6 +169,9 @@ function toFormValues(property?: PropertyResponse): PropertyFormValues {
     smartLockEnabled: property.smartLockEnabled,
     smartLockProvider: property.smartLockProvider ?? "",
     smartLockDeviceId: property.smartLockDeviceId ?? "",
+    lateCheckoutEnabled: property.lateCheckoutEnabled,
+    lateCheckoutTime: property.lateCheckoutTime?.slice(0, 5) ?? "14:00",
+    lateCheckoutFee: property.lateCheckoutFee ?? undefined,
   }
 }
 
@@ -180,6 +192,7 @@ export function propertyFormValuesToPayload(
       latitude: values.latitude ?? null,
       longitude: values.longitude ?? null,
     },
+    showExactAddressPublicly: values.showExactAddressPublicly,
     bedrooms: values.bedrooms,
     bathrooms: values.bathrooms,
     maxGuests: values.maxGuests,
@@ -203,6 +216,9 @@ export function propertyFormValuesToPayload(
     smartLockEnabled: values.smartLockEnabled,
     smartLockProvider: values.smartLockProvider || undefined,
     smartLockDeviceId: values.smartLockDeviceId || undefined,
+    lateCheckoutEnabled: values.lateCheckoutEnabled,
+    lateCheckoutTime: values.lateCheckoutTime ? `${values.lateCheckoutTime}:00` : null,
+    lateCheckoutFee: values.lateCheckoutFee ?? null,
   }
 }
 
@@ -220,6 +236,7 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
   })
 
   const smartLockEnabled = form.watch("smartLockEnabled")
+  const lateCheckoutEnabled = form.watch("lateCheckoutEnabled")
   const { data: owners } = useUsers({ role: "OWNER", size: 100 })
 
   return (
@@ -393,6 +410,22 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
                 }}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="showExactAddressPublicly"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    Afișează adresa exactă și locația precisă pe pagina publică
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Implicit dezactivat — pagina publică arată doar o zonă aproximativă
+                    (oraș/cartier) până activezi această opțiune.
+                  </p>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
@@ -846,6 +879,62 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
                       <FormLabel>ID Dispozitiv</FormLabel>
                       <FormControl>
                         <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Check-out târziu</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="lateCheckoutEnabled"
+              render={({ field }) => (
+                <FormItem className="sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    Oferă opțiunea de check-out târziu (cerere, fără plată automată)
+                  </label>
+                </FormItem>
+              )}
+            />
+            {lateCheckoutEnabled && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="lateCheckoutTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Oră check-out târziu</FormLabel>
+                      <FormControl>
+                        <Input type="time" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lateCheckoutFee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Taxă (RON, opțional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          {...field}
+                          value={(field.value as number | undefined) ?? ""}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

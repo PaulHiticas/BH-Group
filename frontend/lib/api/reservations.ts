@@ -3,6 +3,7 @@ import type {
   AvailabilityResponse,
   CalendarEntryResponse,
   CancellationQuoteResponse,
+  LateCheckoutRequestResponse,
   PageResponse,
   ReservationResponse,
   ReservationSource,
@@ -92,4 +93,16 @@ export const reservationsApi = {
 
   cancellationQuote: (id: string) =>
     apiClient.get<CancellationQuoteResponse>(`/reservations/${id}/cancellation-quote`),
+
+  getLateCheckout: (id: string) =>
+    apiClient.get<LateCheckoutRequestResponse | null>(`/reservations/${id}/late-checkout`),
+
+  approveLateCheckout: (id: string) =>
+    apiClient.post<LateCheckoutRequestResponse>(`/reservations/${id}/late-checkout/approve`),
+
+  rejectLateCheckout: (id: string) =>
+    apiClient.post<LateCheckoutRequestResponse>(`/reservations/${id}/late-checkout/reject`),
+
+  markLateCheckoutPaid: (id: string) =>
+    apiClient.post<LateCheckoutRequestResponse>(`/reservations/${id}/late-checkout/mark-paid`),
 }

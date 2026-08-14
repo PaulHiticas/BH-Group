@@ -15,6 +15,14 @@ public class PublicPropertyMapper {
 
     private static final String DEFAULT_CURRENCY = "RON";
 
+    /**
+     * Rounding to 2 decimal places blurs a pin to roughly a 1km area - close
+     * enough to place the property on a map for browsing, not precise
+     * enough to find the actual building. Used whenever a property hasn't
+     * opted into showing its exact public location.
+     */
+    private static final int APPROXIMATE_COORDINATE_SCALE = 2;
+
     private final PropertyMapper propertyMapper;
 
     public PublicPropertySummaryResponse toSummary(Property property, List<PropertyPhoto> photos) {
@@ -30,8 +38,8 @@ public class PublicPropertyMapper {
                 property.getName(),
                 property.getAddress().getCity(),
                 property.getAddress().getCounty(),
-                property.getAddress().getLatitude(),
-                property.getAddress().getLongitude(),
+                publicLatitude(property),
+                publicLongitude(property),
                 property.getPropertyType(),
                 property.getBedrooms(),
                 property.getBathrooms(),
@@ -49,14 +57,18 @@ public class PublicPropertyMapper {
                 property.getName(),
                 property.getDescription(),
                 property.getPropertyType(),
+                publicAddressLine(property),
                 property.getAddress().getCity(),
                 property.getAddress().getCounty(),
                 property.getAddress().getCountry(),
-                property.getAddress().getLatitude(),
-                property.getAddress().getLongitude(),
+                publicLatitude(property),
+                publicLongitude(property),
+                property.isShowExactAddressPublicly(),
                 property.getBedrooms(),
                 property.getBathrooms(),
                 property.getMaxGuests(),
+                property.getMinStayNights(),
+                property.getMaxStayNights(),
                 property.getSizeSqm(),
                 property.getBasePricePerNight(),
                 DEFAULT_CURRENCY,
@@ -65,5 +77,24 @@ public class PublicPropertyMapper {
                 property.getFacilities(),
                 photos.stream().map(propertyMapper::toPhotoResponse).toList()
         );
+    }
+
+    private String publicAddressLine(Property property) {
+        return property.isShowExactAddressPublicly() ? property.getAddress().getAddressLine() : null;
+    }
+
+    private Double publicLatitude(Property property) {
+        return publicCoordinate(property, property.getAddress().getLatitude());
+    }
+
+    private Double publicLongitude(Property property) {
+        return publicCoordinate(property, property.getAddress().getLongitude());
+    }
+
+    private Double publicCoordinate(Property property, Double exact) {
+        if (exact == null) return null;
+        if (property.isShowExactAddressPublicly()) return exact;
+        double scale = Math.pow(10, APPROXIMATE_COORDINATE_SCALE);
+        return Math.round(exact * scale) / scale;
     }
 }

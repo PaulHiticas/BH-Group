@@ -178,6 +178,7 @@ export interface PropertyResponse {
   propertyType: PropertyType
   status: PropertyStatus
   address: AddressDto
+  showExactAddressPublicly: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number
@@ -202,6 +203,9 @@ export interface PropertyResponse {
   smartLockEnabled: boolean
   smartLockProvider: string | null
   smartLockDeviceId: string | null
+  lateCheckoutEnabled: boolean
+  lateCheckoutTime: string | null
+  lateCheckoutFee: number | null
   icalExportUrl: string | null
   integrationMode: IntegrationMode
   photos: PropertyPhotoResponse[]
@@ -492,6 +496,21 @@ export interface CancellationQuoteResponse {
   currency: string
 }
 
+export type LateCheckoutStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "PAID"
+
+export interface LateCheckoutRequestResponse {
+  id: string
+  reservationId: string
+  requestedCheckoutTime: string
+  fee: number | null
+  currency: string
+  status: LateCheckoutStatus
+  guestNote: string | null
+  createdAt: string
+  decidedAt: string | null
+  paidAt: string | null
+}
+
 export interface PriceQuoteResponse {
   available: boolean
   unavailableReason: string | null
@@ -540,14 +559,19 @@ export interface PublicPropertyResponse {
   name: string
   description: string | null
   propertyType: PropertyType
+  /** Only populated when exactLocation is true. */
+  addressLine: string | null
   city: string
   county: string | null
   country: string
   latitude: number | null
   longitude: number | null
+  exactLocation: boolean
   bedrooms: number
   bathrooms: number
   maxGuests: number
+  minStayNights: number | null
+  maxStayNights: number | null
   sizeSqm: number | null
   basePricePerNight: number | null
   currency: string
@@ -572,11 +596,16 @@ export interface PublicReservationResponse {
   totalAmount: number | null
   currency: string
   managementToken: string
+  lateCheckoutAvailable: boolean
+  lateCheckoutTime: string | null
+  lateCheckoutFee: number | null
 }
 
 // ---------------------------------------------------------------------------
 // Leads (property owners interested in listing)
 // ---------------------------------------------------------------------------
+
+export type LeadType = "GENERAL" | "REVENUE_ESTIMATE"
 
 export interface LeadResponse {
   id: string
@@ -586,6 +615,12 @@ export interface LeadResponse {
   city: string | null
   message: string | null
   contacted: boolean
+  leadType: LeadType
+  bedrooms: number | null
+  consentGiven: boolean
+  utmSource: string | null
+  utmMedium: string | null
+  utmCampaign: string | null
   createdAt: string
 }
 

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,11 +20,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Lightweight in-memory rate limiter for unauthenticated, spam/abuse-prone
- * endpoints (public forms, login). Not a substitute for a CDN/WAF-level
- * limiter in a multi-instance deployment, but blocks naive scripted abuse
- * without requiring an external service.
+ * endpoints (public forms, login, MFA code guessing). Not a substitute for a
+ * CDN/WAF-level limiter in a multi-instance deployment, but blocks naive
+ * scripted abuse without requiring an external service.
  */
 @Slf4j
+@RequiredArgsConstructor
 public class RateLimitingFilter extends OncePerRequestFilter {
 
     private record RateLimitRule(String method, String pathPrefix, int maxRequests, long windowMillis) {
@@ -35,11 +37,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private static final List<RateLimitRule> RULES = List.of(
             new RateLimitRule("POST", "/api/v1/public/leads", 5, 10 * 60 * 1000L),
             new RateLimitRule("POST", "/api/v1/public/reservations", 10, 10 * 60 * 1000L),
-            new RateLimitRule("POST", "/api/v1/auth/login", 15, 5 * 60 * 1000L)
+            new RateLimitRule("POST", "/api/v1/auth/login", 15, 5 * 60 * 1000L),
+            // TOTP codes are 6 digits (1M combinations) and recovery codes
+            // are single-use but still guessable without throttling - both
+            // endpoints sit behind a valid challenge token but are otherwise
+            // unauthenticated, so they need their own limit independent of
+            // the plain /login rule above.
+            new RateLimitRule("POST", "/api/v1/auth/mfa/verify-login", 10, 5 * 60 * 1000L),
+            new RateLimitRule("POST", "/api/v1/auth/mfa/verify-recovery", 10, 5 * 60 * 1000L)
     );
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    // Must be the Spring-managed bean (with JavaTimeModule registered), not
+    // `new ObjectMapper()` - ApiError carries an Instant field, and the
+    // default mapper throws trying to serialize it, turning every 429 this
+    // filter emits into an unhandled 500 instead.
+    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

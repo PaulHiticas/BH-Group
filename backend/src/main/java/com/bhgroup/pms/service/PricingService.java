@@ -70,6 +70,16 @@ public class PricingService {
                 property.getMinStayNights(), property.getMaxStayNights());
     }
 
+    /** Throws if the guest count is below 1 or exceeds the property's configured maximum. */
+    public void validateGuestCount(Property property, int guests) {
+        if (guests < 1) {
+            throw new BadRequestException("Number of guests must be at least 1");
+        }
+        if (guests > property.getMaxGuests()) {
+            throw new BadRequestException("This property accepts a maximum of " + property.getMaxGuests() + " guests");
+        }
+    }
+
     /** Throws if the stay length violates the property's configured min/max stay. */
     public void validateStayLength(Property property, int nights) {
         Integer min = property.getMinStayNights();
