@@ -30,6 +30,7 @@ import {
 import { PhotoGallery } from "@/components/properties/photo-gallery"
 import { DocumentList } from "@/components/properties/document-list"
 import { IcalSyncCard } from "@/components/properties/ical-sync-card"
+import { PricingAdminSection } from "@/components/properties/pricing-admin-section"
 import { SeasonalRatesManager } from "@/components/properties/seasonal-rates-manager"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useDeleteProperty, useProperty } from "@/hooks/use-properties"
@@ -267,6 +268,17 @@ export default function PropertyDetailPage({
               exportUrl={property.icalExportUrl}
               integrationMode={property.integrationMode}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Preț dinamic</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PricingAdminSection propertyId={id} city={property.address.city} />
           </CardContent>
         </Card>
       )}
