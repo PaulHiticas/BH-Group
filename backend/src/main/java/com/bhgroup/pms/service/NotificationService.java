@@ -61,6 +61,18 @@ public class NotificationService {
         notifyRoles(ADMIN_ROLES, type, title, body, linkPath);
     }
 
+    /** Notifies a single user by id. A no-op if the user doesn't exist (e.g. deleted between the triggering action and this call). */
+    @Transactional
+    public void notifyUser(UUID userId, NotificationType type, String title, String body, String linkPath) {
+        userRepository.findById(userId).ifPresent(user -> notificationRepository.save(Notification.builder()
+                .user(user)
+                .type(type)
+                .title(title)
+                .body(body)
+                .linkPath(linkPath)
+                .build()));
+    }
+
     /** Notifies every active account holding one of the given roles. */
     @Transactional
     public void notifyRoles(List<Role> roles, NotificationType type, String title, String body, String linkPath) {
