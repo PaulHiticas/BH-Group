@@ -127,13 +127,13 @@ export function AvailabilityCalendar({
     const monthIndex = month.getMonth()
     return (
       <div className={cn("flex flex-1 flex-col gap-3", hiddenOnMobile && "hidden sm:flex")}>
-        <p className="text-sm font-medium">
+        <p className="text-sm font-semibold">
           {MONTH_LABELS[monthIndex]} {month.getFullYear()}
         </p>
-        <div className="overflow-hidden rounded-lg border border-border/60">
-          <div className="grid grid-cols-7 border-b border-border/60 bg-muted/40 text-[11px] font-medium text-muted-foreground">
+        <div className="overflow-hidden rounded-xl border border-border/60">
+          <div className="grid grid-cols-7 border-b border-border/60 bg-muted/40 text-xs font-medium text-muted-foreground">
             {WEEKDAY_LABELS.map((label) => (
-              <div key={label} className="px-1 py-1.5 text-center">
+              <div key={label} className="px-1 py-2 text-center">
                 {label}
               </div>
             ))}
@@ -163,15 +163,15 @@ export function AvailabilityCalendar({
                   aria-pressed={!!isCheckIn || !!isCheckOut}
                   aria-label={day.toLocaleDateString("ro-RO", { day: "numeric", month: "long", year: "numeric" })}
                   className={cn(
-                    "flex h-10 items-center justify-center border-b border-r border-border/60 text-xs last:border-r-0",
+                    "flex h-11 items-center justify-center border-b border-r border-border/60 text-sm last:border-r-0 sm:h-12",
                     "disabled:cursor-not-allowed",
                     !isCurrentMonth && "text-muted-foreground/40",
                     isPast && "text-muted-foreground/30",
                     booked && !isPast && isCurrentMonth && "bg-muted text-muted-foreground/70 line-through",
                     isCurrentMonth && !isPast && !booked && "hover:bg-accent",
                     selectingCheckout && isCurrentMonth && !isPast && !booked && !isValidCheckoutTarget && "text-muted-foreground/50",
-                    isInRange && "bg-primary/15",
-                    (isCheckIn || isCheckOut) && "bg-primary font-medium text-primary-foreground hover:bg-primary"
+                    isInRange && "bg-primary/15 font-medium",
+                    (isCheckIn || isCheckOut) && "bg-primary font-semibold text-primary-foreground hover:bg-primary"
                   )}
                 >
                   {day.getDate()}
@@ -185,56 +185,64 @@ export function AvailabilityCalendar({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm font-medium">
           {!checkInDate
             ? "Alege data de check-in"
             : !checkOutDate
               ? "Alege data de check-out"
               : `${diffDays(checkInDate, checkOutDate)} nopți selectate`}
         </p>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           <Button
             type="button"
             size="icon"
             variant="outline"
-            className="size-7"
+            className="size-8"
             disabled={!canGoBack}
             onClick={() => setAnchorMonth(new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() - 1, 1))}
             aria-label="Luna anterioară"
           >
-            <ChevronLeft className="size-3.5" />
+            <ChevronLeft className="size-4" />
           </Button>
           <Button
             type="button"
             size="icon"
             variant="outline"
-            className="size-7"
+            className="size-8"
             onClick={() => setAnchorMonth(new Date(anchorMonth.getFullYear(), anchorMonth.getMonth() + 1, 1))}
             aria-label="Luna următoare"
           >
-            <ChevronRight className="size-3.5" />
+            <ChevronRight className="size-4" />
           </Button>
         </div>
       </div>
 
       {isLoading ? (
         <div className="flex gap-4">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="hidden h-64 w-full sm:block" />
+          <Skeleton className="h-80 w-full" />
+          <Skeleton className="hidden h-80 w-full sm:block" />
         </div>
       ) : (
-        <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="flex flex-col gap-6 sm:flex-row">
           {renderMonth(anchorMonth, firstGridDays, false)}
           {renderMonth(nextMonth, secondGridDays, true)}
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border/60 pt-4 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block size-2.5 rounded-sm border border-border/60" />
+          Disponibil
+        </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block size-2.5 rounded-sm bg-muted" />
-          Zile indisponibile
+          Indisponibil
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block size-2.5 rounded-sm bg-primary" />
+          Selecția ta
         </span>
         {(minStayNights || maxStayNights) && (
           <span>
