@@ -1,4 +1,5 @@
 import { SiteHeader } from "@/components/marketing/site-header"
+import { SiteBackground } from "@/components/marketing/site-background"
 import { HeroSection } from "@/components/marketing/hero-section"
 import { HomeSearchBar } from "@/components/marketing/home-search-bar"
 import { WelcomeSection } from "@/components/marketing/welcome-section"
@@ -12,6 +13,7 @@ import { ChatWidget } from "@/components/marketing/chat-widget"
 export default function Home() {
   return (
     <div className="flex flex-1 flex-col overflow-x-hidden">
+      <SiteBackground />
       <SiteHeader />
       <HeroSection />
       <HomeSearchBar />
