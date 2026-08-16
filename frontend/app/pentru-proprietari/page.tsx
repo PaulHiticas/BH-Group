@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import { SiteHeader } from "@/components/marketing/site-header"
+import { SiteBackground } from "@/components/marketing/site-background"
 import { ServicesSection } from "@/components/marketing/services-section"
 import { ProcessSection } from "@/components/marketing/process-section"
 import { RevenueEstimateSection } from "@/components/marketing/revenue-estimate-section"
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 export default function PentruProprietariPage() {
   return (
     <div className="flex flex-1 flex-col overflow-x-hidden">
+      <SiteBackground />
       <SiteHeader />
 
       <section className="relative flex min-h-[60vh] items-end overflow-hidden bg-navy text-white">

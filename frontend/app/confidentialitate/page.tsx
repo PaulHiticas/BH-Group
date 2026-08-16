@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { SiteHeader } from "@/components/marketing/site-header"
+import { SiteBackground } from "@/components/marketing/site-background"
 import { SiteFooter } from "@/components/marketing/site-footer"
 
 export const metadata: Metadata = {
@@ -10,6 +11,7 @@ export const metadata: Metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <div className="flex flex-1 flex-col">
+      <SiteBackground />
       <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-16 sm:px-10">
         <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">

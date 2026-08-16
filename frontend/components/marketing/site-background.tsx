@@ -1,9 +1,10 @@
 /**
- * Warm "hospitality" background decor for public pages: a few low-alpha
- * warm glows, a fine static grain, and a very faint contour. Tuned
+ * Teal/blue "hospitality" background decor for public pages: a few
+ * low-alpha glows (teal top-left, blue bottom-right, blending in the
+ * middle), a fine static grain, and a very faint contour. Tuned
  * separately for light and dark (see .site-bg in globals.css) so both
- * themes look intentional, not just dark mode. Purely decorative - fixed
- * behind everything, no pointer events, no animation.
+ * themes look intentional, not just plain black/white. Purely decorative
+ * - fixed behind everything, no pointer events, no animation.
  */
 export function SiteBackground() {
   return (
