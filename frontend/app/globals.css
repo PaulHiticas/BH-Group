@@ -278,15 +278,15 @@
   stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
   /* Light mode: warm umber lines - a light stroke would vanish on the cream background. */
-  stroke: rgba(120, 74, 40, 0.07);
+  stroke: rgba(120, 74, 40, 0.16);
 }
 
 .site-bg-contour path:nth-child(2) {
-  stroke: rgba(120, 74, 40, 0.055);
+  stroke: rgba(120, 74, 40, 0.13);
 }
 
 .site-bg-contour path:nth-child(3) {
-  stroke: rgba(120, 74, 40, 0.045);
+  stroke: rgba(120, 74, 40, 0.1);
 }
 
 .dark .site-bg-contour path {
