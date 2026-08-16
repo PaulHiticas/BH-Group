@@ -1,9 +1,9 @@
 /**
- * Warm-dark "hospitality" background decor for public pages: a couple of
- * low-alpha warm glows, a fine static grain, and a very faint contour.
- * Dark mode only (invisible in light, see .site-bg in globals.css) and
- * purely decorative - fixed behind everything, no pointer events, no
- * animation.
+ * Warm "hospitality" background decor for public pages: a few low-alpha
+ * warm glows, a fine static grain, and a very faint contour. Tuned
+ * separately for light and dark (see .site-bg in globals.css) so both
+ * themes look intentional, not just dark mode. Purely decorative - fixed
+ * behind everything, no pointer events, no animation.
  */
 export function SiteBackground() {
   return (
