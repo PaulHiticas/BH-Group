@@ -66,6 +66,11 @@
  * line against the light background instead of blending in.
  */
 :root {
+  /* Tells the browser to render native controls (date/time pickers,
+     scrollbars, etc.) with the light widget palette - without this,
+     an <input type="date"> stays a stark white box even inside a dark
+     .dark surface, since it doesn't otherwise know the page went dark. */
+  color-scheme: light;
   --background: oklch(0.98 0.006 75);
   --foreground: oklch(0.24 0.006 75);
   --card: oklch(0.995 0.003 75);
@@ -109,6 +114,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Warm near-black (hue ~72, like #0d0b09) instead of a cool navy-black -
      matches the "warm-dark hospitality" background layer on public pages.
      Lightness is unchanged from before (0.16), so text/background contrast
@@ -305,4 +311,24 @@
 
 .dark .site-bg-contour path:nth-child(3) {
   stroke: rgba(235, 218, 175, 0.09);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Native <input type="date"/"time"> calendar/clock glyph - the default   */
+/* is quite small next to the rest of the UI. Scaling the pseudo-element  */
+/* is the only cross-input way to size it (it isn't a real DOM node).     */
+/* ---------------------------------------------------------------------- */
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 0.2rem;
+  transform: scale(1.35);
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
