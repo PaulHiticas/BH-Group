@@ -5,7 +5,6 @@ import Link from "next/link"
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { ArrowRight, Search } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
-import { CinematicBackgroundVideo } from "@/components/marketing/cinematic-background-video"
 import { cn } from "@/lib/utils"
 
 const EASE_CINEMATIC = [0.16, 1, 0.3, 1] as const
@@ -27,26 +26,20 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy text-white"
+      className="relative flex min-h-[92vh] items-end overflow-hidden text-white"
     >
-      {/* Background layer — cinematic video (temporary Pexels demo clip, see
-          public/videos/README.md - swap srcMp4 for real BH footage when
-          available), + scroll parallax */}
+      {/* No local background layer anymore - the page-wide <SiteBackgroundVideo />
+          (mounted in app/page.tsx) shows through this transparent section.
+          Scroll parallax still applies to the extra darkening gradients below,
+          which this hero needs on top of the site-wide dimming for its large
+          white headline. */}
       <motion.div
         style={{ y: bgY, scale: bgScale }}
         className="absolute inset-0"
       >
-        <CinematicBackgroundVideo
-          srcMp4="/videos/home-hero.mp4"
-          poster="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
-          posterClassName="kb-image-loop"
-          priority
-        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-black/40" />
       </motion.div>
-
-      {/* Depth layer — darkening gradient + grain-like vignette */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-black/40" />
 
       <motion.div
         style={{ opacity: contentOpacity }}

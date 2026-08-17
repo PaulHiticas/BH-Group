@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { SiteBackgroundVideo } from "@/components/marketing/site-background-video"
 
 export default function ManageBookingLayout({
   children,
@@ -8,7 +9,8 @@ export default function ManageBookingLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="flex min-h-screen flex-col">
+      <SiteBackgroundVideo />
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border/60 bg-background/80 px-6 backdrop-blur">
         <Link href="/" className="flex items-center gap-2 font-heading font-semibold tracking-tight">
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">

@@ -7,7 +7,7 @@ import { FaqSection } from "@/components/marketing/faq-section"
 import { LeadFormSection } from "@/components/marketing/lead-form-section"
 import { SiteFooter } from "@/components/marketing/site-footer"
 import { ChatWidget } from "@/components/marketing/chat-widget"
-import { CinematicBackgroundVideo } from "@/components/marketing/cinematic-background-video"
+import { SiteBackgroundVideo } from "@/components/marketing/site-background-video"
 
 export const metadata: Metadata = {
   title: "Listează-ți proprietatea",
@@ -18,15 +18,14 @@ export const metadata: Metadata = {
 export default function PentruProprietariPage() {
   return (
     <div className="flex flex-1 flex-col overflow-x-hidden">
+      <SiteBackgroundVideo />
       <SiteHeader />
 
-      <section className="relative flex min-h-[60vh] items-end overflow-hidden bg-navy text-white">
-        <CinematicBackgroundVideo
-          poster="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=2000&q=80&auto=format&fit=crop"
-          posterClassName="kb-image-loop"
-          overlayClassName="bg-gradient-to-t from-black via-black/60 to-black/20"
-          priority
-        />
+      <section className="relative flex min-h-[60vh] items-end overflow-hidden text-white">
+        {/* No local video here anymore - the page-wide <SiteBackgroundVideo />
+            above shows through this transparent section; this gradient adds
+            the extra darkening the white heading/text need on top of it. */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
         <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 pb-16 pt-40 sm:px-10">
           <span className="w-fit rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium tracking-wide text-white/80 backdrop-blur-sm">
             Pentru proprietari
