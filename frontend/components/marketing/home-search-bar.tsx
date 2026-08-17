@@ -30,37 +30,48 @@ export function HomeSearchBar() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-        className="mx-auto w-full max-w-4xl px-6 sm:px-10"
+        className="mx-auto w-full max-w-5xl px-6 sm:px-10"
       >
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background p-4 shadow-sm sm:flex-row sm:items-end sm:gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <MapPin className="size-3.5" />
+        <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-background p-5 shadow-sm sm:flex-row sm:items-end sm:gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <MapPin className="size-4" />
               Destinație
             </label>
             <Input
               placeholder="Oraș sau nume proprietate"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
+              className="h-11 text-base"
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Calendar className="size-3.5" />
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <Calendar className="size-4" />
               Check-in
             </label>
-            <Input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} className="w-full sm:w-36" />
+            <Input
+              type="date"
+              value={checkIn}
+              onChange={(e) => setCheckIn(e.target.value)}
+              className="h-11 w-full text-base sm:w-44"
+            />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Calendar className="size-3.5" />
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <Calendar className="size-4" />
               Check-out
             </label>
-            <Input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} className="w-full sm:w-36" />
+            <Input
+              type="date"
+              value={checkOut}
+              onChange={(e) => setCheckOut(e.target.value)}
+              className="h-11 w-full text-base sm:w-44"
+            />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Users className="size-3.5" />
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+              <Users className="size-4" />
               Oaspeți
             </label>
             <Input
@@ -69,10 +80,10 @@ export function HomeSearchBar() {
               placeholder="2"
               value={guests}
               onChange={(e) => setGuests(e.target.value)}
-              className="w-full sm:w-20"
+              className="h-11 w-full text-base sm:w-24"
             />
           </div>
-          <Button size="lg" className="gap-2" onClick={handleSearch}>
+          <Button size="lg" className="h-11 gap-2 px-6 text-base" onClick={handleSearch}>
             <Search className="size-4" />
             Caută
           </Button>
