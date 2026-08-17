@@ -1,11 +1,11 @@
 "use client"
 
 import { useRef } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { ArrowRight, Search } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { CinematicBackgroundVideo } from "@/components/marketing/cinematic-background-video"
 import { cn } from "@/lib/utils"
 
 const EASE_CINEMATIC = [0.16, 1, 0.3, 1] as const
@@ -29,18 +29,16 @@ export function HeroSection() {
       ref={sectionRef}
       className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy text-white"
     >
-      {/* Background layer — slow continuous Ken Burns + scroll parallax */}
+      {/* Background layer — cinematic video (falls back to Ken Burns image
+          poster until a real hero clip is supplied), + scroll parallax */}
       <motion.div
         style={{ y: bgY, scale: bgScale }}
         className="absolute inset-0"
       >
-        <Image
-          src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
-          alt="Apartament modern administrat de BH Group"
-          fill
-          sizes="100vw"
+        <CinematicBackgroundVideo
+          poster="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
+          posterClassName="kb-image-loop"
           priority
-          className="kb-image-loop object-cover"
         />
       </motion.div>
 

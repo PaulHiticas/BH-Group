@@ -1,7 +1,7 @@
-import Image from "next/image"
 import Link from "next/link"
 import { Building2 } from "lucide-react"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
+import { CinematicBackgroundVideo } from "@/components/marketing/cinematic-background-video"
 
 export default function AuthLayout({
   children,
@@ -10,15 +10,12 @@ export default function AuthLayout({
 }) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden bg-navy">
-      <Image
-        src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=2000&q=80&auto=format&fit=crop"
-        alt="Interior modern administrat de BH Group"
-        fill
-        sizes="100vw"
+      <CinematicBackgroundVideo
+        poster="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=2000&q=80&auto=format&fit=crop"
+        posterClassName="kb-image-loop"
+        overlayClassName="bg-gradient-to-b from-black/70 via-black/60 to-black/80"
         priority
-        className="kb-image-loop absolute inset-0 object-cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/60 to-black/80" />
 
       <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10">
         <Link href="/" className="flex items-center gap-2 font-heading text-lg font-semibold tracking-tight text-white">
