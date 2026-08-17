@@ -29,13 +29,15 @@ export function HeroSection() {
       ref={sectionRef}
       className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy text-white"
     >
-      {/* Background layer — cinematic video (falls back to Ken Burns image
-          poster until a real hero clip is supplied), + scroll parallax */}
+      {/* Background layer — cinematic video (temporary Pexels demo clip, see
+          public/videos/README.md - swap srcMp4 for real BH footage when
+          available), + scroll parallax */}
       <motion.div
         style={{ y: bgY, scale: bgScale }}
         className="absolute inset-0"
       >
         <CinematicBackgroundVideo
+          srcMp4="/videos/home-hero.mp4"
           poster="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
           posterClassName="kb-image-loop"
           priority
