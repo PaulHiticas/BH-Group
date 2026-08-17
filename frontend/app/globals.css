@@ -51,61 +51,61 @@
 }
 
 /*
- * Design tokens — warm neutrals / navy / baby-blue system.
- * Hue anchors: ~75 = warm cream neutrals, ~260 = navy, ~228 = baby blue
- * (replaces the old terracotta/gold hue 35, then teal hue 182, accent).
- * Same variable names as before on purpose - every `bg-primary`,
- * `text-muted-foreground`, etc. across the app repaints from these values
- * with no component changes required.
+ * Design tokens — premium hospitality / luxury real-estate system.
+ * Warm ivory background, light-gray surfaces, charcoal text (no more
+ * navy tint on text - --navy is now only used explicitly, e.g. hero
+ * section backdrops), elegant gold accent (hue ~88). Same variable
+ * names as before on purpose - every `bg-primary`, `text-foreground`,
+ * etc. across the app repaints from these values with no component
+ * changes required.
  *
- * Baby blue is a light pastel, so unlike the darker terracotta/teal it
- * replaced, --primary is now LIGHTER than --primary-foreground in light
- * mode (dark navy text on a soft blue button) instead of the other way
- * around - unusual for this token pair, but it's what makes it actually
- * read as "baby blue" rather than just "a darker blue". Chart-1 stays a
- * separate, more saturated mid-tone of the same hue (not a literal copy
- * of --primary like before) because the pastel button color is too close
- * in lightness to --background/--card to pass as a chart line/bar.
+ * Gold is a mid-light tone, so like the baby blue it replaced,
+ * --primary-foreground is dark charcoal (not white) for contrast and
+ * elegance. Chart-1 stays a separate, more saturated gold than the
+ * softer --primary/--accent tones, so it reads clearly as a chart
+ * line against the light background instead of blending in.
  */
 :root {
-  --background: oklch(0.985 0.008 75);
-  --foreground: oklch(0.22 0.02 260);
-  --card: oklch(1 0.005 75);
-  --card-foreground: oklch(0.22 0.02 260);
-  --popover: oklch(1 0.005 75);
-  --popover-foreground: oklch(0.22 0.02 260);
-  --primary: oklch(0.78 0.08 228);
-  --primary-foreground: oklch(0.22 0.05 255);
-  --secondary: oklch(0.94 0.015 75);
-  --secondary-foreground: oklch(0.25 0.03 260);
-  --muted: oklch(0.95 0.012 75);
-  --muted-foreground: oklch(0.5 0.02 260);
-  --accent: oklch(0.93 0.025 228);
-  --accent-foreground: oklch(0.3 0.07 228);
+  --background: oklch(0.98 0.006 75);
+  --foreground: oklch(0.24 0.006 75);
+  --card: oklch(0.995 0.003 75);
+  --card-foreground: oklch(0.24 0.006 75);
+  --popover: oklch(0.995 0.003 75);
+  --popover-foreground: oklch(0.24 0.006 75);
+  --primary: oklch(0.64 0.11 88);
+  --primary-foreground: oklch(0.2 0.02 75);
+  --secondary: oklch(0.95 0.004 75);
+  --secondary-foreground: oklch(0.28 0.007 75);
+  --muted: oklch(0.96 0.004 75);
+  --muted-foreground: oklch(0.48 0.008 75);
+  --accent: oklch(0.92 0.03 88);
+  --accent-foreground: oklch(0.35 0.08 88);
   --destructive: oklch(0.577 0.22 27);
-  --border: oklch(0.88 0.015 75);
-  --input: oklch(0.88 0.015 75);
-  --ring: oklch(0.78 0.08 228);
+  --border: oklch(0.9 0.004 75);
+  --input: oklch(0.9 0.004 75);
+  --ring: oklch(0.64 0.11 88);
   --navy: oklch(0.22 0.05 255);
-  --terracotta: oklch(0.78 0.08 228);
-  /* Categorical chart palette: a mid-tone blue (228, more saturated than
-     the pastel --primary so it stays legible as a chart line), navy
-     (255), gold (85) as a warm contrast note, green (140), plum (330).
+  --terracotta: oklch(0.64 0.11 88);
+  /* Categorical chart palette: gold (88, richer/more saturated than the
+     softer --primary so it reads as a chart line), navy (255), wine
+     (20) as a jewel-tone companion to gold, green (140), plum (330).
      Each clears 3:1 (WCAG 1.4.11) against both --background and --card. */
-  --chart-1: oklch(0.55 0.15 228);
+  --chart-1: oklch(0.55 0.14 88);
   --chart-2: oklch(0.4 0.1 255);
-  --chart-3: oklch(0.6 0.15 85);
-  --chart-4: oklch(0.55 0.13 140);
+  --chart-3: oklch(0.45 0.15 20);
+  --chart-4: oklch(0.5 0.13 140);
   --chart-5: oklch(0.5 0.13 330);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.98 0.008 75);
-  --sidebar-foreground: oklch(0.22 0.02 260);
-  --sidebar-primary: oklch(0.78 0.08 228);
-  --sidebar-primary-foreground: oklch(0.22 0.05 255);
-  --sidebar-accent: oklch(0.94 0.015 75);
-  --sidebar-accent-foreground: oklch(0.25 0.03 260);
-  --sidebar-border: oklch(0.88 0.015 75);
-  --sidebar-ring: oklch(0.78 0.08 228);
+  /* Sharper than the 0.625rem shadcn default - reads more editorial/
+     architectural, less "rounded SaaS dashboard". */
+  --radius: 0.375rem;
+  --sidebar: oklch(0.97 0.004 75);
+  --sidebar-foreground: oklch(0.24 0.006 75);
+  --sidebar-primary: oklch(0.64 0.11 88);
+  --sidebar-primary-foreground: oklch(0.2 0.02 75);
+  --sidebar-accent: oklch(0.95 0.004 75);
+  --sidebar-accent-foreground: oklch(0.28 0.007 75);
+  --sidebar-border: oklch(0.9 0.004 75);
+  --sidebar-ring: oklch(0.64 0.11 88);
 }
 
 .dark {
@@ -114,41 +114,41 @@
      Lightness is unchanged from before (0.16), so text/background contrast
      is unaffected; only the hue/chroma shifted from cool (260) to warm (72). */
   --background: oklch(0.15 0.012 72);
-  --foreground: oklch(0.96 0.01 75);
+  --foreground: oklch(0.95 0.008 75);
   /* Same +0.05 lightness step above --background as before, re-hued to match. */
   --card: oklch(0.2 0.015 72);
-  --card-foreground: oklch(0.96 0.01 75);
-  --popover: oklch(0.21 0.025 260);
-  --popover-foreground: oklch(0.96 0.01 75);
-  --primary: oklch(0.78 0.09 228);
-  --primary-foreground: oklch(0.15 0.02 260);
-  --secondary: oklch(0.27 0.03 260);
-  --secondary-foreground: oklch(0.95 0.01 75);
-  --muted: oklch(0.25 0.025 260);
-  --muted-foreground: oklch(0.68 0.02 260);
-  --accent: oklch(0.32 0.06 228);
-  --accent-foreground: oklch(0.88 0.05 228);
+  --card-foreground: oklch(0.95 0.008 75);
+  --popover: oklch(0.21 0.015 72);
+  --popover-foreground: oklch(0.95 0.008 75);
+  --primary: oklch(0.74 0.13 88);
+  --primary-foreground: oklch(0.18 0.02 75);
+  --secondary: oklch(0.26 0.012 72);
+  --secondary-foreground: oklch(0.94 0.006 75);
+  --muted: oklch(0.24 0.012 72);
+  --muted-foreground: oklch(0.66 0.01 75);
+  --accent: oklch(0.32 0.05 88);
+  --accent-foreground: oklch(0.88 0.06 88);
   --destructive: oklch(0.704 0.19 22);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.78 0.09 228);
+  --ring: oklch(0.74 0.13 88);
   --navy: oklch(0.22 0.05 255);
-  --terracotta: oklch(0.78 0.09 228);
+  --terracotta: oklch(0.74 0.13 88);
   /* Same hue family as the light-mode chart palette, raised in lightness
      to stay >=3:1 against the dark background/card. */
-  --chart-1: oklch(0.72 0.13 228);
+  --chart-1: oklch(0.78 0.15 88);
   --chart-2: oklch(0.65 0.09 255);
-  --chart-3: oklch(0.78 0.14 85);
+  --chart-3: oklch(0.62 0.16 20);
   --chart-4: oklch(0.72 0.14 140);
   --chart-5: oklch(0.7 0.13 330);
-  --sidebar: oklch(0.21 0.025 260);
-  --sidebar-foreground: oklch(0.96 0.01 75);
-  --sidebar-primary: oklch(0.78 0.09 228);
-  --sidebar-primary-foreground: oklch(0.15 0.02 260);
-  --sidebar-accent: oklch(0.27 0.03 260);
-  --sidebar-accent-foreground: oklch(0.95 0.01 75);
+  --sidebar: oklch(0.19 0.015 72);
+  --sidebar-foreground: oklch(0.95 0.008 75);
+  --sidebar-primary: oklch(0.74 0.13 88);
+  --sidebar-primary-foreground: oklch(0.18 0.02 75);
+  --sidebar-accent: oklch(0.26 0.012 72);
+  --sidebar-accent-foreground: oklch(0.94 0.006 75);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.78 0.09 228);
+  --sidebar-ring: oklch(0.74 0.13 88);
 }
 
 @layer base {
@@ -242,27 +242,27 @@
 }
 
 /* ---------------------------------------------------------------------- */
-/* Site background — baby-blue hospitality decor layer (public pages     */
-/* only). Tuned separately for light/dark: light already sits on a warm  */
-/* cream base, so its glows stay quieter than dark's. Static, no         */
+/* Site background — champagne-gold hospitality decor layer (public      */
+/* pages only). Tuned separately for light/dark: light already sits on a */
+/* warm ivory base, so its glows stay quieter than dark's. Static, no    */
 /* animation. Rendered by components/marketing/site-background.tsx.      */
 /* ---------------------------------------------------------------------- */
 
 .site-bg {
-  /* Light mode: soft baby-blue glows on the warm cream base. */
+  /* Light mode: soft champagne-gold glows on the warm ivory base. */
   background-image:
-    radial-gradient(900px 560px at 15% -10%, rgba(137, 190, 240, 0.16), transparent 65%),
-    radial-gradient(760px 480px at 108% 112%, rgba(120, 175, 232, 0.11), transparent 65%),
-    radial-gradient(1400px 900px at 50% 35%, rgba(100, 160, 220, 0.05), transparent 70%);
+    radial-gradient(900px 560px at 15% -10%, rgba(201, 162, 39, 0.12), transparent 65%),
+    radial-gradient(760px 480px at 108% 112%, rgba(201, 162, 39, 0.08), transparent 65%),
+    radial-gradient(1400px 900px at 50% 35%, rgba(170, 135, 40, 0.04), transparent 70%);
 }
 
 .dark .site-bg {
-  /* Three baby-blue glows - two anchored corners plus a soft central
-     haze - so the page reads as a considered soft blue, not flat black. */
+  /* Three gold glows - two anchored corners plus a soft central haze -
+     so the page reads as a considered warm gold, not flat black. */
   background-image:
-    radial-gradient(900px 560px at 15% -10%, rgba(150, 205, 245, 0.24), transparent 65%),
-    radial-gradient(760px 480px at 108% 112%, rgba(130, 190, 240, 0.17), transparent 65%),
-    radial-gradient(1400px 900px at 50% 35%, rgba(80, 150, 210, 0.15), transparent 70%);
+    radial-gradient(900px 560px at 15% -10%, rgba(226, 184, 90, 0.2), transparent 65%),
+    radial-gradient(760px 480px at 108% 112%, rgba(212, 168, 70, 0.14), transparent 65%),
+    radial-gradient(1400px 900px at 50% 35%, rgba(150, 115, 40, 0.13), transparent 70%);
 }
 
 .site-bg::before {
@@ -283,26 +283,26 @@
   fill: none;
   stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
-  /* Light mode: deep blue lines - a light stroke would vanish on the cream background. */
-  stroke: rgba(30, 90, 150, 0.16);
+  /* Light mode: charcoal lines - a light stroke would vanish on the ivory background. */
+  stroke: rgba(60, 52, 30, 0.13);
 }
 
 .site-bg-contour path:nth-child(2) {
-  stroke: rgba(35, 100, 160, 0.13);
+  stroke: rgba(150, 118, 40, 0.12);
 }
 
 .site-bg-contour path:nth-child(3) {
-  stroke: rgba(40, 110, 170, 0.1);
+  stroke: rgba(70, 60, 35, 0.08);
 }
 
 .dark .site-bg-contour path {
-  stroke: rgba(190, 220, 245, 0.14);
+  stroke: rgba(240, 222, 180, 0.13);
 }
 
 .dark .site-bg-contour path:nth-child(2) {
-  stroke: rgba(180, 210, 240, 0.11);
+  stroke: rgba(226, 184, 90, 0.12);
 }
 
 .dark .site-bg-contour path:nth-child(3) {
-  stroke: rgba(195, 225, 248, 0.09);
+  stroke: rgba(235, 218, 175, 0.09);
 }
