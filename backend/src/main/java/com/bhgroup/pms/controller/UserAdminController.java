@@ -87,10 +87,10 @@ public class UserAdminController {
     }
 
     @PostMapping("/{id}/resend-invite")
-    @Operation(summary = "Resend the activation invitation for a pending user")
-    public ResponseEntity<ApiResponse<Void>> resendInvite(@PathVariable UUID id) {
-        userAdminService.resendInvite(id, currentRole());
-        return ResponseEntity.ok(ApiResponse.message("Invitation resent"));
+    @Operation(summary = "Resend the activation invitation for a pending user, returning a fresh invite link")
+    public ResponseEntity<ApiResponse<UserResponse>> resendInvite(@PathVariable UUID id) {
+        UserResponse response = userAdminService.resendInvite(id, currentRole());
+        return ResponseEntity.ok(ApiResponse.success(response, "Invitation resent"));
     }
 
     @PostMapping("/{id}/reset-mfa")

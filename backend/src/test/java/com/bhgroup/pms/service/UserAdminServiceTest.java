@@ -7,10 +7,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.common.exception.BadRequestException;
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.Property;
 import com.bhgroup.pms.domain.Role;
 import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
+import com.bhgroup.pms.dto.user.UserCreateRequest;
 import com.bhgroup.pms.dto.user.UserStatusUpdateRequest;
 import com.bhgroup.pms.dto.user.UserUpdateRequest;
 import com.bhgroup.pms.repository.PropertyRepository;
@@ -54,9 +56,14 @@ class UserAdminServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppProperties appProperties = new AppProperties();
+        appProperties.setBaseUrl("https://app.bhgroup.io");
+        appProperties.getSecurity().setUserInviteTokenExpirationMinutes(4320);
+
         userAdminService = new UserAdminService(
                 userRepository, propertyRepository, refreshTokenRepository, verificationTokenRepository,
-                passwordEncoder, secureTokenGenerator, emailService, auditService, new UserMapperImpl(), null);
+                passwordEncoder, secureTokenGenerator, emailService, auditService, new UserMapperImpl(),
+                appProperties);
 
         targetUser = User.builder()
                 .email("target@bhgroup.io")
@@ -224,5 +231,52 @@ class UserAdminServiceTest {
         var response = userAdminService.update(targetUser.getId(), request, actingUserId, "SUPER_ADMIN");
 
         assertThat(response.role()).isEqualTo(Role.ADMINISTRATOR);
+    }
+
+    @Test
+    void create_returnsAnAcceptInviteUrlBuiltFromTheFreshToken() {
+        when(userRepository.existsByEmailIgnoreCase("new@bhgroup.io")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(secureTokenGenerator.generateRawToken()).thenReturn("raw-token-123");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+
+        UserCreateRequest request = new UserCreateRequest("New", "User", "new@bhgroup.io", null, Role.CLEANER);
+
+        var response = userAdminService.create(request, "SUPER_ADMIN");
+
+        assertThat(response.inviteUrl()).isEqualTo("https://app.bhgroup.io/accept-invite/raw-token-123");
+    }
+
+    @Test
+    void create_administratorCannotAssignSuperAdmin() {
+        UserCreateRequest request = new UserCreateRequest("New", "Admin", "new@bhgroup.io", null, Role.SUPER_ADMIN);
+
+        assertThatThrownBy(() -> userAdminService.create(request, "ADMINISTRATOR"))
+                .isInstanceOf(com.bhgroup.pms.common.exception.ForbiddenException.class);
+    }
+
+    @Test
+    void resendInvite_returnsARefreshedInviteUrl() {
+        targetUser.setStatus(UserStatus.PENDING);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+        when(secureTokenGenerator.generateRawToken()).thenReturn("raw-token-456");
+
+        var response = userAdminService.resendInvite(targetUser.getId(), "SUPER_ADMIN");
+
+        assertThat(response.inviteUrl()).isEqualTo("https://app.bhgroup.io/accept-invite/raw-token-456");
+    }
+
+    @Test
+    void resendInvite_rejectsWhenUserIsNotPending() {
+        targetUser.setStatus(UserStatus.ACTIVE);
+        when(userRepository.findById(targetUser.getId())).thenReturn(Optional.of(targetUser));
+
+        assertThatThrownBy(() -> userAdminService.resendInvite(targetUser.getId(), "SUPER_ADMIN"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("pending invitations");
     }
 }

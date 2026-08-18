@@ -98,13 +98,13 @@ public class UserAdminService {
         user = userRepository.save(user);
 
         auditService.record(AuditAction.USER_INVITED, user, "User invited by administrator", null, null);
-        sendInvite(user);
+        String inviteUrl = sendInvite(user);
 
-        return userMapper.toResponse(user);
+        return withInviteUrl(userMapper.toResponse(user), inviteUrl);
     }
 
     @Transactional
-    public void resendInvite(UUID id, String actingRole) {
+    public UserResponse resendInvite(UUID id, String actingRole) {
         User user = findOrThrow(id);
         assertCanAssignRole(user.getRole(), actingRole);
 
@@ -113,10 +113,18 @@ public class UserAdminService {
         }
 
         auditService.record(AuditAction.USER_INVITE_RESENT, user, "Invitation resent by administrator", null, null);
-        sendInvite(user);
+        String inviteUrl = sendInvite(user);
+
+        return withInviteUrl(userMapper.toResponse(user), inviteUrl);
     }
 
-    private void sendInvite(User user) {
+    /**
+     * Invalidates any still-active invite token, issues a fresh one, emails it
+     * (best-effort - failures are only logged, see EmailService), and returns
+     * the accept-invite URL so callers can also hand it off directly, since
+     * SMTP isn't guaranteed to be configured in every environment.
+     */
+    private String sendInvite(User user) {
         verificationTokenRepository.invalidateActiveTokens(user.getId(), VerificationTokenType.USER_INVITE);
 
         String rawToken = secureTokenGenerator.generateRawToken();
@@ -131,6 +139,14 @@ public class UserAdminService {
 
         emailService.sendUserInviteEmail(user.getEmail(), user.getFirstName(), ROLE_LABELS.get(user.getRole()),
                 rawToken, appProperties.getSecurity().getUserInviteTokenExpirationMinutes());
+
+        return appProperties.getBaseUrl() + "/accept-invite/" + rawToken;
+    }
+
+    private UserResponse withInviteUrl(UserResponse response, String inviteUrl) {
+        return new UserResponse(response.id(), response.email(), response.firstName(), response.lastName(),
+                response.phone(), response.role(), response.status(), response.emailVerified(),
+                response.mfaEnabled(), response.createdAt(), inviteUrl);
     }
 
     @Transactional

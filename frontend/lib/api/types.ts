@@ -20,6 +20,8 @@ export interface UserResponse {
   emailVerified: boolean
   mfaEnabled: boolean
   createdAt: string
+  /** Only set right after create/resend-invite - null everywhere else. */
+  inviteUrl?: string | null
 }
 
 export interface AuthResponse {
