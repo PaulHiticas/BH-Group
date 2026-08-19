@@ -252,8 +252,34 @@ class UserAdminServiceTest {
     }
 
     @Test
-    void create_administratorCannotAssignSuperAdmin() {
+    void create_administratorCanAssignAnUnrestrictedRole() {
+        when(userRepository.existsByEmailIgnoreCase("new@bhgroup.io")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(secureTokenGenerator.generateRawToken()).thenReturn("raw-token-789");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+
+        UserCreateRequest request = new UserCreateRequest("New", "Cleaner", "new@bhgroup.io", null, Role.CLEANER);
+
+        var response = userAdminService.create(request, "ADMINISTRATOR");
+
+        assertThat(response.role()).isEqualTo(Role.CLEANER);
+    }
+
+    @Test
+    void create_administratorCannotAssignSuperAdmin_escalationBlocked() {
         UserCreateRequest request = new UserCreateRequest("New", "Admin", "new@bhgroup.io", null, Role.SUPER_ADMIN);
+
+        assertThatThrownBy(() -> userAdminService.create(request, "ADMINISTRATOR"))
+                .isInstanceOf(com.bhgroup.pms.common.exception.ForbiddenException.class);
+    }
+
+    @Test
+    void create_administratorCannotAssignAdministrator_escalationBlocked() {
+        UserCreateRequest request = new UserCreateRequest("New", "Admin", "new@bhgroup.io", null, Role.ADMINISTRATOR);
 
         assertThatThrownBy(() -> userAdminService.create(request, "ADMINISTRATOR"))
                 .isInstanceOf(com.bhgroup.pms.common.exception.ForbiddenException.class);
