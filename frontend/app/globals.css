@@ -52,19 +52,18 @@
 
 /*
  * Design tokens — premium hospitality / luxury real-estate system.
- * Warm ivory background, light-gray surfaces, charcoal text (no more
- * navy tint on text - --navy is now only used explicitly, e.g. hero
- * section backdrops), light-gray accent (near-zero chroma, warm hue
- * 75 undertone to match ivory/charcoal). Same variable names as
- * before on purpose - every `bg-primary`, `text-foreground`, etc.
- * across the app repaints from these values with no component
- * changes required.
+ * Warm ivory background, charcoal text (no more navy tint on text -
+ * --navy is now only used explicitly, e.g. hero section backdrops).
+ * Same variable names as before on purpose - every `bg-primary`,
+ * `text-foreground`, etc. across the app repaints from these values
+ * with no component changes required.
  *
- * Lightness/chroma-adjusted-down from the previous gold accent but
- * lightness kept close so existing contrast ratios still hold;
- * --primary-foreground stays dark charcoal for contrast. Chart-1
- * keeps the old richer gold tone since it's a separate categorical
- * data-viz color, not the site accent.
+ * Accent is intentionally different per theme right now: light mode
+ * uses a baby-blue accent (hue ~235), dark mode keeps the light-gray
+ * accent from the previous pass - both at the same lightness/foreground
+ * pairing the gold accent originally used, so contrast ratios still
+ * hold. Chart-1 keeps the old richer gold tone since it's a separate
+ * categorical data-viz color, not the site accent.
  */
 :root {
   /* Tells the browser to render native controls (date/time pickers,
@@ -78,20 +77,20 @@
   --card-foreground: oklch(0.24 0.006 75);
   --popover: oklch(0.995 0.003 75);
   --popover-foreground: oklch(0.24 0.006 75);
-  --primary: oklch(0.64 0.012 75);
+  --primary: oklch(0.7 0.09 235);
   --primary-foreground: oklch(0.2 0.02 75);
   --secondary: oklch(0.95 0.004 75);
   --secondary-foreground: oklch(0.28 0.007 75);
   --muted: oklch(0.96 0.004 75);
   --muted-foreground: oklch(0.48 0.008 75);
-  --accent: oklch(0.92 0.006 75);
-  --accent-foreground: oklch(0.35 0.014 75);
+  --accent: oklch(0.92 0.04 235);
+  --accent-foreground: oklch(0.35 0.09 235);
   --destructive: oklch(0.577 0.22 27);
   --border: oklch(0.9 0.004 75);
   --input: oklch(0.9 0.004 75);
-  --ring: oklch(0.64 0.012 75);
+  --ring: oklch(0.7 0.09 235);
   --navy: oklch(0.22 0.05 255);
-  --terracotta: oklch(0.64 0.012 75);
+  --terracotta: oklch(0.7 0.09 235);
   /* Categorical chart palette: gold (88, richer/more saturated than the
      softer --primary so it reads as a chart line), navy (255), wine
      (20) as a jewel-tone companion to gold, green (140), plum (330).
@@ -106,12 +105,12 @@
   --radius: 0.375rem;
   --sidebar: oklch(0.97 0.004 75);
   --sidebar-foreground: oklch(0.24 0.006 75);
-  --sidebar-primary: oklch(0.64 0.012 75);
+  --sidebar-primary: oklch(0.7 0.09 235);
   --sidebar-primary-foreground: oklch(0.2 0.02 75);
   --sidebar-accent: oklch(0.95 0.004 75);
   --sidebar-accent-foreground: oklch(0.28 0.007 75);
   --sidebar-border: oklch(0.9 0.004 75);
-  --sidebar-ring: oklch(0.64 0.012 75);
+  --sidebar-ring: oklch(0.7 0.09 235);
 }
 
 .dark {
@@ -249,18 +248,18 @@
 }
 
 /* ---------------------------------------------------------------------- */
-/* Site background — champagne-gold hospitality decor layer (public      */
-/* pages only). Tuned separately for light/dark: light already sits on a */
-/* warm ivory base, so its glows stay quieter than dark's. Static, no    */
-/* animation. Rendered by components/marketing/site-background.tsx.      */
+/* Site background — hospitality decor layer (public pages only). Tuned   */
+/* separately per theme: light mode uses a baby-blue glow/contour, dark   */
+/* mode keeps the light-gray one from the previous pass. Static, no       */
+/* animation. Rendered by components/marketing/site-background.tsx.       */
 /* ---------------------------------------------------------------------- */
 
 .site-bg {
-  /* Light mode: soft light-gray glows on the warm ivory base. */
+  /* Light mode: soft baby-blue glows on the warm ivory base. */
   background-image:
-    radial-gradient(900px 560px at 15% -10%, rgba(150, 148, 140, 0.12), transparent 65%),
-    radial-gradient(760px 480px at 108% 112%, rgba(150, 148, 140, 0.08), transparent 65%),
-    radial-gradient(1400px 900px at 50% 35%, rgba(130, 128, 120, 0.04), transparent 70%);
+    radial-gradient(900px 560px at 15% -10%, rgba(120, 170, 225, 0.12), transparent 65%),
+    radial-gradient(760px 480px at 108% 112%, rgba(120, 170, 225, 0.08), transparent 65%),
+    radial-gradient(1400px 900px at 50% 35%, rgba(100, 150, 210, 0.04), transparent 70%);
 }
 
 .dark .site-bg {
@@ -295,7 +294,7 @@
 }
 
 .site-bg-contour path:nth-child(2) {
-  stroke: rgba(140, 138, 130, 0.12);
+  stroke: rgba(110, 160, 215, 0.12);
 }
 
 .site-bg-contour path:nth-child(3) {
