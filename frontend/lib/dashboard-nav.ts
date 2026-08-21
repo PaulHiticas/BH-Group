@@ -75,7 +75,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     icon: Inbox,
     roles: ["SUPER_ADMIN", "ADMINISTRATOR", "SUPPORT_AGENT"],
   },
-  { href: "/dashboard/users", label: "Echipă", icon: Users, roles: ["SUPER_ADMIN"] },
+  {
+    href: "/dashboard/users",
+    label: "Echipă",
+    icon: Users,
+    roles: ["SUPER_ADMIN", "ADMINISTRATOR"],
+  },
   { href: "/dashboard/audit-log", label: "Jurnal audit", icon: ScrollText, roles: ["SUPER_ADMIN"] },
   { href: "/dashboard/gdpr", label: "GDPR", icon: ShieldCheck, roles: ["SUPER_ADMIN"] },
   {

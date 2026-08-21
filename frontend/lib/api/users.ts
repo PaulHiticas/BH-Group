@@ -44,7 +44,7 @@ export const usersApi = {
   updateStatus: (id: string, status: UserStatus, confirmEmail?: string) =>
     apiClient.patch<UserResponse>(`/users/${id}/status`, { status, confirmEmail }),
 
-  resendInvite: (id: string) => apiClient.post<void>(`/users/${id}/resend-invite`),
+  resendInvite: (id: string) => apiClient.post<UserResponse>(`/users/${id}/resend-invite`),
 
   resetMfa: (id: string) => apiClient.post<void>(`/users/${id}/reset-mfa`),
 }
