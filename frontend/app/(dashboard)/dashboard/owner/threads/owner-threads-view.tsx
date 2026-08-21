@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<OwnerThreadStatus, string> = {
 
 const NO_PROPERTY_VALUE = "__none__"
 
-const createThreadSchema = z.object({
+export const createThreadSchema = z.object({
   subject: z.string().min(1, "Subiectul este obligatoriu").max(160),
   propertyId: z.string(),
   body: z.string().min(1, "Mesajul este obligatoriu").max(4000),

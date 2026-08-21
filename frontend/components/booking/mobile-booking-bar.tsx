@@ -75,7 +75,11 @@ export function MobileBookingBar({
           </Link>
         ) : (
           <Button disabled className="shrink-0">
-            {ctaState === "unavailable" ? "Indisponibilă" : ctaState === "loading" ? "..." : "Rezervă"}
+            {ctaState === "unavailable"
+              ? "Indisponibilă"
+              : ctaState === "loading"
+                ? "..."
+                : "Selectează perioada"}
           </Button>
         )}
       </div>

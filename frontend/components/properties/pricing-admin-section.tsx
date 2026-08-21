@@ -65,7 +65,7 @@ function formatFactor(value: number) {
   return value.toFixed(2)
 }
 
-const configSchema = z
+export const dynamicPricingConfigSchema = z
   .object({
     enabled: z.boolean(),
     minPrice: z.number({ error: "Introduceți un număr" }).min(0, "Nu poate fi negativ").nullable(),
@@ -105,7 +105,7 @@ const configSchema = z
     }
   })
 
-type ConfigFormValues = z.infer<typeof configSchema>
+type ConfigFormValues = z.infer<typeof dynamicPricingConfigSchema>
 
 const DEFAULT_CONFIG_VALUES: ConfigFormValues = {
   enabled: false,
@@ -136,7 +136,7 @@ function PricingConfigForm({ propertyId }: { propertyId: string }) {
   const updateConfig = useUpdatePricingConfig(propertyId)
 
   const form = useForm<ConfigFormValues>({
-    resolver: zodResolver(configSchema),
+    resolver: zodResolver(dynamicPricingConfigSchema),
     defaultValues: DEFAULT_CONFIG_VALUES,
   })
 
