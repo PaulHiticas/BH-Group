@@ -1,6 +1,7 @@
 "use client"
 
 import { CinematicBackgroundVideo } from "@/components/marketing/cinematic-background-video"
+import { useCinematicBackgroundEnabled } from "@/hooks/use-cinematic-background-enabled"
 
 interface SiteBackgroundVideoProps {
   srcMp4?: string
@@ -23,11 +24,18 @@ const DEFAULT_SRC_MP4 = "/videos/home-hero.mp4"
  * automatically to light/dark) so body text stays legible; sections that
  * need extra contrast (e.g. a hero with large white text) layer their own
  * additional gradient on top locally.
+ *
+ * Desktop-only: renders nothing at all (not even the poster) on mobile/
+ * tablet/reduced-motion/save-data, per useCinematicBackgroundEnabled - the
+ * page falls back to whatever it renders without this mounted.
  */
 export function SiteBackgroundVideo({
   srcMp4 = DEFAULT_SRC_MP4,
   poster = DEFAULT_POSTER,
 }: SiteBackgroundVideoProps) {
+  const enabled = useCinematicBackgroundEnabled()
+  if (!enabled) return null
+
   return (
     <CinematicBackgroundVideo
       srcMp4={srcMp4}
