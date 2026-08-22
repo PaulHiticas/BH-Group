@@ -6,6 +6,7 @@ import Link from "next/link"
 import { motion, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { ArrowRight, Search } from "lucide-react"
 import { buttonVariants } from "@/components/ui/button"
+import { useCinematicBackgroundEnabled } from "@/hooks/use-cinematic-background-enabled"
 import { cn } from "@/lib/utils"
 
 const EASE_CINEMATIC = [0.16, 1, 0.3, 1] as const
@@ -13,6 +14,7 @@ const EASE_CINEMATIC = [0.16, 1, 0.3, 1] as const
 export function HeroSection() {
   const sectionRef = useRef<HTMLDivElement>(null)
   const reduceMotion = useReducedMotion()
+  const cinematicEnabled = useCinematicBackgroundEnabled()
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ["start start", "end start"],
@@ -27,26 +29,46 @@ export function HeroSection() {
   return (
     <section
       ref={sectionRef}
-      className="relative flex min-h-[92vh] items-end overflow-hidden bg-navy text-white"
+      className={cn(
+        "relative flex min-h-[92vh] items-end overflow-hidden text-white",
+        !cinematicEnabled && "bg-navy"
+      )}
     >
-      {/* Background layer — slow continuous Ken Burns + scroll parallax */}
-      <motion.div
-        style={{ y: bgY, scale: bgScale }}
-        className="absolute inset-0"
-      >
-        <Image
-          src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
-          alt="Apartament modern administrat de BH Group"
-          fill
-          sizes="100vw"
-          priority
-          className="kb-image-loop object-cover"
-        />
-      </motion.div>
-
-      {/* Depth layer — darkening gradient + grain-like vignette */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-black/40" />
+      {cinematicEnabled ? (
+        /* Desktop only - no local background layer here, the page-wide
+           <SiteBackgroundVideo /> (mounted in app/page.tsx) shows through
+           this transparent section. Scroll parallax still applies to the
+           extra darkening gradients below, which this hero needs on top of
+           the site-wide dimming for its large white headline. */
+        <motion.div
+          style={{ y: bgY, scale: bgScale }}
+          className="absolute inset-0"
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-black/40" />
+        </motion.div>
+      ) : (
+        /* Mobile/tablet/reduced-motion/save-data - identical to the
+           pre-video-background hero: its own Ken Burns image + gradients,
+           no site-wide layer involved. */
+        <>
+          <motion.div
+            style={{ y: bgY, scale: bgScale }}
+            className="absolute inset-0"
+          >
+            <Image
+              src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=2000&q=80&auto=format&fit=crop"
+              alt="Apartament modern administrat de BH Group"
+              fill
+              sizes="100vw"
+              priority
+              className="kb-image-loop object-cover"
+            />
+          </motion.div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/55 to-black/10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/10 to-black/40" />
+        </>
+      )}
 
       <motion.div
         style={{ opacity: contentOpacity }}
