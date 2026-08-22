@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { SiteFooter } from "@/components/marketing/site-footer"
+import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "Termeni și condiții",
@@ -82,11 +83,23 @@ export default function TermsPage() {
           <section>
             <h2>7. Contact</h2>
             <p>
-              Pentru întrebări legate de acești termeni, ne poți scrie la{" "}
-              <a href="mailto:contact@bhgroup.io" className="text-foreground underline">
-                contact@bhgroup.io
-              </a>
-              .
+              {siteConfig.companyEmail ? (
+                <>
+                  Pentru întrebări legate de acești termeni, ne poți scrie la{" "}
+                  <a href={`mailto:${siteConfig.companyEmail}`} className="text-foreground underline">
+                    {siteConfig.companyEmail}
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  Pentru întrebări legate de acești termeni, ne poți contacta prin{" "}
+                  <a href="/pentru-proprietari#formular" className="text-foreground underline">
+                    formularul de contact
+                  </a>
+                  .
+                </>
+              )}
             </p>
           </section>
         </div>

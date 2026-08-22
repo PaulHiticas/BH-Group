@@ -6,6 +6,7 @@ import { MessageCircle, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { siteConfig } from "@/lib/site-config"
 
 interface ChatMessage {
   id: number
@@ -18,14 +19,19 @@ interface KnowledgeEntry {
   answer: string
 }
 
+const CONTACT_FALLBACK =
+  siteConfig.companyEmail || siteConfig.companyPhone
+    ? [siteConfig.companyEmail, siteConfig.companyPhone].filter(Boolean).join(" sau la ")
+    : "prin formularul de contact de pe pagina „Pentru proprietari”"
+
 const KNOWLEDGE_BASE: KnowledgeEntry[] = [
   {
     keywords: ["check-in", "checkin", "check in", "ora"],
-    answer: "Check-in-ul este de la ora 14:00, iar check-out-ul până la ora 11:00. Multe proprietăți au check-in autonom cu smart lock, disponibil non-stop.",
+    answer: "Ora de check-in și check-out variază pe proprietate — o vezi clar pe pagina fiecărui anunț, înainte de a trimite cererea. Unele proprietăți au check-in autonom cu smart lock; altele au check-in cu personal.",
   },
   {
     keywords: ["anulare", "anulez", "cancel", "retur"],
-    answer: "Anularea e gratuită cu până la 48h înainte de check-in. Detaliile exacte apar la fiecare proprietate, înainte de plată.",
+    answer: "Fiecare proprietate are propria politică de anulare (flexibilă, moderată, strictă sau nerambursabilă) — o vezi afișată clar pe pagina anunțului, înainte de a trimite cererea.",
   },
   {
     keywords: ["comision", "cost", "pret", "preț", "cât cost", "cat costa"],
@@ -33,27 +39,27 @@ const KNOWLEDGE_BASE: KnowledgeEntry[] = [
   },
   {
     keywords: ["curatenie", "curățenie", "lenjerie"],
-    answer: "Fiecare sejur include curățenie profesională la standard hotelier și lenjerie/prosoape curate, incluse în preț.",
+    answer: "Fiecare sejur include curățenie și lenjerie/prosoape curate; taxa de curățenie (dacă se aplică) apare defalcat, separat, în cererea de rezervare.",
   },
   {
     keywords: ["plata", "plată", "card", "bani"],
-    answer: "Plata se face securizat cu cardul bancar. Nu se percepe nimic până la confirmarea rezervării de către gazdă.",
+    answer: "Nu se percepe nicio plată când trimiți cererea de rezervare — trimiți doar o cerere, pe care echipa o confirmă manual. Modalitatea de plată se stabilește cu echipa după confirmare.",
   },
   {
     keywords: ["animal", "caine", "câine", "pisica", "pisică", "pet"],
-    answer: "Multe proprietăți acceptă animale de companie — poți filtra după această facilitate în pagina de căutare.",
+    answer: "Unele proprietăți acceptă animale de companie — poți filtra după această facilitate în pagina de căutare.",
   },
   {
     keywords: ["listez", "listare", "proprietar", "proprietatea mea", "administrare"],
-    answer: "Perfect! Apasă pe \"Listează proprietatea ta\" din pagină, lasă-ne datele tale de contact, și revenim cu o estimare de venit în cel mult 24h.",
+    answer: "Perfect! Apasă pe \"Listează proprietatea ta\" din pagină, lasă-ne datele tale de contact, și revenim cu o estimare de venit.",
   },
   {
     keywords: ["platforme", "airbnb", "booking"],
-    answer: "Listăm pe Airbnb, Booking.com și rezervări directe prin platforma noastră, ca să maximizăm vizibilitatea proprietății tale.",
+    answer: "Publicăm proprietățile pe canalele de distribuție relevante și prin rezervare directă pe platforma noastră; disponibilitatea exactă pe fiecare canal diferă în funcție de proprietate.",
   },
   {
     keywords: ["contact", "telefon", "email", "sun"],
-    answer: "Ne poți scrie la contact@bhgroup.io sau suna la +40 700 000 000 — suntem disponibili non-stop pentru oaspeți.",
+    answer: `Ne poți contacta ${CONTACT_FALLBACK}.`,
   },
   {
     keywords: ["rezerv", "book", "caut", "apartament"],
@@ -62,7 +68,7 @@ const KNOWLEDGE_BASE: KnowledgeEntry[] = [
 ]
 
 const FALLBACK_ANSWER =
-  "Nu sunt sigur că am înțeles corect. Poți reformula, sau ne poți scrie direct la contact@bhgroup.io — răspundem rapid."
+  `Nu sunt sigur că am înțeles corect. Poți reformula, sau ne poți contacta ${CONTACT_FALLBACK} — nu vreau să-ți dau un răspuns pe care nu-l pot garanta.`
 
 function findAnswer(question: string): string {
   const normalized = question.toLowerCase()

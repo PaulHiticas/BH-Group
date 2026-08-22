@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Building2 } from "lucide-react"
+import { siteConfig } from "@/lib/site-config"
 
 export function SiteFooter() {
   return (
@@ -13,8 +14,7 @@ export function SiteFooter() {
             BH Group
           </div>
           <p className="max-w-xs text-sm text-muted-foreground">
-            Administrare premium de proprietăți pentru închirieri pe termen scurt —
-            Airbnb, Booking.com și rezervări directe.
+            Administrare premium de proprietăți pentru închirieri pe termen scurt, cu rezervare directă prin platforma noastră.
           </p>
         </div>
 
@@ -37,8 +37,15 @@ export function SiteFooter() {
           <div>
             <p className="text-sm font-medium">Contact</p>
             <ul className="mt-3 flex flex-col gap-2 text-sm text-muted-foreground">
-              <li>contact@bhgroup.io</li>
-              <li>+40 700 000 000</li>
+              {siteConfig.companyEmail && <li>{siteConfig.companyEmail}</li>}
+              {siteConfig.companyPhone && <li>{siteConfig.companyPhone}</li>}
+              {!siteConfig.companyEmail && !siteConfig.companyPhone && (
+                <li>
+                  <Link href="/pentru-proprietari#formular" className="hover:text-foreground">
+                    Lasă-ne un mesaj
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
         </div>

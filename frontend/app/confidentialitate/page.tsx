@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { SiteHeader } from "@/components/marketing/site-header"
 import { SiteFooter } from "@/components/marketing/site-footer"
+import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "Politica de confidențialitate",
@@ -84,11 +85,23 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2>7. Contact</h2>
             <p>
-              Pentru orice întrebare legată de protecția datelor, ne poți scrie la{" "}
-              <a href="mailto:contact@bhgroup.io" className="text-foreground underline">
-                contact@bhgroup.io
-              </a>
-              .
+              {siteConfig.companyEmail ? (
+                <>
+                  Pentru orice întrebare legată de protecția datelor, ne poți scrie la{" "}
+                  <a href={`mailto:${siteConfig.companyEmail}`} className="text-foreground underline">
+                    {siteConfig.companyEmail}
+                  </a>
+                  .
+                </>
+              ) : (
+                <>
+                  Pentru orice întrebare legată de protecția datelor, ne poți contacta prin{" "}
+                  <a href="/pentru-proprietari#formular" className="text-foreground underline">
+                    formularul de contact
+                  </a>
+                  .
+                </>
+              )}
             </p>
           </section>
         </div>
