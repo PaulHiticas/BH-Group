@@ -26,6 +26,19 @@ export function useLogin() {
         return
       }
       setSession(result)
+      // The backend already tells us on the login response itself whether
+      // this account has completed MFA setup - route straight to
+      // /mfa/setup-required instead of /dashboard when it hasn't. Letting a
+      // not-yet-MFA'd account reach /dashboard means its first data query
+      // gets blocked by the backend's MfaEnforcementFilter (403
+      // MFA_SETUP_REQUIRED), which used to trigger a hard-reload redirect
+      // that lost the in-memory access token and looped with the auth
+      // middleware. See mfa-setup-required-view.tsx for the matching fix on
+      // that side (in case this page is ever reached via that redirect too).
+      if (!result.user.mfaEnabled) {
+        router.push("/mfa/setup-required")
+        return
+      }
       toast.success(`Bine ai revenit, ${result.user.firstName}!`)
       router.push("/dashboard")
     },
