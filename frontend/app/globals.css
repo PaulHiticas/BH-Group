@@ -51,16 +51,17 @@
 }
 
 /*
- * Design tokens — warm/navy/baby-blue system.
- * Hue anchors: ~75 = warm cream neutrals, ~260 = navy, ~235 = baby-blue accent.
- * Same variable names as before on purpose - every `bg-primary`,
- * `text-muted-foreground`, etc. across the app repaints from these values
- * with no component changes required.
+ * Design tokens — warm/navy system.
+ * Hue anchors: ~75 = warm cream neutrals, ~260 = navy, ~235 = baby-blue
+ * accent (light mode). Same variable names as before on purpose - every
+ * `bg-primary`, `text-muted-foreground`, etc. across the app repaints
+ * from these values with no component changes required.
  *
- * The accent (primary/accent/ring/sidebar-primary) is light-mode only -
- * dark mode below keeps its original terracotta accent untouched. Chart-1
- * also keeps the terracotta hue since it's a separate categorical
- * data-viz color, not the site accent.
+ * Accent differs per theme on purpose: light mode uses baby-blue
+ * (primary/accent/ring/sidebar-primary below), dark mode uses a neutral
+ * light-gray accent instead of terracotta (see .dark below). Chart-1
+ * keeps the terracotta hue in both themes since it's a separate
+ * categorical data-viz color, not the site accent.
  */
 :root {
   --background: oklch(0.985 0.008 75);
@@ -111,22 +112,26 @@
   --card-foreground: oklch(0.96 0.01 75);
   --popover: oklch(0.21 0.025 260);
   --popover-foreground: oklch(0.96 0.01 75);
-  --primary: oklch(0.66 0.16 35);
-  --primary-foreground: oklch(0.15 0.02 260);
+  /* Accent is neutral light-gray on dark (not terracotta) - low chroma
+     (0.014/0.008) at a warm-neutral hue so it doesn't read as tinted. */
+  --primary: oklch(0.74 0.014 75);
+  --primary-foreground: oklch(0.18 0.02 75);
   --secondary: oklch(0.27 0.03 260);
   --secondary-foreground: oklch(0.95 0.01 75);
   --muted: oklch(0.25 0.025 260);
   --muted-foreground: oklch(0.68 0.02 260);
-  --accent: oklch(0.3 0.05 35);
-  --accent-foreground: oklch(0.9 0.04 35);
+  --accent: oklch(0.32 0.008 75);
+  --accent-foreground: oklch(0.88 0.01 75);
   --destructive: oklch(0.704 0.19 22);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.66 0.16 35);
+  --ring: oklch(0.74 0.014 75);
   --navy: oklch(0.22 0.05 255);
-  --terracotta: oklch(0.66 0.16 35);
+  --terracotta: oklch(0.74 0.014 75);
   /* Same 5 hues as the light-mode chart palette, raised in lightness to
-     stay >=3:1 against the dark background/card. */
+     stay >=3:1 against the dark background/card. Chart-1 keeps the
+     terracotta hue since it's a separate categorical data-viz color,
+     not the site accent. */
   --chart-1: oklch(0.66 0.16 35);
   --chart-2: oklch(0.65 0.09 255);
   --chart-3: oklch(0.78 0.14 85);
@@ -134,12 +139,12 @@
   --chart-5: oklch(0.7 0.13 330);
   --sidebar: oklch(0.21 0.025 260);
   --sidebar-foreground: oklch(0.96 0.01 75);
-  --sidebar-primary: oklch(0.66 0.16 35);
-  --sidebar-primary-foreground: oklch(0.15 0.02 260);
+  --sidebar-primary: oklch(0.74 0.014 75);
+  --sidebar-primary-foreground: oklch(0.18 0.02 75);
   --sidebar-accent: oklch(0.27 0.03 260);
   --sidebar-accent-foreground: oklch(0.95 0.01 75);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.66 0.16 35);
+  --sidebar-ring: oklch(0.74 0.014 75);
 }
 
 @layer base {
