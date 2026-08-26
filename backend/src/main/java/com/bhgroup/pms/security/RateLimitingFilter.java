@@ -44,7 +44,11 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             // unauthenticated, so they need their own limit independent of
             // the plain /login rule above.
             new RateLimitRule("POST", "/api/v1/auth/mfa/verify-login", 10, 5 * 60 * 1000L),
-            new RateLimitRule("POST", "/api/v1/auth/mfa/verify-recovery", 10, 5 * 60 * 1000L)
+            new RateLimitRule("POST", "/api/v1/auth/mfa/verify-recovery", 10, 5 * 60 * 1000L),
+            // Public and costs money per call (Anthropic API) - capped tighter
+            // than a normal form submit, generous enough for one real chat
+            // session's back-and-forth.
+            new RateLimitRule("POST", "/api/v1/assistant/chat", 20, 10 * 60 * 1000L)
     );
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();

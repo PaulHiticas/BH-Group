@@ -34,6 +34,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/**",
             "/api/v1/public/**",
+            // FAQ-only chat assistant - no auth, no live/private data, see
+            // AssistantController + RateLimitingFilter's rule for this path.
+            "/api/v1/assistant/**",
             "/swagger-ui/**",
             "/swagger-ui.html",
             "/v3/api-docs/**",

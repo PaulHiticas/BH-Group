@@ -17,6 +17,8 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Security security = new Security();
     private Storage storage = new Storage();
+    private Contact contact = new Contact();
+    private Assistant assistant = new Assistant();
 
     @Getter
     @Setter
@@ -55,5 +57,23 @@ public class AppProperties {
     public static class Storage {
         private String uploadDir;
         private String publicBaseUrl;
+    }
+
+    @Getter
+    @Setter
+    public static class Contact {
+        private String email;
+        private String phone;
+    }
+
+    @Getter
+    @Setter
+    public static class Assistant {
+        private String apiKey;
+        private String model;
+        private String baseUrl;
+        private int maxTokens;
+        private int maxHistoryMessages;
+        private long timeoutMs;
     }
 }
