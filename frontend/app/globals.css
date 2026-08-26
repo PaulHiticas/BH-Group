@@ -106,20 +106,24 @@
 }
 
 .dark {
-  --background: oklch(0.16 0.02 260);
-  --foreground: oklch(0.96 0.01 75);
-  --card: oklch(0.21 0.025 260);
-  --card-foreground: oklch(0.96 0.01 75);
-  --popover: oklch(0.21 0.025 260);
-  --popover-foreground: oklch(0.96 0.01 75);
+  /* Warm near-black (hue ~72, like a warm charcoal) instead of a cool
+     navy-black - matches the warm-dark hospitality look. Lightness is
+     close to the previous navy version, so text/background contrast is
+     unaffected; only the hue/chroma shifted from cool (260) to warm (72). */
+  --background: oklch(0.15 0.012 72);
+  --foreground: oklch(0.95 0.008 75);
+  --card: oklch(0.2 0.015 72);
+  --card-foreground: oklch(0.95 0.008 75);
+  --popover: oklch(0.21 0.015 72);
+  --popover-foreground: oklch(0.95 0.008 75);
   /* Accent is neutral light-gray on dark (not terracotta) - low chroma
      (0.014/0.008) at a warm-neutral hue so it doesn't read as tinted. */
   --primary: oklch(0.74 0.014 75);
   --primary-foreground: oklch(0.18 0.02 75);
-  --secondary: oklch(0.27 0.03 260);
-  --secondary-foreground: oklch(0.95 0.01 75);
-  --muted: oklch(0.25 0.025 260);
-  --muted-foreground: oklch(0.68 0.02 260);
+  --secondary: oklch(0.26 0.012 72);
+  --secondary-foreground: oklch(0.94 0.006 75);
+  --muted: oklch(0.24 0.012 72);
+  --muted-foreground: oklch(0.66 0.01 75);
   --accent: oklch(0.32 0.008 75);
   --accent-foreground: oklch(0.88 0.01 75);
   --destructive: oklch(0.704 0.19 22);
@@ -137,12 +141,12 @@
   --chart-3: oklch(0.78 0.14 85);
   --chart-4: oklch(0.72 0.12 195);
   --chart-5: oklch(0.7 0.13 330);
-  --sidebar: oklch(0.21 0.025 260);
-  --sidebar-foreground: oklch(0.96 0.01 75);
+  --sidebar: oklch(0.19 0.015 72);
+  --sidebar-foreground: oklch(0.95 0.008 75);
   --sidebar-primary: oklch(0.74 0.014 75);
   --sidebar-primary-foreground: oklch(0.18 0.02 75);
-  --sidebar-accent: oklch(0.27 0.03 260);
-  --sidebar-accent-foreground: oklch(0.95 0.01 75);
+  --sidebar-accent: oklch(0.26 0.012 72);
+  --sidebar-accent-foreground: oklch(0.94 0.006 75);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.74 0.014 75);
 }
