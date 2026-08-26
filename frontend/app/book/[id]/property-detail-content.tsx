@@ -4,6 +4,7 @@ import { Suspense, useRef } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { MapPin } from "lucide-react"
 import { motion, useReducedMotion } from "motion/react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AvailabilityCalendar } from "@/components/booking/availability-calendar"
 import { MobileBookingBar } from "@/components/booking/mobile-booking-bar"
@@ -123,34 +124,42 @@ function PropertyDetailInner({ id }: { id: string }) {
 
         <div className="flex flex-col gap-8 lg:order-1">
           {property.description && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-heading text-lg font-semibold tracking-tight">Despre acest loc</h2>
-              <p className="max-w-prose whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
-                {property.description}
-              </p>
-            </section>
+            <Card>
+              <CardContent className="flex flex-col gap-3">
+                <h2 className="font-heading text-lg font-semibold tracking-tight">Despre acest loc</h2>
+                <p className="max-w-prose whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">
+                  {property.description}
+                </p>
+              </CardContent>
+            </Card>
           )}
 
-          <div className="border-t border-border/60 pt-8">
-            <PropertyAmenities facilities={property.facilities} />
-          </div>
+          <Card>
+            <CardContent>
+              <PropertyAmenities facilities={property.facilities} />
+            </CardContent>
+          </Card>
 
-          <div className="border-t border-border/60 pt-8">
-            <PropertyLocation property={property} />
-          </div>
+          <Card>
+            <CardContent>
+              <PropertyLocation property={property} />
+            </CardContent>
+          </Card>
 
-          <div ref={availabilityRef} className="scroll-mt-24 border-t border-border/60 pt-8">
-            <section className="flex flex-col gap-4">
-              <h2 className="font-heading text-lg font-semibold tracking-tight">Disponibilitate</h2>
-              <AvailabilityCalendar
-                propertyId={property.id}
-                minStayNights={property.minStayNights}
-                maxStayNights={property.maxStayNights}
-                checkIn={checkIn}
-                checkOut={checkOut}
-                onSelect={(range) => updateSelection(range)}
-              />
-            </section>
+          <div ref={availabilityRef} className="scroll-mt-24">
+            <Card>
+              <CardContent className="flex flex-col gap-4">
+                <h2 className="font-heading text-lg font-semibold tracking-tight">Disponibilitate</h2>
+                <AvailabilityCalendar
+                  propertyId={property.id}
+                  minStayNights={property.minStayNights}
+                  maxStayNights={property.maxStayNights}
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  onSelect={(range) => updateSelection(range)}
+                />
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
