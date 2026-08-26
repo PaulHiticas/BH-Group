@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { siteConfig } from "@/lib/site-config"
+import { useAssistantChat } from "@/hooks/use-assistant-chat"
+import type { AssistantMessage } from "@/lib/api/assistant"
 
 interface ChatMessage {
   id: number
@@ -14,69 +16,14 @@ interface ChatMessage {
   text: string
 }
 
-interface KnowledgeEntry {
-  keywords: string[]
-  answer: string
-}
-
 const CONTACT_FALLBACK =
   siteConfig.companyEmail || siteConfig.companyPhone
     ? [siteConfig.companyEmail, siteConfig.companyPhone].filter(Boolean).join(" sau la ")
     : "prin formularul de contact de pe pagina „Pentru proprietari”"
 
-const KNOWLEDGE_BASE: KnowledgeEntry[] = [
-  {
-    keywords: ["check-in", "checkin", "check in", "ora"],
-    answer: "Ora de check-in și check-out variază pe proprietate — o vezi clar pe pagina fiecărui anunț, înainte de a trimite cererea. Unele proprietăți au check-in autonom cu smart lock; altele au check-in cu personal.",
-  },
-  {
-    keywords: ["anulare", "anulez", "cancel", "retur"],
-    answer: "Fiecare proprietate are propria politică de anulare (flexibilă, moderată, strictă sau nerambursabilă) — o vezi afișată clar pe pagina anunțului, înainte de a trimite cererea.",
-  },
-  {
-    keywords: ["comision", "cost", "pret", "preț", "cât cost", "cat costa"],
-    answer: "Comisionul de administrare depinde de locație, tipul proprietății și serviciile incluse — stabilim totul transparent la prima discuție, fără costuri ascunse.",
-  },
-  {
-    keywords: ["curatenie", "curățenie", "lenjerie"],
-    answer: "Fiecare sejur include curățenie și lenjerie/prosoape curate; taxa de curățenie (dacă se aplică) apare defalcat, separat, în cererea de rezervare.",
-  },
-  {
-    keywords: ["plata", "plată", "card", "bani"],
-    answer: "Nu se percepe nicio plată când trimiți cererea de rezervare — trimiți doar o cerere, pe care echipa o confirmă manual. Modalitatea de plată se stabilește cu echipa după confirmare.",
-  },
-  {
-    keywords: ["animal", "caine", "câine", "pisica", "pisică", "pet"],
-    answer: "Unele proprietăți acceptă animale de companie — poți filtra după această facilitate în pagina de căutare.",
-  },
-  {
-    keywords: ["listez", "listare", "proprietar", "proprietatea mea", "administrare"],
-    answer: "Perfect! Apasă pe \"Listează proprietatea ta\" din pagină, lasă-ne datele tale de contact, și revenim cu o estimare de venit.",
-  },
-  {
-    keywords: ["platforme", "airbnb", "booking"],
-    answer: "Publicăm proprietățile pe canalele de distribuție relevante și prin rezervare directă pe platforma noastră; disponibilitatea exactă pe fiecare canal diferă în funcție de proprietate.",
-  },
-  {
-    keywords: ["contact", "telefon", "email", "sun"],
-    answer: `Ne poți contacta ${CONTACT_FALLBACK}.`,
-  },
-  {
-    keywords: ["rezerv", "book", "caut", "apartament"],
-    answer: "Poți căuta și rezerva direct din pagina \"Vezi apartamente\" din meniu — alege orașul, datele și numărul de oaspeți.",
-  },
-]
+const ERROR_FALLBACK = `Nu am putut trimite mesajul chiar acum. Te rugăm să ne contactezi ${CONTACT_FALLBACK}.`
 
-const FALLBACK_ANSWER =
-  `Nu sunt sigur că am înțeles corect. Poți reformula, sau ne poți contacta ${CONTACT_FALLBACK} — nu vreau să-ți dau un răspuns pe care nu-l pot garanta.`
-
-function findAnswer(question: string): string {
-  const normalized = question.toLowerCase()
-  const match = KNOWLEDGE_BASE.find((entry) =>
-    entry.keywords.some((keyword) => normalized.includes(keyword))
-  )
-  return match?.answer ?? FALLBACK_ANSWER
-}
+const GREETING = "Salut! Sunt asistentul virtual BH Group. Întreabă-mă despre check-in, anulare, comisioane sau cum îți poți lista proprietatea."
 
 let messageId = 0
 
@@ -84,30 +31,41 @@ export function ChatWidget() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState("")
   const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: messageId++,
-      role: "bot",
-      text: "Salut! Sunt asistentul virtual BH Group. Întreabă-mă despre check-in, anulare, comisioane sau cum îți poți lista proprietatea.",
-    },
+    { id: messageId++, role: "bot", text: GREETING },
   ])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const chatMutation = useAssistantChat()
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-  }, [messages])
+    const el = scrollRef.current
+    if (typeof el?.scrollTo === "function") {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+    }
+  }, [messages, chatMutation.isPending])
 
-  function handleSend() {
+  async function handleSend() {
     const question = input.trim()
-    if (!question) return
+    if (!question || chatMutation.isPending) return
 
     const userMessage: ChatMessage = { id: messageId++, role: "user", text: question }
+    // The very first message is a canned local greeting, never a real turn -
+    // the Anthropic API requires the conversation to start with a "user"
+    // message, so it's excluded from what gets sent.
+    const conversation = [...messages, userMessage].slice(1)
+    const history: AssistantMessage[] = conversation.map((message) => ({
+      role: message.role === "bot" ? "assistant" : "user",
+      content: message.text,
+    }))
+
     setMessages((prev) => [...prev, userMessage])
     setInput("")
 
-    window.setTimeout(() => {
-      const answer = findAnswer(question)
-      setMessages((prev) => [...prev, { id: messageId++, role: "bot", text: answer }])
-    }, 500)
+    try {
+      const response = await chatMutation.mutateAsync(history)
+      setMessages((prev) => [...prev, { id: messageId++, role: "bot", text: response.message }])
+    } catch {
+      setMessages((prev) => [...prev, { id: messageId++, role: "bot", text: ERROR_FALLBACK }])
+    }
   }
 
   return (
@@ -163,6 +121,17 @@ export function ChatWidget() {
                   {message.text}
                 </div>
               ))}
+              {chatMutation.isPending && (
+                <div className="flex max-w-[85%] items-center gap-1 self-start rounded-2xl bg-muted px-3.5 py-2.5">
+                  {[0, 1, 2].map((i) => (
+                    <span
+                      key={i}
+                      className="size-1.5 animate-bounce rounded-full bg-muted-foreground/60"
+                      style={{ animationDelay: `${i * 0.15}s` }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 border-t border-border/60 p-3">
@@ -173,9 +142,15 @@ export function ChatWidget() {
                   if (e.key === "Enter") handleSend()
                 }}
                 placeholder="Scrie o întrebare..."
+                disabled={chatMutation.isPending}
                 className="flex-1"
               />
-              <Button size="icon" onClick={handleSend} disabled={!input.trim()}>
+              <Button
+                size="icon"
+                onClick={handleSend}
+                disabled={!input.trim() || chatMutation.isPending}
+                aria-label="Trimite mesaj"
+              >
                 <Send className="size-4" />
               </Button>
             </div>

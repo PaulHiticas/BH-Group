@@ -53,6 +53,20 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void blocksAssistantChatAfterTheLimitAndReturnsCleanJson() throws Exception {
+        for (int i = 0; i < 20; i++) {
+            MockHttpServletResponse response = doPost("/api/v1/assistant/chat");
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletResponse blocked = doPost("/api/v1/assistant/chat");
+
+        assertThat(blocked.getStatus()).isEqualTo(429);
+        var body = objectMapper.readTree(blocked.getContentAsString());
+        assertThat(body.get("errorCode").asText()).isEqualTo("RATE_LIMIT_EXCEEDED");
+    }
+
+    @Test
     void doesNotRateLimitUnrelatedEndpoints() throws Exception {
         for (int i = 0; i < 20; i++) {
             MockHttpServletResponse response = doPost("/api/v1/properties");
