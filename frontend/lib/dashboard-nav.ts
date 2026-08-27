@@ -1,4 +1,5 @@
 import {
+  Bot,
   Building2,
   Calendar,
   CalendarClock,
@@ -74,6 +75,12 @@ export const DASHBOARD_NAV_ITEMS: DashboardNavItem[] = [
     label: "Cereri proprietari",
     icon: Inbox,
     roles: ["SUPER_ADMIN", "ADMINISTRATOR", "SUPPORT_AGENT"],
+  },
+  {
+    href: "/dashboard/assistant-chats",
+    label: "Conversații asistent",
+    icon: Bot,
+    roles: ["SUPER_ADMIN", "ADMINISTRATOR"],
   },
   {
     href: "/dashboard/users",

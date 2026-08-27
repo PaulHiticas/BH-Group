@@ -1,6 +1,7 @@
 package com.bhgroup.pms.service;
 
 import com.bhgroup.pms.config.AppProperties;
+import com.bhgroup.pms.dto.assistant.AssistantChatResponse;
 import com.bhgroup.pms.dto.assistant.AssistantMessageRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -28,6 +29,14 @@ public class AssistantService {
     private static final String OUTAGE_FALLBACK_TEMPLATE =
             "Nu pot prelua acum răspunsul asistentului virtual. Te rugăm să ne contactezi %s și revenim cât mai repede.";
 
+    // Machine-readable escalation signal: the model appends this exact
+    // marker on its own line whenever it defers to a human (the same two
+    // cases the system prompt already tells it to defer on), so the
+    // handoff flow (V2) can detect "the AI couldn't help" without fragile
+    // text-matching on the visible reply. Stripped before the text is
+    // ever returned to the caller.
+    private static final String NEEDS_HUMAN_MARKER = "[[NEEDS_HUMAN]]";
+
     private static final String SYSTEM_PROMPT_TEMPLATE = """
             Ești asistentul virtual al BH Group, o platformă de administrare și rezervare \
             de proprietăți de cazare pe termen scurt.
@@ -42,6 +51,10 @@ public class AssistantService {
             oferă-i datele de contact de mai jos.
             - Dacă nu știi răspunsul sau informația nu apare mai jos, spune sincer că nu \
             ești sigur și trimite clientul la contact - nu ghici și nu inventa.
+            - În oricare din cele două cazuri de mai sus (rezervare anume/date personale, \
+            SAU nu știi răspunsul), încheie răspunsul tău EXACT cu marcajul [[NEEDS_HUMAN]] \
+            pe propria linie, la final. NU folosi acest marcaj pentru un răspuns FAQ normal \
+            la care ai reușit să răspunzi din informațiile de mai jos.
             - Răspunde în limba în care scrie clientul (română sau engleză). Fii concis \
             (2-4 propoziții).
 
@@ -76,13 +89,15 @@ public class AssistantService {
             11. Contact: %s
             """;
 
-    public String chat(List<AssistantMessageRequest> history) {
+    public AssistantChatResponse chat(List<AssistantMessageRequest> history) {
         String contactFallback = buildContactFallback();
 
         String apiKey = appProperties.getAssistant().getApiKey();
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("ANTHROPIC_API_KEY is not configured - returning the contact fallback instead of calling the API");
-            return OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback);
+            // The bot genuinely couldn't help at all here, so this always
+            // counts as a needs-human signal too.
+            return new AssistantChatResponse(OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback), true);
         }
 
         try {
@@ -101,12 +116,16 @@ public class AssistantService {
                     .body(AnthropicResponse.class);
 
             String answer = extractText(response);
-            return (answer == null || answer.isBlank())
-                    ? OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback)
-                    : answer;
+            if (answer == null || answer.isBlank()) {
+                return new AssistantChatResponse(OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback), true);
+            }
+
+            boolean needsHuman = answer.contains(NEEDS_HUMAN_MARKER);
+            String cleaned = needsHuman ? answer.replace(NEEDS_HUMAN_MARKER, "").trim() : answer;
+            return new AssistantChatResponse(cleaned, needsHuman);
         } catch (Exception ex) {
             log.error("Anthropic API call failed - returning the contact fallback", ex);
-            return OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback);
+            return new AssistantChatResponse(OUTAGE_FALLBACK_TEMPLATE.formatted(contactFallback), true);
         }
     }
 
