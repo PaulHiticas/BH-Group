@@ -69,7 +69,7 @@ describe("ChatWidget", () => {
     expect(screen.queryByPlaceholderText("Scrie o întrebare...")).not.toBeInTheDocument()
   })
 
-  it("shows a staff reply once the poll picks it up after handoff", async () => {
+  it("shows a staff reply labeled 'Coleg din echipă' (not as the bot) once the poll picks it up after handoff", async () => {
     vi.mocked(assistantApi.handoff).mockResolvedValue({ publicToken: "tok-456" })
     vi.mocked(assistantApi.getHandoffMessages).mockResolvedValue([
       { id: "m1", senderType: "STAFF", body: "Bună, cu ce te pot ajuta?", createdAt: "2026-01-01T10:00:00Z" },
@@ -81,6 +81,36 @@ describe("ChatWidget", () => {
     await waitFor(() => {
       expect(screen.getByText("Bună, cu ce te pot ajuta?")).toBeInTheDocument()
     })
+    expect(screen.getByText("Coleg din echipă")).toBeInTheDocument()
+  })
+
+  it("shows the 'waiting for a colleague' indicator while there is no staff reply yet", async () => {
+    vi.mocked(assistantApi.handoff).mockResolvedValue({ publicToken: "tok-457" })
+    vi.mocked(assistantApi.getHandoffMessages).mockResolvedValue([])
+
+    const user = await openWidget()
+    await user.click(screen.getByRole("button", { name: "Vorbește cu o persoană din echipă" }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Aștepți un răspuns de la un coleg/)).toBeInTheDocument()
+    })
+    expect(screen.queryByText("Ești conectat cu echipa")).not.toBeInTheDocument()
+  })
+
+  it("hides the 'waiting for a colleague' indicator once a staff reply exists, showing a discreet connected status instead", async () => {
+    vi.mocked(assistantApi.handoff).mockResolvedValue({ publicToken: "tok-458" })
+    vi.mocked(assistantApi.getHandoffMessages).mockResolvedValue([
+      { id: "m1", senderType: "STAFF", body: "Bună, cu ce te pot ajuta?", createdAt: "2026-01-01T10:00:00Z" },
+    ])
+
+    const user = await openWidget()
+    await user.click(screen.getByRole("button", { name: "Vorbește cu o persoană din echipă" }))
+
+    await waitFor(() => {
+      expect(screen.getByText("Bună, cu ce te pot ajuta?")).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Aștepți un răspuns de la un coleg/)).not.toBeInTheDocument()
+    expect(screen.getByText("Ești conectat cu echipa")).toBeInTheDocument()
   })
 
   it("escalates immediately on a written request to talk to a human - never calls chat, never waits for the threshold", async () => {

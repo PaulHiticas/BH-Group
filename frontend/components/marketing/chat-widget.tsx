@@ -78,15 +78,27 @@ function isExplicitHumanRequest(text: string): boolean {
 
 let messageId = 0
 
-function MessageBubble({ role, text }: { role: "bot" | "user"; text: string }) {
+type MessageVariant = "bot" | "user" | "staff"
+
+function MessageBubble({ variant, text }: { variant: MessageVariant; text: string }) {
+  const isUser = variant === "user"
+  const isStaff = variant === "staff"
+
   return (
-    <div
-      className={cn(
-        "max-w-[85%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-        role === "bot" ? "self-start bg-muted text-foreground" : "self-end bg-primary text-primary-foreground"
-      )}
-    >
-      {text}
+    <div className={cn("flex max-w-[85%] flex-col gap-1", isUser ? "self-end items-end" : "self-start items-start")}>
+      {isStaff && <span className="px-1 text-[11px] font-medium text-primary">Coleg din echipă</span>}
+      <div
+        className={cn(
+          "rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+          isUser
+            ? "bg-primary text-primary-foreground"
+            : isStaff
+              ? "bg-primary/10 text-foreground ring-1 ring-primary/30"
+              : "bg-muted text-foreground"
+        )}
+      >
+        {text}
+      </div>
     </div>
   )
 }
@@ -242,16 +254,27 @@ export function ChatWidget() {
 
             <div ref={scrollRef} className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
               {messages.map((message) => (
-                <MessageBubble key={message.id} role={message.role} text={message.text} />
+                <MessageBubble key={message.id} variant={message.role} text={message.text} />
               ))}
               {isHandoff ? (
                 <>
+                  {/* Chronological: staff replies always come after everything
+                      above (the pre-handoff conversation + the "Te conectez..."
+                      notice) since a chat can only ever be created after those
+                      messages exist, and the backend already returns messages
+                      sorted ascending by createdAt. */}
                   {staffReplies.map((message) => (
-                    <MessageBubble key={message.id} role="bot" text={message.body} />
+                    <MessageBubble key={message.id} variant="staff" text={message.body} />
                   ))}
-                  <div className="self-start rounded-2xl bg-muted/60 px-3.5 py-2 text-xs text-muted-foreground">
-                    Aștepți un răspuns de la un coleg din echipă...
-                  </div>
+                  {staffReplies.length === 0 ? (
+                    <div className="self-start rounded-2xl bg-muted/60 px-3.5 py-2 text-xs text-muted-foreground">
+                      Aștepți un răspuns de la un coleg din echipă...
+                    </div>
+                  ) : (
+                    <div className="self-center rounded-full bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground">
+                      Ești conectat cu echipa
+                    </div>
+                  )}
                 </>
               ) : (
                 isBusy && <TypingBubble />
