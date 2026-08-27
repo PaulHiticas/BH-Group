@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.config.AppProperties;
+import com.bhgroup.pms.dto.assistant.AssistantChatResponse;
 import com.bhgroup.pms.dto.assistant.AssistantMessageRequest;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,29 +61,48 @@ class AssistantServiceTest {
                 List.of(new AssistantService.AnthropicContentBlock("text", "Check-in-ul variază pe proprietate.")));
         when(responseSpec.body(AssistantService.AnthropicResponse.class)).thenReturn(mockResponse);
 
-        String reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Care e ora de check-in?")));
+        AssistantChatResponse reply = assistantService.chat(
+                List.of(new AssistantMessageRequest("user", "Care e ora de check-in?")));
 
-        assertThat(reply).isEqualTo("Check-in-ul variază pe proprietate.");
+        assertThat(reply.message()).isEqualTo("Check-in-ul variază pe proprietate.");
+        assertThat(reply.needsHuman()).isFalse();
     }
 
     @Test
-    void chat_returnsContactFallbackWhenTheApiCallThrows() {
+    void chat_setsNeedsHumanAndStripsTheMarker_whenTheModelFlagsIt() {
+        mockRestClientChain();
+        var mockResponse = new AssistantService.AnthropicResponse(List.of(new AssistantService.AnthropicContentBlock(
+                "text", "Nu pot confirma detalii despre rezervarea ta.\n[[NEEDS_HUMAN]]")));
+        when(responseSpec.body(AssistantService.AnthropicResponse.class)).thenReturn(mockResponse);
+
+        AssistantChatResponse reply = assistantService.chat(
+                List.of(new AssistantMessageRequest("user", "Care e statusul rezervării mele #1234?")));
+
+        assertThat(reply.needsHuman()).isTrue();
+        assertThat(reply.message()).doesNotContain("[[NEEDS_HUMAN]]");
+        assertThat(reply.message()).contains("Nu pot confirma detalii despre rezervarea ta.");
+    }
+
+    @Test
+    void chat_returnsContactFallbackAndNeedsHuman_whenTheApiCallThrows() {
         mockRestClientChain();
         when(responseSpec.body(AssistantService.AnthropicResponse.class))
                 .thenThrow(new RuntimeException("boom"));
 
-        String reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
+        AssistantChatResponse reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
 
-        assertThat(reply).contains("Nu pot prelua acum răspunsul");
+        assertThat(reply.message()).contains("Nu pot prelua acum răspunsul");
+        assertThat(reply.needsHuman()).isTrue();
     }
 
     @Test
-    void chat_returnsContactFallbackWhenTheApiKeyIsNotConfigured_noApiCallAttempted() {
+    void chat_returnsContactFallbackAndNeedsHuman_whenTheApiKeyIsNotConfigured_noApiCallAttempted() {
         appProperties.getAssistant().setApiKey("");
 
-        String reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
+        AssistantChatResponse reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
 
-        assertThat(reply).contains("Nu pot prelua acum răspunsul");
+        assertThat(reply.message()).contains("Nu pot prelua acum răspunsul");
+        assertThat(reply.needsHuman()).isTrue();
     }
 
     @Test
@@ -115,8 +135,8 @@ class AssistantServiceTest {
         appProperties.getContact().setEmail(null);
         appProperties.getContact().setPhone(null);
 
-        String reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
+        AssistantChatResponse reply = assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
 
-        assertThat(reply).contains("formularul de contact");
+        assertThat(reply.message()).contains("formularul de contact");
     }
 }

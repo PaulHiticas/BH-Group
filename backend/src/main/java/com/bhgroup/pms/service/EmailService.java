@@ -3,6 +3,7 @@ package com.bhgroup.pms.service;
 import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.config.AppProperties;
 import jakarta.mail.internet.MimeMessage;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -119,6 +120,20 @@ public class EmailService {
 
         send(toEmail, leadTypeLabel + " - " + appProperties.getName(),
                 "email/new-lead-alert-email", context);
+    }
+
+    @Async
+    public void sendAssistantHandoffEmail(String toEmail, String adminFirstName, String guestName,
+                                           String preview, UUID chatId) {
+        Context context = new Context();
+        context.setVariable("appName", appProperties.getName());
+        context.setVariable("firstName", adminFirstName);
+        context.setVariable("guestName", guestName);
+        context.setVariable("preview", preview);
+        context.setVariable("chatUrl", appProperties.getBaseUrl() + "/dashboard/assistant-chats/" + chatId);
+
+        send(toEmail, "Cerere de asistență live - " + appProperties.getName(),
+                "email/assistant-handoff-alert-email", context);
     }
 
     private void send(String toEmail, String subject, String template, Context context) {

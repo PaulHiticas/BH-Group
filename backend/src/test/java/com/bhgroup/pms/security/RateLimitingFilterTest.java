@@ -67,6 +67,40 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    void blocksAssistantHandoffAfterTheLimitAndReturnsCleanJson() throws Exception {
+        for (int i = 0; i < 10; i++) {
+            MockHttpServletResponse response = doPost("/api/v1/assistant/handoff");
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletResponse blocked = doPost("/api/v1/assistant/handoff");
+
+        assertThat(blocked.getStatus()).isEqualTo(429);
+        var body = objectMapper.readTree(blocked.getContentAsString());
+        assertThat(body.get("errorCode").asText()).isEqualTo("RATE_LIMIT_EXCEEDED");
+    }
+
+    @Test
+    void blocksAssistantChatPollingAfterTheLimit_butDoesNotAffectThePostChatRule() throws Exception {
+        for (int i = 0; i < 60; i++) {
+            MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/assistant/chat/some-token/messages");
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            filter.doFilter(request, response, new MockFilterChain());
+            assertThat(response.getStatus()).isEqualTo(200);
+        }
+
+        MockHttpServletRequest blockedRequest =
+                new MockHttpServletRequest("GET", "/api/v1/assistant/chat/some-token/messages");
+        MockHttpServletResponse blockedResponse = new MockHttpServletResponse();
+        filter.doFilter(blockedRequest, blockedResponse, new MockFilterChain());
+        assertThat(blockedResponse.getStatus()).isEqualTo(429);
+
+        // The POST /chat rule (20/10min) is independent - still open.
+        MockHttpServletResponse postChatResponse = doPost("/api/v1/assistant/chat");
+        assertThat(postChatResponse.getStatus()).isEqualTo(200);
+    }
+
+    @Test
     void doesNotRateLimitUnrelatedEndpoints() throws Exception {
         for (int i = 0; i < 20; i++) {
             MockHttpServletResponse response = doPost("/api/v1/properties");

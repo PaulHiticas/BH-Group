@@ -48,7 +48,14 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             // Public and costs money per call (Anthropic API) - capped tighter
             // than a normal form submit, generous enough for one real chat
             // session's back-and-forth.
-            new RateLimitRule("POST", "/api/v1/assistant/chat", 20, 10 * 60 * 1000L)
+            new RateLimitRule("POST", "/api/v1/assistant/chat", 20, 10 * 60 * 1000L),
+            new RateLimitRule("POST", "/api/v1/assistant/handoff", 10, 10 * 60 * 1000L),
+            // Trailing slash disambiguates from the POST /api/v1/assistant/chat
+            // rule above (different method anyway, but different prefix too) -
+            // this covers the visitor's polling GET .../chat/{token}/messages.
+            // No GET rule existed anywhere before this; polling is by design
+            // far more frequent than a form submit, so the window is wider.
+            new RateLimitRule("GET", "/api/v1/assistant/chat/", 60, 5 * 60 * 1000L)
     );
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
