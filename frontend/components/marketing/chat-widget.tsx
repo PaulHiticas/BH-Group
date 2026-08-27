@@ -37,6 +37,45 @@ const GREETING =
 // visitor to notice and ask themselves.
 const AUTO_HANDOFF_THRESHOLD = 2
 
+// A written request to talk to a human should escalate immediately, same
+// as clicking the button - not go through the AI (and the 2-signal
+// threshold) first. Simple RO/EN substring match on a normalized
+// (lowercased, diacritics-stripped) copy of the message.
+const HUMAN_REQUEST_PATTERNS = [
+  "o persoana",
+  "cu cineva",
+  "un om",
+  "operator",
+  "vorbesc cu echipa",
+  "vorbesc cu cineva",
+  "vreau sa vorbesc cu",
+  "pot vorbi cu",
+  "vreau o persoana",
+  "talk to a human",
+  "talk to a person",
+  "talk to someone",
+  "speak to an agent",
+  "speak to a representative",
+  "speak with a human",
+  "speak with a person",
+  "human agent",
+  "real person",
+]
+
+const DIACRITIC_MARKS_PATTERN = new RegExp("[\\u0300-\\u036f]", "g")
+
+function normalizeForMatching(text: string) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(DIACRITIC_MARKS_PATTERN, "")
+}
+
+function isExplicitHumanRequest(text: string): boolean {
+  const normalized = normalizeForMatching(text)
+  return HUMAN_REQUEST_PATTERNS.some((pattern) => normalized.includes(pattern))
+}
+
 let messageId = 0
 
 function MessageBubble({ role, text }: { role: "bot" | "user"; text: string }) {
@@ -113,13 +152,20 @@ export function ChatWidget() {
 
   async function handleSend() {
     const question = input.trim()
-    if (!question || chatMutation.isPending) return
+    if (!question || chatMutation.isPending || handoffMutation.isPending) return
 
     const userMessage: ChatMessage = { id: messageId++, role: "user", text: question }
     const history = buildHistory(userMessage)
 
     setMessages((prev) => [...prev, userMessage])
     setInput("")
+
+    if (isExplicitHumanRequest(question)) {
+      // Same escalation path as the button - never routed through the AI,
+      // so there's no chance of it answering "I can't connect you".
+      await startHandoff(history)
+      return
+    }
 
     try {
       const response = await chatMutation.mutateAsync(history)
