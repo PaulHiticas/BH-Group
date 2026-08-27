@@ -130,6 +130,46 @@ class AssistantServiceTest {
     }
 
     @Test
+    void chat_systemPromptDeclaresTheHandoffMechanismExistsAndForbidsDenyingIt() {
+        mockRestClientChain();
+        var mockResponse = new AssistantService.AnthropicResponse(
+                List.of(new AssistantService.AnthropicContentBlock("text", "ok")));
+        when(responseSpec.body(AssistantService.AnthropicResponse.class)).thenReturn(mockResponse);
+
+        assistantService.chat(List.of(new AssistantMessageRequest("user", "Salut")));
+
+        ArgumentCaptor<AssistantService.AnthropicRequest> captor =
+                ArgumentCaptor.forClass(AssistantService.AnthropicRequest.class);
+        verify(requestBodySpec).body(captor.capture());
+        String systemPrompt = captor.getValue().system();
+
+        assertThat(systemPrompt)
+                .contains("Există un mecanism real prin care un coleg din echipă preia conversația")
+                .contains("NU spune NICIODATĂ că nu poți conecta clientul cu o persoană")
+                .contains("cere EXPLICIT să vorbească cu un om")
+                .contains("[[NEEDS_HUMAN]]");
+    }
+
+    @Test
+    void chat_explicitHumanRequestReply_isShortHasTheMarkerAndNeverDeniesTheHandoff() {
+        mockRestClientChain();
+        var mockResponse = new AssistantService.AnthropicResponse(List.of(new AssistantService.AnthropicContentBlock(
+                "text", "Te conectez imediat cu un coleg din echipă.\n[[NEEDS_HUMAN]]")));
+        when(responseSpec.body(AssistantService.AnthropicResponse.class)).thenReturn(mockResponse);
+
+        AssistantChatResponse reply = assistantService.chat(
+                List.of(new AssistantMessageRequest("user", "Vreau să vorbesc cu o persoană")));
+
+        assertThat(reply.needsHuman()).isTrue();
+        assertThat(reply.message()).doesNotContain("[[NEEDS_HUMAN]]");
+        assertThat(reply.message().length()).isLessThan(80);
+        assertThat(reply.message().toLowerCase())
+                .doesNotContain("nu pot conecta")
+                .doesNotContain("nu te pot conecta")
+                .doesNotContain("doar un asistent virtual");
+    }
+
+    @Test
     void chat_fallsBackToTheGenericContactPointerWhenNoContactInfoIsConfigured() {
         appProperties.getAssistant().setApiKey("");
         appProperties.getContact().setEmail(null);

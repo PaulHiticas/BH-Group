@@ -83,6 +83,33 @@ describe("ChatWidget", () => {
     })
   })
 
+  it("escalates immediately on a written request to talk to a human - never calls chat, never waits for the threshold", async () => {
+    vi.mocked(assistantApi.handoff).mockResolvedValue({ publicToken: "tok-111" })
+    vi.mocked(assistantApi.getHandoffMessages).mockResolvedValue([])
+
+    await openWidgetAndAsk("Vreau să vorbesc cu o persoană")
+
+    await waitFor(() => {
+      expect(screen.getByText(/Te conectez cu un coleg/)).toBeInTheDocument()
+    })
+    expect(assistantApi.handoff).toHaveBeenCalledWith({
+      messages: [{ role: "user", content: "Vreau să vorbesc cu o persoană" }],
+    })
+    expect(assistantApi.chat).not.toHaveBeenCalled()
+  })
+
+  it("also recognizes an English written request to talk to a human", async () => {
+    vi.mocked(assistantApi.handoff).mockResolvedValue({ publicToken: "tok-222" })
+    vi.mocked(assistantApi.getHandoffMessages).mockResolvedValue([])
+
+    await openWidgetAndAsk("Can I talk to a human please?")
+
+    await waitFor(() => {
+      expect(assistantApi.handoff).toHaveBeenCalledTimes(1)
+    })
+    expect(assistantApi.chat).not.toHaveBeenCalled()
+  })
+
   it("auto-escalates to a human after two needsHuman replies, without a manual click", async () => {
     vi.mocked(assistantApi.chat).mockResolvedValue({
       message: "Nu pot confirma detalii despre rezervarea ta.",
