@@ -313,6 +313,79 @@ class AssistantServiceTest {
     }
 
     @Test
+    void chat_findProperty_fallsBackToTokenSearch_whenTheFullPhraseMatchesNothing() {
+        mockRestClientChain();
+        JsonNode input = jsonMapper.createObjectNode().put("query", "apartament din cluj");
+
+        var toolUseResponse = new AssistantService.AnthropicResponse(
+                List.of(toolUseBlock("toolu_5", "find_property", input)));
+        var finalResponse = new AssistantService.AnthropicResponse(
+                List.of(textBlock("Am găsit Apartament cluj.")));
+        when(responseSpec.body(AssistantService.AnthropicResponse.class))
+                .thenReturn(toolUseResponse, finalResponse);
+
+        UUID propertyId = UUID.randomUUID();
+        PublicPropertySummaryResponse summary = new PublicPropertySummaryResponse(
+                propertyId, "Apartament cluj", "Cluj", "Cluj", null, null,
+                null, 1, 1, 2, new BigDecimal("200"), "RON", null, null);
+
+        // The full natural-language phrase matches nothing (LIKE on the
+        // whole phrase fails because of "din" in the middle) ...
+        when(publicPropertyService.search(
+                eq("apartament din cluj"), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 5, 0, 0, true, true));
+        // ... but the token fallback searches the single remaining
+        // significant word ("apartament"/"din" are stopwords) and finds it.
+        when(publicPropertyService.search(eq("cluj"), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(summary), 0, 5, 1, 1, true, true));
+
+        AssistantChatResponse reply = assistantService.chat(
+                List.of(new AssistantMessageRequest("user", "E liber apartamentul din cluj?")));
+
+        assertThat(reply.message()).isEqualTo("Am găsit Apartament cluj.");
+        verify(publicPropertyService)
+                .search(eq("cluj"), any(), any(), any(), any(), any(), any(), any(), any());
+
+        ArgumentCaptor<AssistantService.AnthropicRequest> captor =
+                ArgumentCaptor.forClass(AssistantService.AnthropicRequest.class);
+        verify(requestBodySpec, times(2)).body(captor.capture());
+        AssistantService.AnthropicRequest secondRequest = captor.getAllValues().get(1);
+        @SuppressWarnings("unchecked")
+        List<AssistantService.ToolResultBlock> toolResults = (List<AssistantService.ToolResultBlock>)
+                secondRequest.messages().get(secondRequest.messages().size() - 1).content();
+        assertThat(toolResults.get(0).content()).contains("Apartament cluj");
+    }
+
+    @Test
+    void chat_findProperty_returnsEmptyList_whenNothingMatchesEvenAfterTheTokenFallback() {
+        mockRestClientChain();
+        JsonNode input = jsonMapper.createObjectNode().put("query", "un loc undeva pierdut");
+
+        var toolUseResponse = new AssistantService.AnthropicResponse(
+                List.of(toolUseBlock("toolu_6", "find_property", input)));
+        var finalResponse = new AssistantService.AnthropicResponse(
+                List.of(textBlock("Nu am găsit niciun apartament - poți da mai multe detalii?")));
+        when(responseSpec.body(AssistantService.AnthropicResponse.class))
+                .thenReturn(toolUseResponse, finalResponse);
+        when(publicPropertyService.search(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new PageResponse<>(List.of(), 0, 5, 0, 0, true, true));
+
+        AssistantChatResponse reply = assistantService.chat(
+                List.of(new AssistantMessageRequest("user", "Aveți un loc undeva pierdut?")));
+
+        assertThat(reply.message()).isEqualTo("Nu am găsit niciun apartament - poți da mai multe detalii?");
+
+        ArgumentCaptor<AssistantService.AnthropicRequest> captor =
+                ArgumentCaptor.forClass(AssistantService.AnthropicRequest.class);
+        verify(requestBodySpec, times(2)).body(captor.capture());
+        AssistantService.AnthropicRequest secondRequest = captor.getAllValues().get(1);
+        @SuppressWarnings("unchecked")
+        List<AssistantService.ToolResultBlock> toolResults = (List<AssistantService.ToolResultBlock>)
+                secondRequest.messages().get(secondRequest.messages().size() - 1).content();
+        assertThat(toolResults.get(0).content()).isEqualTo("[]");
+    }
+
+    @Test
     void chat_toolWithInvalidPropertyId_returnsAnErrorToolResultInsteadOfCrashing() {
         mockRestClientChain();
         JsonNode badInput = jsonMapper.createObjectNode()
