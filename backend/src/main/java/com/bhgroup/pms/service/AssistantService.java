@@ -1,6 +1,5 @@
 package com.bhgroup.pms.service;
 
-import com.bhgroup.pms.common.response.PageResponse;
 import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.dto.assistant.AssistantChatResponse;
 import com.bhgroup.pms.dto.assistant.AssistantMessageRequest;
@@ -14,7 +13,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -218,17 +220,65 @@ public class AssistantService {
         }
     }
 
+    // PropertySpecifications.search does a LIKE on the whole phrase, so a
+    // natural-language query full of filler words won't match a name as a
+    // substring (e.g. "apartament din cluj" doesn't LIKE-match "Apartament
+    // cluj" because of "din" in the middle). These are stripped before a
+    // per-word fallback search - deliberately NOT touching
+    // PropertySpecifications.search itself, since that also backs the
+    // public site's own search box.
+    private static final Set<String> FIND_PROPERTY_STOPWORDS = Set.of(
+            "din", "de", "cu", "la", "un", "o", "in", "pe", "si", "și",
+            "the", "a", "an", "of", "near",
+            "apartament", "apartamentul"
+    );
+
     private String findProperty(JsonNode input) throws JsonProcessingException {
         String query = input.path("query").asText("").trim();
         if (query.isEmpty()) {
             return "No query provided - ask the visitor which property they mean.";
         }
-        PageResponse<PublicPropertySummaryResponse> results = publicPropertyService.search(
-                query, null, null, null, null, null, null, null, PageRequest.of(0, 5));
-        List<PropertyMatch> matches = results.content().stream()
+
+        List<PublicPropertySummaryResponse> found = searchProperties(query);
+        if (found.isEmpty()) {
+            found = searchByTokens(query);
+        }
+
+        List<PropertyMatch> matches = found.stream()
                 .map(p -> new PropertyMatch(p.id(), p.name(), p.city(), p.maxGuests()))
                 .toList();
         return objectMapper.writeValueAsString(matches);
+    }
+
+    private List<PublicPropertySummaryResponse> searchProperties(String query) {
+        return publicPropertyService.search(
+                query, null, null, null, null, null, null, null, PageRequest.of(0, 5)).content();
+    }
+
+    /**
+     * Splits the query into words, drops stopwords/filler and anything
+     * under 3 characters, then searches each remaining significant word on
+     * its own and merges the results (deduplicated by property id, capped
+     * at 5) - so "apartament din cluj" still finds "Apartament cluj" via
+     * the "cluj" token even though the full phrase doesn't LIKE-match.
+     */
+    private List<PublicPropertySummaryResponse> searchByTokens(String query) {
+        List<String> tokens = Arrays.stream(query.toLowerCase().split("\\s+"))
+                .map(t -> t.replaceAll("[^\\p{L}\\p{N}]", ""))
+                .filter(t -> t.length() >= 3 && !FIND_PROPERTY_STOPWORDS.contains(t))
+                .distinct()
+                .toList();
+
+        LinkedHashMap<UUID, PublicPropertySummaryResponse> merged = new LinkedHashMap<>();
+        for (String token : tokens) {
+            if (merged.size() >= 5) {
+                break;
+            }
+            for (PublicPropertySummaryResponse property : searchProperties(token)) {
+                merged.putIfAbsent(property.id(), property);
+            }
+        }
+        return merged.values().stream().limit(5).toList();
     }
 
     private String checkAvailability(JsonNode input) throws JsonProcessingException {
@@ -364,13 +414,17 @@ public class AssistantService {
     // exposed tool set directly (guardrail: read-only, exactly these three).
     static final List<AnthropicTool> TOOLS = List.of(
             new AnthropicTool("find_property",
-                    "Search for a property by name, city, or general description (e.g. \"apartment "
-                            + "downtown\", \"Cluj\"). Returns a short list of matches (id, name, city, max "
-                            + "guests) so you can pick the right property id for check_availability/get_quote. "
-                            + "Always call this first if you don't already have a propertyId.",
+                    "Search for a property. Keep the query SHORT - prefer just the city or one "
+                            + "distinctive word from the name (e.g. \"Cluj\", \"Central\"), NOT a full "
+                            + "sentence. Returns a short list of matches (id, name, city, max guests) so you "
+                            + "can pick the right property id for check_availability/get_quote. Always call "
+                            + "this first if you don't already have a propertyId. If it returns no matches, "
+                            + "call it again with a simpler/shorter query (e.g. just the city name) before "
+                            + "telling the visitor you couldn't find it.",
                     schema("""
                             {"type":"object","properties":{"query":{"type":"string",\
-                            "description":"Free-text search - property name, city, or description"}},\
+                            "description":"A short search term - city or one distinctive word from the \
+                            property name. Not a sentence."}},\
                             "required":["query"]}
                             """)),
             new AnthropicTool("check_availability",
