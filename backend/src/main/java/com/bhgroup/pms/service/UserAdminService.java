@@ -1,5 +1,6 @@
 package com.bhgroup.pms.service;
 
+import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.service.mapper.UserMapper;
 import com.bhgroup.pms.dto.auth.UserResponse;
@@ -22,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,6 +36,7 @@ import com.bhgroup.pms.domain.User;
 import com.bhgroup.pms.domain.UserStatus;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.repository.UserSpecifications;
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserAdminService {
@@ -137,8 +140,17 @@ public class UserAdminService {
                 .build();
         verificationTokenRepository.save(token);
 
-        emailService.sendUserInviteEmail(user.getEmail(), user.getFirstName(), ROLE_LABELS.get(user.getRole()),
-                rawToken, appProperties.getSecurity().getUserInviteTokenExpirationMinutes());
+        try {
+            // Defense in depth: EmailService already guarantees SMTP/template
+            // failures never escape (see EmailDispatcher) and defers sending
+            // until this transaction commits - but a user account must never
+            // fail to be created over an email problem, so this call site
+            // doesn't rely on that guarantee alone either.
+            emailService.sendUserInviteEmail(user.getEmail(), user.getFirstName(), ROLE_LABELS.get(user.getRole()),
+                    rawToken, appProperties.getSecurity().getUserInviteTokenExpirationMinutes());
+        } catch (Exception ex) {
+            log.error("Failed to queue invite email for {}", PiiMasking.maskEmail(user.getEmail()), ex);
+        }
 
         return appProperties.getBaseUrl() + "/accept-invite/" + rawToken;
     }

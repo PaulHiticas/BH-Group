@@ -3,7 +3,10 @@ package com.bhgroup.pms.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -251,6 +254,32 @@ class UserAdminServiceTest {
         var response = userAdminService.create(request, "SUPER_ADMIN");
 
         assertThat(response.inviteUrl()).isEqualTo("https://app.bhgroup.io/accept-invite/raw-token-123");
+    }
+
+    @Test
+    void create_stillCreatesTheUser_evenWhenTheInviteEmailFails() {
+        when(userRepository.existsByEmailIgnoreCase("new@bhgroup.io")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("hash");
+        when(secureTokenGenerator.generateRawToken()).thenReturn("raw-token-fail");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
+            User user = invocation.getArgument(0);
+            user.setId(UUID.randomUUID());
+            return user;
+        });
+        doThrow(new RuntimeException("SMTP down"))
+                .when(emailService).sendUserInviteEmail(anyString(), anyString(), anyString(), anyString(), anyLong());
+
+        UserCreateRequest request = new UserCreateRequest("New", "User", "new@bhgroup.io", null, Role.CLEANER);
+
+        var response = userAdminService.create(request, "SUPER_ADMIN");
+
+        assertThat(response.id()).isNotNull();
+        assertThat(response.email()).isEqualTo("new@bhgroup.io");
+        // The accept-invite URL is still returned - it's built from the raw
+        // token directly, not from anything the email send would have
+        // produced, so a failed email doesn't degrade this either.
+        assertThat(response.inviteUrl()).isEqualTo("https://app.bhgroup.io/accept-invite/raw-token-fail");
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
