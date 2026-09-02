@@ -1,28 +1,29 @@
 package com.bhgroup.pms.service;
 
-import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.config.AppProperties;
-import jakarta.mail.internet.MimeMessage;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.thymeleaf.context.Context;
-import org.thymeleaf.spring6.SpringTemplateEngine;
 
-@Slf4j
+/**
+ * Builds the Thymeleaf context for each transactional email and hands it to
+ * {@link EmailDispatcher}. The actual SMTP send is never allowed to affect
+ * the caller: {@link #send} defers dispatch until the caller's transaction
+ * (if any) has committed - so a failed booking/user-save never leaves an
+ * email already sent for something that got rolled back - and
+ * EmailDispatcher's own try/catch guarantees an SMTP or template failure is
+ * only ever logged, never thrown back at a business flow.
+ */
 @Service
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender mailSender;
-    private final SpringTemplateEngine templateEngine;
+    private final EmailDispatcher emailDispatcher;
     private final AppProperties appProperties;
 
-    @Async
     public void sendPasswordResetEmail(String toEmail, String firstName, String rawToken, long expirationMinutes) {
         Context context = new Context();
         context.setVariable("appName", appProperties.getName());
@@ -33,7 +34,6 @@ public class EmailService {
         send(toEmail, "Resetare parolă - " + appProperties.getName(), "email/password-reset-email", context);
     }
 
-    @Async
     public void sendUserInviteEmail(String toEmail, String firstName, String roleLabel, String rawToken,
                                      long expirationMinutes) {
         Context context = new Context();
@@ -46,7 +46,6 @@ public class EmailService {
         send(toEmail, "Ai fost invitat în " + appProperties.getName(), "email/user-invite-email", context);
     }
 
-    @Async
     public void sendBookingConfirmationEmail(String toEmail, String firstName, String propertyName,
                                               String checkInDate, String checkOutDate, String managementToken) {
         Context context = new Context();
@@ -60,7 +59,6 @@ public class EmailService {
         send(toEmail, "Cererea ta de rezervare - " + appProperties.getName(), "email/booking-confirmation-email", context);
     }
 
-    @Async
     public void sendCheckinInstructionsEmail(String toEmail, String firstName, String propertyName,
                                               String checkInDate, String checkInTime, String address,
                                               String accessCode, String managementToken) {
@@ -78,7 +76,6 @@ public class EmailService {
                 "email/checkin-instructions-email", context);
     }
 
-    @Async
     public void sendMaintenanceAlertEmail(String toEmail, String firstName, String propertyName,
                                            String ticketTitle, String ticketDescription) {
         Context context = new Context();
@@ -92,7 +89,6 @@ public class EmailService {
                 "email/maintenance-alert-email", context);
     }
 
-    @Async
     public void sendNewMessageEmail(String toEmail, String firstName, String propertyName,
                                      String messageBody, String managementToken) {
         Context context = new Context();
@@ -106,7 +102,6 @@ public class EmailService {
                 "email/new-message-email", context);
     }
 
-    @Async
     public void sendNewLeadAlertEmail(String toEmail, String adminFirstName, String leadFullName,
                                        String leadEmail, String leadPhone, String leadTypeLabel) {
         Context context = new Context();
@@ -122,7 +117,6 @@ public class EmailService {
                 "email/new-lead-alert-email", context);
     }
 
-    @Async
     public void sendAssistantHandoffEmail(String toEmail, String adminFirstName, String guestName,
                                            String preview, UUID chatId) {
         Context context = new Context();
@@ -136,17 +130,25 @@ public class EmailService {
                 "email/assistant-handoff-alert-email", context);
     }
 
+    /**
+     * If the caller is inside an active Spring transaction, dispatch is
+     * deferred to that transaction's afterCommit callback - so a caller like
+     * "save the user, then email the invite" never sends an email for a row
+     * that later fails to commit. With no active transaction (a caller
+     * outside any @Transactional method, or a unit test with no Spring
+     * transaction context), dispatch happens immediately, matching the
+     * previous behavior.
+     */
     private void send(String toEmail, String subject, String template, Context context) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setFrom(appProperties.getMail().getFrom());
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(templateEngine.process(template, context), true);
-            mailSender.send(message);
-        } catch (Exception ex) {
-            log.error("Failed to send email to {} using template {}", PiiMasking.maskEmail(toEmail), template, ex);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    emailDispatcher.dispatch(toEmail, subject, template, context);
+                }
+            });
+        } else {
+            emailDispatcher.dispatch(toEmail, subject, template, context);
         }
     }
 }
