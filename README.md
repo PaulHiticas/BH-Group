@@ -33,7 +33,9 @@ configuration, Docker Compose.
 - **Curățenie** — sarcini de curățenie legate de rezervări, portal dedicat pentru
   cleaneri
 - **Mentenanță** — tichete de mentenanță, portal dedicat pentru echipa de mentenanță
-- **Plăți** — tranzacții manuale, Stripe și Netopia, webhook-uri de confirmare
+- **Plăți** — evidență manuală a tranzacțiilor și rambursărilor (`ManualPaymentGateway`);
+  integrare cu procesatori card (Stripe/Netopia) plănuită arhitectural, dar neimplementată —
+  endpoint-ul de webhook e dezactivat până la o integrare reală cu verificare de semnătură
 - **Cheltuieli** — înregistrare cheltuieli pe proprietate, atașare chitanțe
 - **Decontări proprietari** — generare și urmărire deconturi (owner statements)
 - **Portal proprietari** — acces la proprietățile, rezervările, cheltuielile și
