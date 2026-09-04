@@ -49,12 +49,12 @@ public class SecurityConfig {
             // copies and receipts are never served as static files. See
             // PropertyController#downloadDocument / OwnerController#downloadDocument /
             // ExpenseController#downloadReceipt.
-            "/uploads/properties/*/*",
-            // Cleaning/maintenance proof photos: lower sensitivity than legal/financial
-            // documents, left public for now as a tracked follow-up rather than silently
-            // breaking their display in this patch.
-            "/uploads/cleaning-tasks/**",
-            "/uploads/maintenance-tickets/**"
+            "/uploads/properties/*/*"
+            // Cleaning/maintenance proof photos can show a unit's interior, belongings and
+            // access details, so they are NOT public. They are served through authenticated
+            // download endpoints instead, same pattern as contracts/ID/receipts - see
+            // CleaningTaskController/CleanerController#downloadPhoto and
+            // MaintenanceTicketController/MaintenanceController#downloadPhoto.
     };
 
     private final CustomUserDetailsService userDetailsService;

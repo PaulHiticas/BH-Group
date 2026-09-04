@@ -12,8 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -68,6 +71,15 @@ public class MaintenanceController {
             @RequestParam(required = false) String caption) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(
                 maintenanceTicketService.addMyPhoto(currentUserId(), id, file, caption)));
+    }
+
+    @GetMapping("/{id}/photos/{photoId}/download")
+    @Operation(summary = "Download/view a photo from one of my assigned tickets")
+    public ResponseEntity<Resource> downloadPhoto(@PathVariable UUID id, @PathVariable UUID photoId) {
+        Resource resource = maintenanceTicketService.loadMyPhotoResource(currentUserId(), id, photoId);
+        return ResponseEntity.ok()
+                .contentType(MediaTypeFactory.getMediaType(resource.getFilename()).orElse(MediaType.APPLICATION_OCTET_STREAM))
+                .body(resource);
     }
 
     private UUID currentUserId() {

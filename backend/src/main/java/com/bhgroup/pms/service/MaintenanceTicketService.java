@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -172,6 +173,25 @@ public class MaintenanceTicketService {
         MaintenanceTicket ticket = findOrThrow(id);
         assertAssignedTo(ticket, assigneeId);
         return addPhotoInternal(ticket, file, caption);
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadPhotoResource(UUID id, UUID photoId) {
+        MaintenanceTicket ticket = findOrThrow(id);
+        return fileStorageService.loadAsResource(getPhotoOrThrow(ticket, photoId).getFileKey());
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadMyPhotoResource(UUID assigneeId, UUID id, UUID photoId) {
+        MaintenanceTicket ticket = findOrThrow(id);
+        assertAssignedTo(ticket, assigneeId);
+        return fileStorageService.loadAsResource(getPhotoOrThrow(ticket, photoId).getFileKey());
+    }
+
+    private MaintenanceTicketPhoto getPhotoOrThrow(MaintenanceTicket ticket, UUID photoId) {
+        return maintenanceTicketPhotoRepository.findById(photoId)
+                .filter(photo -> photo.getMaintenanceTicket().getId().equals(ticket.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Photo not found"));
     }
 
     private MaintenanceTicketResponse addPhotoInternal(MaintenanceTicket ticket, MultipartFile file, String caption) {

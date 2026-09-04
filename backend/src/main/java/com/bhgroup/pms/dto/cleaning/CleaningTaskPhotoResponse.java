@@ -5,7 +5,6 @@ import java.util.UUID;
 
 public record CleaningTaskPhotoResponse(
         UUID id,
-        String url,
         String caption,
         Instant createdAt
 ) {

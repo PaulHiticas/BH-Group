@@ -300,7 +300,6 @@ export type CleaningTaskStatus = "NEW" | "ACCEPTED" | "IN_PROGRESS" | "DONE" | "
 
 export interface CleaningTaskPhotoResponse {
   id: string
-  url: string
   caption: string | null
   createdAt: string
 }
@@ -336,7 +335,6 @@ export type MaintenanceStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
 
 export interface MaintenanceTicketPhotoResponse {
   id: string
-  url: string
   caption: string | null
   createdAt: string
 }
