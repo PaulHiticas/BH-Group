@@ -17,10 +17,14 @@ import com.bhgroup.pms.repository.IcalImportFeedRepository;
 import com.bhgroup.pms.repository.PropertyRepository;
 import com.bhgroup.pms.repository.ReservationRepository;
 import com.bhgroup.pms.service.mapper.IcalImportFeedMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -48,12 +52,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class IcalImportService {
 
     private static final Duration FETCH_TIMEOUT = Duration.ofSeconds(20);
+    private static final int MAX_REDIRECTS = 3;
+    private static final long MAX_RESPONSE_BYTES = 8L * 1024 * 1024;
 
     private final IcalImportFeedRepository icalImportFeedRepository;
     private final PropertyRepository propertyRepository;
     private final ReservationRepository reservationRepository;
     private final IcalImportFeedMapper icalImportFeedMapper;
-    private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(FETCH_TIMEOUT).build();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(FETCH_TIMEOUT)
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .build();
 
     @Transactional(readOnly = true)
     public List<IcalImportFeedResponse> listFeeds(UUID propertyId) {
@@ -67,6 +76,7 @@ public class IcalImportService {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Property not found"));
         requireIcalMode(property);
+        IcalFeedUrlValidator.validate(request.feedUrl());
 
         IcalImportFeed feed = IcalImportFeed.builder()
                 .property(property)
@@ -203,21 +213,73 @@ public class IcalImportService {
         };
     }
 
+    /**
+     * Redirects are never auto-followed by {@code httpClient} (default policy
+     * is NEVER), so each hop's Location is resolved and re-validated by hand
+     * before it's followed - a public feed URL can otherwise redirect to an
+     * internal address the initial check would never see.
+     */
     private ICalendar fetchAndParse(String feedUrl) throws Exception {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(feedUrl))
-                .timeout(FETCH_TIMEOUT)
-                .header("Accept", "text/calendar")
-                .GET()
-                .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        IcalFeedUrlValidator.validate(feedUrl);
+        String currentUrl = feedUrl;
+        HttpResponse<InputStream> response;
+
+        for (int hop = 0; ; hop++) {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(currentUrl))
+                    .timeout(FETCH_TIMEOUT)
+                    .header("Accept", "text/calendar")
+                    .GET()
+                    .build();
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (!isRedirect(response.statusCode())) {
+                break;
+            }
+            response.body().close();
+            if (hop >= MAX_REDIRECTS) {
+                throw new IllegalStateException("Feed redirected too many times");
+            }
+            String location = response.headers().firstValue("Location")
+                    .orElseThrow(() -> new IllegalStateException("Redirect response missing Location header"));
+            currentUrl = URI.create(currentUrl).resolve(location).toString();
+            IcalFeedUrlValidator.validate(currentUrl);
+        }
+
         if (response.statusCode() != 200) {
+            response.body().close();
             throw new IllegalStateException("Feed returned HTTP " + response.statusCode());
         }
-        ICalendar calendar = Biweekly.parse(response.body()).first();
+
+        String body;
+        try (InputStream in = response.body()) {
+            body = readLimited(in, MAX_RESPONSE_BYTES);
+        }
+
+        ICalendar calendar = Biweekly.parse(body).first();
         if (calendar == null) {
             throw new IllegalStateException("Feed did not contain a valid calendar");
         }
         return calendar;
+    }
+
+    private boolean isRedirect(int statusCode) {
+        return statusCode == 301 || statusCode == 302 || statusCode == 303
+                || statusCode == 307 || statusCode == 308;
+    }
+
+    private String readLimited(InputStream in, long maxBytes) throws IOException {
+        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+        byte[] chunk = new byte[8192];
+        long total = 0;
+        int read;
+        while ((read = in.read(chunk)) != -1) {
+            total += read;
+            if (total > maxBytes) {
+                throw new IllegalStateException("Feed response exceeds maximum allowed size of " + maxBytes + " bytes");
+            }
+            buffer.write(chunk, 0, read);
+        }
+        return buffer.toString(StandardCharsets.UTF_8);
     }
 
     private LocalDate toLocalDate(java.util.Date date) {

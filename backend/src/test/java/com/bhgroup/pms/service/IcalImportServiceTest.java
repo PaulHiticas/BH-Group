@@ -65,13 +65,30 @@ class IcalImportServiceTest {
     }
 
     @Test
+    void addFeed_rejectsAFeedUrlPointingAtAnInternalAddress() {
+        property.setIntegrationMode(IntegrationMode.ICAL);
+        when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
+
+        IcalImportFeedCreateRequest request = new IcalImportFeedCreateRequest(
+                ReservationSource.AIRBNB, "http://169.254.169.254/latest/meta-data/");
+
+        assertThatThrownBy(() -> icalImportService.addFeed(property.getId(), request))
+                .isInstanceOf(BadRequestException.class);
+
+        verify(icalImportFeedRepository, never()).save(any());
+    }
+
+    @Test
     void addFeed_allowedWhenPropertyInIcalMode() {
         property.setIntegrationMode(IntegrationMode.ICAL);
         when(propertyRepository.findById(property.getId())).thenReturn(Optional.of(property));
         when(icalImportFeedRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
+        // A literal public IP (RFC 5737 TEST-NET-3), not a hostname - the URL
+        // validator now resolves the host via DNS, so this keeps the test
+        // network-independent instead of depending on real DNS resolution.
         IcalImportFeedCreateRequest request = new IcalImportFeedCreateRequest(
-                ReservationSource.AIRBNB, "https://example.com/feed.ics");
+                ReservationSource.AIRBNB, "https://203.0.113.10/feed.ics");
 
         icalImportService.addFeed(property.getId(), request);
 
