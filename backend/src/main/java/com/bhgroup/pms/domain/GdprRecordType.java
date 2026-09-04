@@ -2,5 +2,6 @@ package com.bhgroup.pms.domain;
 
 public enum GdprRecordType {
     RESERVATION,
-    LEAD
+    LEAD,
+    ASSISTANT_CHAT
 }

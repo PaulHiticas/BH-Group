@@ -4,6 +4,8 @@ public record GdprEraseResultResponse(
         int reservationsErased,
         int leadsErased,
         int messagesRedacted,
-        int lateCheckoutNotesRedacted
+        int lateCheckoutNotesRedacted,
+        int assistantChatsAnonymized,
+        int assistantChatMessagesRedacted
 ) {
 }

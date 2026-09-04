@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.AssistantChat;
 import com.bhgroup.pms.domain.AssistantChatMessage;
 import com.bhgroup.pms.domain.AssistantChatSenderType;
@@ -25,9 +26,11 @@ import com.bhgroup.pms.dto.assistant.AssistantHandoffResponse;
 import com.bhgroup.pms.dto.assistant.AssistantMessageRequest;
 import com.bhgroup.pms.repository.AssistantChatMessageRepository;
 import com.bhgroup.pms.repository.AssistantChatRepository;
+import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.security.SecureTokenGenerator;
 import com.bhgroup.pms.service.mapper.AssistantChatMapper;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +56,8 @@ class AssistantChatServiceTest {
     @Mock
     private NotificationService notificationService;
     @Mock
+    private NotificationRepository notificationRepository;
+    @Mock
     private EmailService emailService;
     @Mock
     private SecureTokenGenerator secureTokenGenerator;
@@ -61,9 +66,13 @@ class AssistantChatServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppProperties appProperties = new AppProperties();
+        appProperties.getAssistant().setRetentionDays(90);
+
         assistantChatService = new AssistantChatService(
                 assistantChatRepository, assistantChatMessageRepository, userRepository,
-                notificationService, emailService, secureTokenGenerator, new AssistantChatMapper());
+                notificationService, notificationRepository, emailService, secureTokenGenerator,
+                new AssistantChatMapper(), appProperties);
     }
 
     private User activeAdmin(String email, Role role) {
@@ -209,5 +218,29 @@ class AssistantChatServiceTest {
 
         verify(assistantChatRepository).findByStatus(eq(AssistantChatStatus.OPEN), any());
         verify(assistantChatRepository, never()).findAll(any(Pageable.class));
+    }
+
+    @Test
+    void purgeOldChats_deletesStaleChatsAndTheirNotifications() {
+        AssistantChat stale = AssistantChat.builder().publicToken("tok-old").status(AssistantChatStatus.RESOLVED).build();
+        stale.setId(UUID.randomUUID());
+        when(assistantChatRepository.findByLastMessageAtBefore(any(Instant.class))).thenReturn(List.of(stale));
+
+        int purged = assistantChatService.purgeOldChats();
+
+        assertThat(purged).isEqualTo(1);
+        verify(notificationRepository).deleteByLinkPathIn(List.of("/dashboard/assistant-chats/" + stale.getId()));
+        verify(assistantChatRepository).deleteAll(List.of(stale));
+    }
+
+    @Test
+    void purgeOldChats_doesNothingWhenNoChatIsStale() {
+        when(assistantChatRepository.findByLastMessageAtBefore(any(Instant.class))).thenReturn(List.of());
+
+        int purged = assistantChatService.purgeOldChats();
+
+        assertThat(purged).isEqualTo(0);
+        verify(notificationRepository, never()).deleteByLinkPathIn(any());
+        verify(assistantChatRepository, never()).deleteAll(any());
     }
 }
