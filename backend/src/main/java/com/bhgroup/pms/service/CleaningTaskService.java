@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -177,6 +178,25 @@ public class CleaningTaskService {
         CleaningTask task = findOrThrow(id);
         assertCleanerOwns(task, cleanerId);
         return addPhotoInternal(task, file, caption);
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadPhotoResource(UUID id, UUID photoId) {
+        CleaningTask task = findOrThrow(id);
+        return fileStorageService.loadAsResource(getPhotoOrThrow(task, photoId).getFileKey());
+    }
+
+    @Transactional(readOnly = true)
+    public Resource loadMyPhotoResource(UUID cleanerId, UUID id, UUID photoId) {
+        CleaningTask task = findOrThrow(id);
+        assertCleanerOwns(task, cleanerId);
+        return fileStorageService.loadAsResource(getPhotoOrThrow(task, photoId).getFileKey());
+    }
+
+    private CleaningTaskPhoto getPhotoOrThrow(CleaningTask task, UUID photoId) {
+        return cleaningTaskPhotoRepository.findById(photoId)
+                .filter(photo -> photo.getCleaningTask().getId().equals(task.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Photo not found"));
     }
 
     private CleaningTaskResponse addPhotoInternal(CleaningTask task, MultipartFile file, String caption) {

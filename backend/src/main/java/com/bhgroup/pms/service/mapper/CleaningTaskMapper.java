@@ -35,6 +35,6 @@ public class CleaningTaskMapper {
     }
 
     public CleaningTaskPhotoResponse toPhotoResponse(CleaningTaskPhoto photo) {
-        return new CleaningTaskPhotoResponse(photo.getId(), photo.getUrl(), photo.getCaption(), photo.getCreatedAt());
+        return new CleaningTaskPhotoResponse(photo.getId(), photo.getCaption(), photo.getCreatedAt());
     }
 }

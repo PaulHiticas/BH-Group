@@ -3,6 +3,7 @@
 import { use, useRef } from "react"
 import Link from "next/link"
 import { ArrowLeft, Upload } from "lucide-react"
+import { AuthenticatedImage } from "@/components/ui/authenticated-image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -97,10 +98,9 @@ export default function MyMaintenanceTicketDetailPage({
           {ticket.photos.length > 0 && (
             <div className="grid grid-cols-3 gap-2">
               {ticket.photos.map((photo) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <AuthenticatedImage
                   key={photo.id}
-                  src={photo.url}
+                  path={`/maintenance/tickets/${ticket.id}/photos/${photo.id}/download`}
                   alt="poză tichet mentenanță"
                   className="aspect-square w-full rounded-md object-cover"
                 />

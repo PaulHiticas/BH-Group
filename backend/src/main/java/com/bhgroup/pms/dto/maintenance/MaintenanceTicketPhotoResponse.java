@@ -5,7 +5,6 @@ import java.util.UUID;
 
 public record MaintenanceTicketPhotoResponse(
         UUID id,
-        String url,
         String caption,
         Instant createdAt
 ) {

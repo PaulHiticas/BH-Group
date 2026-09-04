@@ -37,6 +37,6 @@ public class MaintenanceTicketMapper {
 
     public MaintenanceTicketPhotoResponse toPhotoResponse(MaintenanceTicketPhoto photo) {
         return new MaintenanceTicketPhotoResponse(
-                photo.getId(), photo.getUrl(), photo.getCaption(), photo.getCreatedAt());
+                photo.getId(), photo.getCaption(), photo.getCreatedAt());
     }
 }
