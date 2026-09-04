@@ -40,4 +40,15 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     int redactByLinkPaths(@Param("linkPaths") List<String> linkPaths,
                            @Param("redactedTitle") String redactedTitle,
                            @Param("redactedBody") String redactedBody);
+
+    /**
+     * Retention (not a data-subject request): once the assistant chats
+     * behind these notifications have themselves been purged, the
+     * notification copies of the guest's name/preview (see
+     * AssistantChatService#notifyAdmins) have nothing left to reference -
+     * delete them outright rather than leaving them to redact later.
+     */
+    @Modifying
+    @Query("delete from Notification n where n.linkPath in :linkPaths")
+    int deleteByLinkPathIn(@Param("linkPaths") List<String> linkPaths);
 }

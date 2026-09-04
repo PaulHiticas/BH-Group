@@ -1,6 +1,7 @@
 package com.bhgroup.pms.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -11,7 +12,12 @@ import static org.mockito.Mockito.when;
 
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.config.AppProperties;
+import com.bhgroup.pms.domain.AssistantChat;
+import com.bhgroup.pms.domain.AssistantChatMessage;
+import com.bhgroup.pms.domain.AssistantChatSenderType;
+import com.bhgroup.pms.domain.AssistantChatStatus;
 import com.bhgroup.pms.domain.AuditAction;
+import com.bhgroup.pms.domain.GdprRecordType;
 import com.bhgroup.pms.domain.GdprRequestType;
 import com.bhgroup.pms.domain.GdprVerificationMethod;
 import com.bhgroup.pms.domain.LateCheckoutRequest;
@@ -24,6 +30,8 @@ import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.ReservationSource;
 import com.bhgroup.pms.domain.ReservationStatus;
 import com.bhgroup.pms.domain.User;
+import com.bhgroup.pms.repository.AssistantChatMessageRepository;
+import com.bhgroup.pms.repository.AssistantChatRepository;
 import com.bhgroup.pms.repository.GdprRequestRepository;
 import com.bhgroup.pms.repository.LateCheckoutRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
@@ -44,6 +52,8 @@ class GdprServiceTest {
 
     @Mock private ReservationRepository reservationRepository;
     @Mock private PropertyLeadRepository propertyLeadRepository;
+    @Mock private AssistantChatRepository assistantChatRepository;
+    @Mock private AssistantChatMessageRepository assistantChatMessageRepository;
     @Mock private MessageRepository messageRepository;
     @Mock private NotificationRepository notificationRepository;
     @Mock private LateCheckoutRequestRepository lateCheckoutRequestRepository;
@@ -61,11 +71,22 @@ class GdprServiceTest {
         AppProperties appProperties = new AppProperties();
         appProperties.getJwt().setSecret("test-secret-not-for-production");
 
-        gdprService = new GdprService(reservationRepository, propertyLeadRepository, messageRepository,
-                notificationRepository, lateCheckoutRequestRepository, gdprRequestRepository, auditService,
-                appProperties);
+        gdprService = new GdprService(reservationRepository, propertyLeadRepository, assistantChatRepository,
+                assistantChatMessageRepository, messageRepository, notificationRepository,
+                lateCheckoutRequestRepository, gdprRequestRepository, auditService, appProperties);
         actor = new User();
         actor.setId(UUID.randomUUID());
+    }
+
+    private AssistantChat buildAssistantChat() {
+        AssistantChat chat = AssistantChat.builder()
+                .publicToken("tok-" + UUID.randomUUID())
+                .guestName("Ion Popescu")
+                .guestEmail(email)
+                .status(AssistantChatStatus.RESOLVED)
+                .build();
+        chat.setId(UUID.randomUUID());
+        return chat;
     }
 
     private Reservation buildReservation() {
@@ -103,6 +124,21 @@ class GdprServiceTest {
         var results = gdprService.search(email);
 
         assertThat(results).hasSize(2);
+    }
+
+    @Test
+    void search_includesAssistantChatMatches() {
+        AssistantChat chat = buildAssistantChat();
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(assistantChatRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(chat));
+
+        var results = gdprService.search(email);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).recordType()).isEqualTo(GdprRecordType.ASSISTANT_CHAT);
+        assertThat(results.get(0).name()).isEqualTo("Ion Popescu");
+        assertThat(results.get(0).email()).isEqualTo(email);
     }
 
     @Test
@@ -294,5 +330,64 @@ class GdprServiceTest {
         assertThatThrownBy(() -> gdprService.export(email, method, "", actor))
                 .isInstanceOf(BadRequestException.class);
         verify(reservationRepository, never()).findByGuestEmailIgnoreCase(any());
+    }
+
+    @Test
+    void export_includesAssistantChatConversationEvenWithNoReservationsOrLeads() {
+        AssistantChat chat = buildAssistantChat();
+        AssistantChatMessage guestMessage = AssistantChatMessage.builder()
+                .chat(chat).senderType(AssistantChatSenderType.GUEST).body("Am o întrebare").build();
+        AssistantChatMessage aiMessage = AssistantChatMessage.builder()
+                .chat(chat).senderType(AssistantChatSenderType.AI).body("Cu ce te pot ajuta?").build();
+
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(assistantChatRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(chat));
+        when(assistantChatMessageRepository.findByChatIdInOrderByCreatedAtAsc(List.of(chat.getId())))
+                .thenReturn(List.of(guestMessage, aiMessage));
+
+        var export = gdprService.export(email, method, note, actor);
+
+        assertThat(export.reservations()).isEmpty();
+        assertThat(export.assistantChats()).hasSize(1);
+        assertThat(export.assistantChats().get(0).chatId()).isEqualTo(chat.getId());
+        assertThat(export.assistantChats().get(0).messages()).hasSize(2);
+        assertThat(export.assistantChats().get(0).messages().get(0).body()).isEqualTo("Am o întrebare");
+        verify(auditService).record(eq(AuditAction.GDPR_DATA_EXPORTED), eq(actor), any(), any(), any());
+    }
+
+    @Test
+    void erase_anonymizesAssistantChatAndRedactsOnlyGuestMessages() {
+        AssistantChat chat = buildAssistantChat();
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(assistantChatRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(chat));
+        when(assistantChatMessageRepository.redactMessagesForChats(
+                List.of(chat.getId()), AssistantChatSenderType.GUEST, "[mesaj șters - solicitare GDPR]"))
+                .thenReturn(2);
+        when(assistantChatRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var result = gdprService.erase(email, method, note, actor);
+
+        assertThat(result.assistantChatsAnonymized()).isEqualTo(1);
+        assertThat(result.assistantChatMessagesRedacted()).isEqualTo(2);
+        assertThat(chat.getGuestName()).isEqualTo("Șters (GDPR)");
+        assertThat(chat.getGuestEmail()).isNull();
+
+        verify(assistantChatMessageRepository).redactMessagesForChats(
+                eq(List.of(chat.getId())), eq(AssistantChatSenderType.GUEST), any());
+        verify(notificationRepository).redactByLinkPaths(
+                eq(List.of("/dashboard/assistant-chats/" + chat.getId())), any(), any());
+    }
+
+    @Test
+    void erase_allowsWhenOnlyAssistantChatMatches() {
+        AssistantChat chat = buildAssistantChat();
+        when(reservationRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of());
+        when(propertyLeadRepository.findByEmailIgnoreCase(email)).thenReturn(List.of());
+        when(assistantChatRepository.findByGuestEmailIgnoreCase(email)).thenReturn(List.of(chat));
+        when(assistantChatRepository.saveAll(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThatCode(() -> gdprService.erase(email, method, note, actor)).doesNotThrowAnyException();
     }
 }

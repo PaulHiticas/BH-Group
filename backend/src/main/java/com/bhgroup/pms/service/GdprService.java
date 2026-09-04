@@ -3,6 +3,9 @@ package com.bhgroup.pms.service;
 import com.bhgroup.pms.common.PiiMasking;
 import com.bhgroup.pms.common.exception.BadRequestException;
 import com.bhgroup.pms.config.AppProperties;
+import com.bhgroup.pms.domain.AssistantChat;
+import com.bhgroup.pms.domain.AssistantChatMessage;
+import com.bhgroup.pms.domain.AssistantChatSenderType;
 import com.bhgroup.pms.domain.AuditAction;
 import com.bhgroup.pms.domain.GdprRecordType;
 import com.bhgroup.pms.domain.GdprRequest;
@@ -13,6 +16,8 @@ import com.bhgroup.pms.domain.Message;
 import com.bhgroup.pms.domain.PropertyLead;
 import com.bhgroup.pms.domain.Reservation;
 import com.bhgroup.pms.domain.User;
+import com.bhgroup.pms.dto.gdpr.GdprAssistantChatExport;
+import com.bhgroup.pms.dto.gdpr.GdprAssistantChatMessageExport;
 import com.bhgroup.pms.dto.gdpr.GdprEraseResultResponse;
 import com.bhgroup.pms.dto.gdpr.GdprExportResponse;
 import com.bhgroup.pms.dto.gdpr.GdprLateCheckoutExport;
@@ -20,6 +25,8 @@ import com.bhgroup.pms.dto.gdpr.GdprLeadExport;
 import com.bhgroup.pms.dto.gdpr.GdprMessageExport;
 import com.bhgroup.pms.dto.gdpr.GdprReservationExport;
 import com.bhgroup.pms.dto.gdpr.GdprSearchMatchResponse;
+import com.bhgroup.pms.repository.AssistantChatMessageRepository;
+import com.bhgroup.pms.repository.AssistantChatRepository;
 import com.bhgroup.pms.repository.GdprRequestRepository;
 import com.bhgroup.pms.repository.LateCheckoutRequestRepository;
 import com.bhgroup.pms.repository.MessageRepository;
@@ -41,8 +48,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 /**
  * Technical support for data-subject-access and erasure requests
  * (GDPR arts. 15/17): guests aren't user accounts here, so requests are
- * looked up by email across reservations and property leads rather than
- * by a user id.
+ * looked up by email across reservations, property leads, and AI-assistant
+ * handoff chats rather than by a user id.
  *
  * Erasure anonymizes rather than deletes reservations - the row itself
  * (dates, amounts, property, status) is kept for fiscal record-keeping,
@@ -63,6 +70,15 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * tied to the reservation - a guest can write anything in it, including
  * their own name or phone number, via the unauthenticated
  * management-token link.
+ *
+ * Assistant chats are handled the same way, adapted to that entity: only the
+ * visitor's own (GUEST) messages are redacted, not the AI/staff turns
+ * (those are the assistant's or a staff member's own writing), and the
+ * admin notification a handoff creates is redacted too, matched by its
+ * {@code /dashboard/assistant-chats/{id}} link path. Beyond an on-demand
+ * erasure request, assistant chats also age out on their own - see
+ * {@link AssistantChatService#purgeOldChats()} - since unlike a
+ * reservation there's no fiscal reason to keep one around indefinitely.
  *
  * Neither the general audit log nor the {@link GdprRequest} compliance
  * register ever get the full email - only {@link PiiMasking#maskEmail}'d
@@ -89,6 +105,8 @@ public class GdprService {
 
     private final ReservationRepository reservationRepository;
     private final PropertyLeadRepository propertyLeadRepository;
+    private final AssistantChatRepository assistantChatRepository;
+    private final AssistantChatMessageRepository assistantChatMessageRepository;
     private final MessageRepository messageRepository;
     private final NotificationRepository notificationRepository;
     private final LateCheckoutRequestRepository lateCheckoutRequestRepository;
@@ -112,6 +130,14 @@ public class GdprService {
                     lead.getPhone(), "Lead: " + (lead.getCity() != null ? lead.getCity() : "-"),
                     lead.getCreatedAt()));
         }
+        for (AssistantChat chat : assistantChatRepository.findByGuestEmailIgnoreCase(email)) {
+            results.add(new GdprSearchMatchResponse(
+                    GdprRecordType.ASSISTANT_CHAT, chat.getId(),
+                    chat.getGuestName() != null && !chat.getGuestName().isBlank() ? chat.getGuestName() : "Vizitator anonim",
+                    chat.getGuestEmail(), null,
+                    "Conversație asistent AI (" + chat.getStatus() + ")",
+                    chat.getCreatedAt()));
+        }
         return results;
     }
 
@@ -122,7 +148,8 @@ public class GdprService {
 
         List<Reservation> reservations = reservationRepository.findByGuestEmailIgnoreCase(email);
         List<PropertyLead> leads = propertyLeadRepository.findByEmailIgnoreCase(email);
-        if (reservations.isEmpty() && leads.isEmpty()) {
+        List<AssistantChat> assistantChats = assistantChatRepository.findByGuestEmailIgnoreCase(email);
+        if (reservations.isEmpty() && leads.isEmpty() && assistantChats.isEmpty()) {
             throw new BadRequestException("Nu s-au găsit înregistrări pentru acest email");
         }
 
@@ -157,13 +184,28 @@ public class GdprService {
                         l.getMessage(), l.isContacted(), l.getCreatedAt()))
                 .toList();
 
-        int recordsAffected = reservationExports.size() + leadExports.size();
+        List<UUID> chatIdsForExport = assistantChats.stream().map(AssistantChat::getId).toList();
+        Map<UUID, List<AssistantChatMessage>> messagesByChat = chatIdsForExport.isEmpty()
+                ? Map.of()
+                : assistantChatMessageRepository.findByChatIdInOrderByCreatedAtAsc(chatIdsForExport)
+                    .stream().collect(Collectors.groupingBy(m -> m.getChat().getId()));
+
+        List<GdprAssistantChatExport> assistantChatExports = assistantChats.stream()
+                .map(c -> new GdprAssistantChatExport(
+                        c.getId(), c.getStatus(), c.getCreatedAt(), c.getLastMessageAt(),
+                        messagesByChat.getOrDefault(c.getId(), List.of()).stream()
+                                .map(m -> new GdprAssistantChatMessageExport(m.getSenderType(), m.getBody(), m.getCreatedAt()))
+                                .toList()))
+                .toList();
+
+        int recordsAffected = reservationExports.size() + leadExports.size() + assistantChatExports.size();
         recordComplianceEntryAndAuditAfterCommit(GdprRequestType.EXPORT, AuditAction.GDPR_DATA_EXPORTED,
                 actor, email, verificationMethod, recordsAffected,
-                "Export de date GDPR pentru %s (%d rezervări, %d lead-uri)"
-                        .formatted(PiiMasking.maskEmail(email), reservationExports.size(), leadExports.size()));
+                "Export de date GDPR pentru %s (%d rezervări, %d lead-uri, %d conversații asistent)"
+                        .formatted(PiiMasking.maskEmail(email), reservationExports.size(), leadExports.size(),
+                                assistantChatExports.size()));
 
-        return new GdprExportResponse(email, Instant.now(), reservationExports, leadExports);
+        return new GdprExportResponse(email, Instant.now(), reservationExports, leadExports, assistantChatExports);
     }
 
     @Transactional
@@ -173,7 +215,8 @@ public class GdprService {
 
         List<Reservation> reservations = reservationRepository.findByGuestEmailIgnoreCase(email);
         List<PropertyLead> leads = propertyLeadRepository.findByEmailIgnoreCase(email);
-        if (reservations.isEmpty() && leads.isEmpty()) {
+        List<AssistantChat> assistantChats = assistantChatRepository.findByGuestEmailIgnoreCase(email);
+        if (reservations.isEmpty() && leads.isEmpty() && assistantChats.isEmpty()) {
             throw new BadRequestException("Nu s-au găsit înregistrări pentru acest email");
         }
 
@@ -218,16 +261,38 @@ public class GdprService {
         }
         propertyLeadRepository.saveAll(leads);
 
-        int recordsAffected = reservations.size() + leads.size();
+        List<UUID> chatIds = assistantChats.stream().map(AssistantChat::getId).toList();
+        int assistantChatMessagesRedacted = chatIds.isEmpty()
+                ? 0
+                : assistantChatMessageRepository.redactMessagesForChats(
+                        chatIds, AssistantChatSenderType.GUEST, REDACTED_MESSAGE);
+
+        if (!chatIds.isEmpty()) {
+            List<String> chatLinkPaths = chatIds.stream()
+                    .map(id -> "/dashboard/assistant-chats/" + id)
+                    .toList();
+            notificationRepository.redactByLinkPaths(chatLinkPaths, REDACTED_NOTIFICATION_TITLE, REDACTED_NOTIFICATION_BODY);
+        }
+
+        for (AssistantChat chat : assistantChats) {
+            chat.setGuestName("Șters (GDPR)");
+            chat.setGuestEmail(null);
+        }
+        assistantChatRepository.saveAll(assistantChats);
+
+        int recordsAffected = reservations.size() + leads.size() + assistantChats.size();
         recordComplianceEntryAndAuditAfterCommit(GdprRequestType.ERASE, AuditAction.GDPR_DATA_ERASED,
                 actor, email, verificationMethod, recordsAffected,
                 ("Date GDPR șterse pentru %s (%d rezervări anonimizate, %d lead-uri anonimizate, "
-                        + "%d mesaje redactate, %d note de check-out târziu redactate)")
+                        + "%d mesaje redactate, %d note de check-out târziu redactate, "
+                        + "%d conversații asistent anonimizate, %d mesaje de asistent redactate)")
                         .formatted(PiiMasking.maskEmail(email), reservations.size(), leads.size(),
-                                messagesRedacted, lateCheckoutNotesRedacted));
+                                messagesRedacted, lateCheckoutNotesRedacted,
+                                assistantChats.size(), assistantChatMessagesRedacted));
 
         return new GdprEraseResultResponse(
-                reservations.size(), leads.size(), messagesRedacted, lateCheckoutNotesRedacted);
+                reservations.size(), leads.size(), messagesRedacted, lateCheckoutNotesRedacted,
+                assistantChats.size(), assistantChatMessagesRedacted);
     }
 
     private void requireValidVerification(GdprVerificationMethod verificationMethod, String verificationNote) {

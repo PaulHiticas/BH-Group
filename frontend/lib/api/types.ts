@@ -741,7 +741,7 @@ export interface AuditLogResponse {
 // GDPR
 // ---------------------------------------------------------------------------
 
-export type GdprRecordType = "RESERVATION" | "LEAD"
+export type GdprRecordType = "RESERVATION" | "LEAD" | "ASSISTANT_CHAT"
 
 export type GdprVerificationMethod =
   | "EMAIL_CONFIRMATION"
@@ -764,4 +764,6 @@ export interface GdprEraseResultResponse {
   leadsErased: number
   messagesRedacted: number
   lateCheckoutNotesRedacted: number
+  assistantChatsAnonymized: number
+  assistantChatMessagesRedacted: number
 }

@@ -2,6 +2,7 @@ package com.bhgroup.pms.service;
 
 import com.bhgroup.pms.common.exception.ResourceNotFoundException;
 import com.bhgroup.pms.common.response.PageResponse;
+import com.bhgroup.pms.config.AppProperties;
 import com.bhgroup.pms.domain.AssistantChat;
 import com.bhgroup.pms.domain.AssistantChatMessage;
 import com.bhgroup.pms.domain.AssistantChatSenderType;
@@ -19,10 +20,12 @@ import com.bhgroup.pms.dto.assistant.AssistantHandoffResponse;
 import com.bhgroup.pms.dto.assistant.AssistantMessageRequest;
 import com.bhgroup.pms.repository.AssistantChatMessageRepository;
 import com.bhgroup.pms.repository.AssistantChatRepository;
+import com.bhgroup.pms.repository.NotificationRepository;
 import com.bhgroup.pms.repository.UserRepository;
 import com.bhgroup.pms.security.SecureTokenGenerator;
 import com.bhgroup.pms.service.mapper.AssistantChatMapper;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -58,9 +61,11 @@ public class AssistantChatService {
     private final AssistantChatMessageRepository assistantChatMessageRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
     private final EmailService emailService;
     private final SecureTokenGenerator secureTokenGenerator;
     private final AssistantChatMapper assistantChatMapper;
+    private final AppProperties appProperties;
 
     // ------------------------------------------------------------------
     // Visitor-facing (public, token-scoped)
@@ -192,5 +197,36 @@ public class AssistantChatService {
     private Pageable sortedByLastMessageDesc(Pageable pageable) {
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                 Sort.by(Sort.Direction.DESC, "lastMessageAt"));
+    }
+
+    // ------------------------------------------------------------------
+    // Retention (GDPR storage limitation - see AssistantChatRetentionScheduler)
+    // ------------------------------------------------------------------
+
+    /**
+     * Deletes every chat (OPEN or RESOLVED) whose last activity predates
+     * {@code app.assistant.retention-days} - a single, activity-based cutoff
+     * rather than a per-status rule, so a recently-active OPEN chat is never
+     * touched but one that's simply gone stale for that long is treated the
+     * same as an old RESOLVED one. Chat rows are deleted outright (their
+     * messages cascade via the DB FK, see V38) rather than anonymized:
+     * unlike a Reservation, nothing outside this feature depends on a
+     * purged chat's row still existing. The admin notifications that
+     * announced each purged chat (see {@link #notifyAdmins}) are deleted
+     * too - otherwise the guest's name embedded in their title would
+     * outlive the chat it came from.
+     */
+    @Transactional
+    public int purgeOldChats() {
+        Instant cutoff = Instant.now().minus(appProperties.getAssistant().getRetentionDays(), ChronoUnit.DAYS);
+        List<AssistantChat> stale = assistantChatRepository.findByLastMessageAtBefore(cutoff);
+        if (stale.isEmpty()) {
+            return 0;
+        }
+
+        List<String> linkPaths = stale.stream().map(c -> "/dashboard/assistant-chats/" + c.getId()).toList();
+        notificationRepository.deleteByLinkPathIn(linkPaths);
+        assistantChatRepository.deleteAll(stale);
+        return stale.size();
     }
 }

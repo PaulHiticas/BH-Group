@@ -7,6 +7,7 @@ public record GdprExportResponse(
         String email,
         Instant exportedAt,
         List<GdprReservationExport> reservations,
-        List<GdprLeadExport> leads
+        List<GdprLeadExport> leads,
+        List<GdprAssistantChatExport> assistantChats
 ) {
 }

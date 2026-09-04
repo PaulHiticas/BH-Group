@@ -43,6 +43,7 @@ function formatDateTime(value: string) {
 const RECORD_TYPE_LABELS: Record<GdprRecordType, string> = {
   RESERVATION: "Rezervare",
   LEAD: "Lead",
+  ASSISTANT_CHAT: "Conversație asistent",
 }
 
 const VERIFICATION_METHOD_LABELS: Record<GdprVerificationMethod, string> = {
@@ -122,10 +123,12 @@ export function GdprView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">GDPR — solicitări privind datele</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Caută toate rezervările și lead-urile asociate unei adrese de email, exportă-le sau
-          anonimizează-le la cererea persoanei vizate. Rezervările nu sunt șterse (se păstrează
-          datele/sumele în scop contabil), doar datele de identificare sunt eliminate — inclusiv
-          linkul de auto-gestionare al rezervării, mesajele și notificările asociate.
+          Caută toate rezervările, lead-urile și conversațiile cu asistentul AI asociate unei
+          adrese de email, exportă-le sau anonimizează-le la cererea persoanei vizate. Rezervările
+          nu sunt șterse (se păstrează datele/sumele în scop contabil), doar datele de identificare
+          sunt eliminate — inclusiv linkul de auto-gestionare al rezervării, mesajele și
+          notificările asociate. Conversațiile cu asistentul AI mai vechi de perioada de retenție
+          configurată sunt șterse automat, indiferent de o cerere explicită.
         </p>
       </div>
 
@@ -243,8 +246,9 @@ export function GdprView() {
                       Numele, emailul, telefonul, notele, codul de acces și linkul de
                       auto-gestionare vor fi șterse ireversibil, iar mesajele și notificările
                       legate de rezervările de mai jos vor fi redactate. Datele de rezervare
-                      (date, sumă, proprietate) rămân, în scop contabil. Această acțiune nu poate
-                      fi anulată.
+                      (date, sumă, proprietate) rămân, în scop contabil. Pentru conversațiile cu
+                      asistentul AI, numele și emailul vizitatorului vor fi șterse, iar mesajele
+                      scrise de el vor fi redactate. Această acțiune nu poate fi anulată.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
 

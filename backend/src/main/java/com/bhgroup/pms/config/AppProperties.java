@@ -75,5 +75,6 @@ public class AppProperties {
         private int maxTokens;
         private int maxHistoryMessages;
         private long timeoutMs;
+        private int retentionDays;
     }
 }
