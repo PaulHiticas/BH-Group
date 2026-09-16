@@ -36,7 +36,7 @@ export function DashboardMobileNav() {
             <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Building2 className="size-3.5" />
             </span>
-            BH Group PMS
+            BH Stays
           </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 px-3 py-2">

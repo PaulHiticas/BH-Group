@@ -66,7 +66,7 @@ export default function OwnerThreadDetailPage({
             viewerType="OWNER"
             onSend={(body) => addMessage.mutate(body)}
             isSending={addMessage.isPending}
-            placeholder="Scrie un mesaj echipei BH Group..."
+            placeholder="Scrie un mesaj echipei BH Stays..."
           />
         </CardContent>
       </Card>

@@ -161,7 +161,7 @@ export function LeadDialog({ trigger }: { trigger: ReactNode }) {
                   <label className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Checkbox checked={field.value} onCheckedChange={field.onChange} className="mt-0.5" />
                     <span>
-                      Sunt de acord să fiu contactat de BH Group și am citit{" "}
+                      Sunt de acord să fiu contactat de BH Stays și am citit{" "}
                       <Link href="/confidentialitate" className="underline hover:text-foreground" target="_blank">
                         Politica de confidențialitate
                       </Link>

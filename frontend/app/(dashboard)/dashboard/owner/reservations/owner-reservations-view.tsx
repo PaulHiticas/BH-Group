@@ -38,7 +38,7 @@ export function OwnerReservationsView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Rezervările mele</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Rezervări pentru proprietățile tale administrate de BH Group.
+          Rezervări pentru proprietățile tale administrate de BH Stays.
         </p>
       </div>
 

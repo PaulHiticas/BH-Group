@@ -11,7 +11,7 @@ import type { AssistantChatMessageResponse } from "@/lib/api/assistant-chats"
 const SENDER_LABELS: Record<AssistantChatMessageResponse["senderType"], string> = {
   GUEST: "Vizitator",
   AI: "Asistent AI",
-  STAFF: "Echipa BH Group",
+  STAFF: "Echipa BH Stays",
 }
 
 function formatTime(value: string) {

@@ -6,7 +6,7 @@ import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "Termeni și condiții",
-  description: "Termenii și condițiile de utilizare a platformei BH Group și de rezervare a proprietăților.",
+  description: "Termenii și condițiile de utilizare a platformei BH Stays și de rezervare a proprietăților.",
 }
 
 export default function TermsPage() {
@@ -26,7 +26,7 @@ export default function TermsPage() {
           <section>
             <h2>1. Obiectul contractului</h2>
             <p>
-              Acești termeni guvernează utilizarea site-ului BH Group și procesul de
+              Acești termeni guvernează utilizarea site-ului BH Stays și procesul de
               rezervare a proprietăților listate pe platformă. Prin trimiterea unei
               cereri de rezervare sau a unui formular de contact, confirmi că ai citit
               și ești de acord cu acești termeni.
@@ -38,7 +38,7 @@ export default function TermsPage() {
             <p>
               O cerere de rezervare transmisă prin site nu constituie o confirmare
               automată — rezervarea devine fermă doar după confirmarea din partea
-              echipei BH Group, comunicată pe emailul furnizat. Prețul afișat este
+              echipei BH Stays, comunicată pe emailul furnizat. Prețul afișat este
               orientativ și poate varia în funcție de sezon și durata sejurului.
             </p>
           </section>
@@ -76,7 +76,7 @@ export default function TermsPage() {
           <section>
             <h2>6. Limitarea răspunderii</h2>
             <p>
-              BH Group depune eforturi rezonabile pentru a menține informațiile de pe
+              BH Stays depune eforturi rezonabile pentru a menține informațiile de pe
               site actualizate, dar nu garantează disponibilitatea neîntreruptă a
               platformei sau acuratețea absolută a fiecărei liste de proprietăți.
             </p>

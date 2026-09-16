@@ -46,7 +46,7 @@ export function LoginForm() {
       <CardHeader>
         <CardTitle className="text-xl">Autentificare echipă</CardTitle>
         <CardDescription>
-          Acces rezervat administratorilor BH Group.
+          Acces rezervat administratorilor BH Stays.
         </CardDescription>
       </CardHeader>
       <CardContent>

@@ -5,7 +5,7 @@ spring:
 logging:
   level:
     root: WARN
-    com.bhgroup.pms: INFO
+    com.bhstays.pms: INFO
 
 springdoc:
   swagger-ui:

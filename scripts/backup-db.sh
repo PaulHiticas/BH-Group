@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# Nightly PostgreSQL backup for the BH Group PMS database.
+# Nightly PostgreSQL backup for the BH Stays database.
 #
 # Run this from the same host as docker-compose.yml (e.g. via a cron job)
-# so it can reach the `bhgroup-postgres` container. Dumps are compressed and
+# so it can reach the `bhstays-postgres` container. Dumps are compressed and
 # kept for BACKUP_RETENTION_DAYS days, then pruned automatically.
 #
 # Usage:
 #   ./scripts/backup-db.sh
 #
 # Suggested crontab entry (daily at 03:00 server time):
-#   0 3 * * * cd /path/to/BH-Group && ./scripts/backup-db.sh >> /var/log/bhgroup-backup.log 2>&1
+#   0 3 * * * cd /path/to/BH-Group && ./scripts/backup-db.sh >> /var/log/bhstays-backup.log 2>&1
 #
 # To restore from a backup:
-#   gunzip -c backups/bhgroup_pms_2026-07-12_0300.sql.gz | \
-#     docker exec -i bhgroup-postgres psql -U bhgroup -d bhgroup_pms
+#   gunzip -c backups/bhstays_pms_2026-07-12_0300.sql.gz | \
+#     docker exec -i bhstays-postgres psql -U bhstays -d bhstays_pms
 
 set -euo pipefail
 
@@ -22,9 +22,9 @@ cd "$SCRIPT_DIR/.."
 
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
-POSTGRES_USER="${POSTGRES_USER:-bhgroup}"
-POSTGRES_DB="${POSTGRES_DB:-bhgroup_pms}"
-CONTAINER_NAME="${POSTGRES_CONTAINER:-bhgroup-postgres}"
+POSTGRES_USER="${POSTGRES_USER:-bhstays}"
+POSTGRES_DB="${POSTGRES_DB:-bhstays_pms}"
+CONTAINER_NAME="${POSTGRES_CONTAINER:-bhstays-postgres}"
 TIMESTAMP="$(date +%Y-%m-%d_%H%M)"
 OUT_FILE="$BACKUP_DIR/${POSTGRES_DB}_${TIMESTAMP}.sql.gz"
 

@@ -763,7 +763,7 @@ export function PropertyForm({ property, mode, onSubmit, isSubmitting }: Propert
               name="commissionPercent"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Comision BH Group (%)</FormLabel>
+                  <FormLabel>Comision BH Stays (%)</FormLabel>
                   <FormControl>
                     <Input
                       type="number"

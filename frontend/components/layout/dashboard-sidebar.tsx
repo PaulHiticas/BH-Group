@@ -21,7 +21,7 @@ export function DashboardSidebar() {
         <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Building2 className="size-3.5" />
         </span>
-        BH Group PMS
+        BH Stays
       </div>
       <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
         {visibleItems.map((item) => {

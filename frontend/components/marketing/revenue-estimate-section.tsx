@@ -182,7 +182,7 @@ export function RevenueEstimateSection() {
                             onCheckedChange={field.onChange}
                             className="mt-0.5"
                           />
-                          Sunt de acord să fiu contactat de BH Group în legătură cu această solicitare.
+                          Sunt de acord să fiu contactat de BH Stays în legătură cu această solicitare.
                         </label>
                         <FormMessage />
                       </FormItem>

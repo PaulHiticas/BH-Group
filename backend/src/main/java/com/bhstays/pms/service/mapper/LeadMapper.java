@@ -1,0 +1,28 @@
+package com.bhstays.pms.service.mapper;
+
+import com.bhstays.pms.dto.lead.LeadResponse;
+import org.springframework.stereotype.Component;
+
+import com.bhstays.pms.domain.PropertyLead;
+@Component
+public class LeadMapper {
+
+    public LeadResponse toResponse(PropertyLead lead) {
+        return new LeadResponse(
+                lead.getId(),
+                lead.getFullName(),
+                lead.getEmail(),
+                lead.getPhone(),
+                lead.getCity(),
+                lead.getMessage(),
+                lead.isContacted(),
+                lead.getLeadType(),
+                lead.getBedrooms(),
+                lead.isConsentGiven(),
+                lead.getUtmSource(),
+                lead.getUtmMedium(),
+                lead.getUtmCampaign(),
+                lead.getCreatedAt()
+        );
+    }
+}

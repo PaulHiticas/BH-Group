@@ -22,7 +22,7 @@ export function OwnerExpensesView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Cheltuielile mele</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Cheltuieli facturate de BH Group pentru proprietățile tale, scăzute din venitul net.
+          Cheltuieli facturate de BH Stays pentru proprietățile tale, scăzute din venitul net.
         </p>
       </div>
 

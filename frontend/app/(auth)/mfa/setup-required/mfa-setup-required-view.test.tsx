@@ -26,7 +26,7 @@ describe("MfaSetupRequiredView", () => {
       expiresIn: 3600,
       user: {
         id: "user-1",
-        email: "new@bhgroup.io",
+        email: "new@bhstays.ro",
         firstName: "New",
         lastName: "User",
         phone: null,

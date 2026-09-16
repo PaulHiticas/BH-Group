@@ -1,0 +1,28 @@
+package com.bhstays.pms.dto.expense;
+
+import com.bhstays.pms.domain.ExpenseCategory;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+public record ExpenseUpdateRequest(
+
+        ExpenseCategory category,
+
+        @NotNull(message = "Amount is required")
+        @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+        BigDecimal amount,
+
+        String currency,
+
+        String vendor,
+
+        @NotNull(message = "Expense date is required")
+        LocalDate expenseDate,
+
+        String notes,
+
+        boolean chargeToOwner
+) {
+}
