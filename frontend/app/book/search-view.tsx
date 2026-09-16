@@ -93,8 +93,11 @@ function SearchForm() {
         </p>
       </div>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-end gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-        <div className="flex min-w-48 flex-1 flex-col gap-1">
+      {/* Column on phones - the date inputs and the guest field have intrinsic
+          widths that wrap into a ragged, half-width mess below ~640px. From sm
+          up it is the original single row. */}
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="flex flex-col gap-1 sm:min-w-48 sm:flex-1">
           <label className="text-xs font-medium text-muted-foreground">Destinație</label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -131,7 +134,7 @@ function SearchForm() {
             }}
           />
         </div>
-        <div className="flex w-24 flex-col gap-1">
+        <div className="flex flex-col gap-1 sm:w-24">
           <label className="text-xs font-medium text-muted-foreground">Oaspeți</label>
           <Input
             type="number"
@@ -143,13 +146,13 @@ function SearchForm() {
             }}
           />
         </div>
-        <Button type="button" onClick={() => setPage(0)}>
+        <Button type="button" className="w-full sm:w-auto" onClick={() => setPage(0)}>
           Caută
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="gap-2"
+          className="w-full gap-2 sm:w-auto"
           onClick={() => setShowFilters((prev) => !prev)}
         >
           <SlidersHorizontal className="size-4" />
@@ -233,7 +236,7 @@ function SearchForm() {
           ))}
         </div>
       ) : !data || data.content.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 px-6 py-10 text-center sm:py-14">
           <p className="text-sm text-muted-foreground">
             Nu au fost găsite proprietăți disponibile pentru criteriile selectate.
           </p>
