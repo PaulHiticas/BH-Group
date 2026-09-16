@@ -13,10 +13,10 @@ FROM eclipse-temurin:21-jre-alpine AS runtime
 WORKDIR /app
 
 RUN apk add --no-cache su-exec && \
-    addgroup -S bhgroup && adduser -S bhgroup -G bhgroup
+    addgroup -S bhstays && adduser -S bhstays -G bhstays
 COPY --from=build /workspace/target/pms-backend.jar app.jar
 COPY entrypoint.sh /entrypoint.sh
-RUN chown bhgroup:bhgroup app.jar && chmod +x /entrypoint.sh
+RUN chown bhstays:bhstays app.jar && chmod +x /entrypoint.sh
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

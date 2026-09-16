@@ -1,0 +1,12 @@
+package com.bhstays.pms.domain;
+
+public enum NotificationType {
+    NEW_MESSAGE,
+    CRITICAL_MAINTENANCE,
+    NEW_LEAD,
+    DOCUMENT_EXPIRING,
+    LATE_CHECKOUT_REQUEST,
+    NEW_OWNER_REQUEST,
+    OWNER_REQUEST_REPLY,
+    NEW_ASSISTANT_HANDOFF
+}

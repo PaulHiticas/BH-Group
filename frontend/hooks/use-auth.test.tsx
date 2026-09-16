@@ -22,7 +22,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const baseUser = {
   id: "user-1",
-  email: "new@bhgroup.io",
+  email: "new@bhstays.ro",
   firstName: "New",
   lastName: "User",
   phone: null,
@@ -48,7 +48,7 @@ describe("useLogin", () => {
 
     const { result } = renderHook(() => useLogin(), { wrapper })
     act(() => {
-      result.current.mutate({ email: "new@bhgroup.io", password: "x" })
+      result.current.mutate({ email: "new@bhstays.ro", password: "x" })
     })
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/mfa/setup-required"))
@@ -69,7 +69,7 @@ describe("useLogin", () => {
 
     const { result } = renderHook(() => useLogin(), { wrapper })
     act(() => {
-      result.current.mutate({ email: "existing@bhgroup.io", password: "x" })
+      result.current.mutate({ email: "existing@bhstays.ro", password: "x" })
     })
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/dashboard"))
@@ -84,7 +84,7 @@ describe("useLogin", () => {
 
     const { result } = renderHook(() => useLogin(), { wrapper })
     act(() => {
-      result.current.mutate({ email: "mfa-user@bhgroup.io", password: "x" })
+      result.current.mutate({ email: "mfa-user@bhstays.ro", password: "x" })
     })
 
     await waitFor(() => expect(mockRouter.push).toHaveBeenCalledWith("/mfa/verify"))

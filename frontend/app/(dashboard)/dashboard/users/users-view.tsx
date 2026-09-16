@@ -244,7 +244,7 @@ function CreateUserDialog({ actingRole }: { actingRole?: Role }) {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="nume@bhgroup.io" {...field} />
+                        <Input type="email" placeholder="nume@bhstays.ro" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

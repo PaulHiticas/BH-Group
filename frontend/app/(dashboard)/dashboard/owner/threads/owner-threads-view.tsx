@@ -88,7 +88,7 @@ function NewThreadDialog() {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Cerere nouă către BH Group</DialogTitle>
+          <DialogTitle>Cerere nouă către BH Stays</DialogTitle>
           <DialogDescription>
             Trimite o întrebare generală sau una despre unul dintre apartamentele tale.
           </DialogDescription>
@@ -175,7 +175,7 @@ export function OwnerThreadsView() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Contact / Cereri</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Cererile și întrebările tale trimise echipei BH Group.
+            Cererile și întrebările tale trimise echipei BH Stays.
           </p>
         </div>
         <NewThreadDialog />

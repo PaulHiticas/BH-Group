@@ -82,7 +82,7 @@ export default function OwnerStatementDetailPage({
             <span className="font-medium">{formatCurrency(statement.grossRevenue, statement.currency)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Comision BH Group</span>
+            <span className="text-muted-foreground">Comision BH Stays</span>
             <span>-{formatCurrency(statement.commissionAmount, statement.currency)}</span>
           </div>
           <div className="flex items-center justify-between">

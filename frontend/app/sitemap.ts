@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next"
 import { publicApi } from "@/lib/api/public"
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhgroup.io"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhstays.ro"
 
 const STATIC_ROUTES = ["", "/book", "/pentru-proprietari", "/termeni-si-conditii", "/confidentialitate"]
 

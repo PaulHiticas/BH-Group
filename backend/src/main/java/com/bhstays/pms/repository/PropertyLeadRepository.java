@@ -1,0 +1,17 @@
+package com.bhstays.pms.repository;
+
+import java.util.List;
+import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.bhstays.pms.domain.PropertyLead;
+public interface PropertyLeadRepository extends JpaRepository<PropertyLead, UUID> {
+
+    Page<PropertyLead> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    long countByContactedFalse();
+
+    List<PropertyLead> findByEmailIgnoreCase(String email);
+}

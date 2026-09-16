@@ -192,7 +192,7 @@ export default function ManageBookingPage({
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Mesaje cu echipa BH Group</CardTitle>
+          <CardTitle className="text-base">Mesaje cu echipa BH Stays</CardTitle>
         </CardHeader>
         <CardContent>
           <MessageThread

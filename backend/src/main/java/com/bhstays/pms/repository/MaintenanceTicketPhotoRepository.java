@@ -1,0 +1,11 @@
+package com.bhstays.pms.repository;
+
+import com.bhstays.pms.domain.MaintenanceTicketPhoto;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface MaintenanceTicketPhotoRepository extends JpaRepository<MaintenanceTicketPhoto, UUID> {
+
+    List<MaintenanceTicketPhoto> findByMaintenanceTicketIdOrderByCreatedAtAsc(UUID maintenanceTicketId);
+}

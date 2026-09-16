@@ -47,7 +47,7 @@ export function SiteHeader() {
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Building2 className="size-4" />
           </span>
-          BH Group
+          BH Stays
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">

@@ -30,7 +30,7 @@ const HANDOFF_ERROR_FALLBACK = `Nu am reușit să te conectez cu un coleg chiar 
 const HANDOFF_STARTED_TEXT = "Te conectez cu un coleg din echipă. Îți va răspunde chiar aici, cât de curând."
 
 const GREETING =
-  "Salut! Sunt asistentul virtual BH Group. Întreabă-mă despre check-in, anulare, comisioane sau cum îți poți lista proprietatea."
+  "Salut! Sunt asistentul virtual BH Stays. Întreabă-mă despre check-in, anulare, comisioane sau cum îți poți lista proprietatea."
 
 // After this many replies where the AI flags it can't really help, the
 // widget escalates to a human automatically instead of waiting for the
@@ -237,7 +237,7 @@ export function ChatWidget() {
           >
             <div className="flex items-center gap-2 border-b border-border/60 bg-primary px-4 py-3 text-primary-foreground">
               <MessageCircle className="size-4" />
-              <p className="text-sm font-medium">Asistent BH Group</p>
+              <p className="text-sm font-medium">Asistent BH Stays</p>
             </div>
 
             {!isHandoff && (

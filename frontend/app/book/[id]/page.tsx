@@ -3,7 +3,7 @@ import { publicApi } from "@/lib/api/public"
 import { PROPERTY_TYPE_LABELS } from "@/lib/property-labels"
 import { PropertyDetailContent } from "./property-detail-content"
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhgroup.io"
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhstays.ro"
 
 async function fetchProperty(id: string) {
   try {

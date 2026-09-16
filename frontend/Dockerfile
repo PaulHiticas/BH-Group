@@ -23,13 +23,13 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN addgroup -S bhgroup && adduser -S bhgroup -G bhgroup
+RUN addgroup -S bhstays && adduser -S bhstays -G bhstays
 
 COPY --from=build /app/public ./public
-COPY --from=build --chown=bhgroup:bhgroup /app/.next/standalone ./
-COPY --from=build --chown=bhgroup:bhgroup /app/.next/static ./.next/static
+COPY --from=build --chown=bhstays:bhstays /app/.next/standalone ./
+COPY --from=build --chown=bhstays:bhstays /app/.next/static ./.next/static
 
-USER bhgroup
+USER bhstays
 EXPOSE 3000
 ENV PORT=3000
 CMD ["node", "server.js"]

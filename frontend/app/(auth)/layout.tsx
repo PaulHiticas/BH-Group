@@ -34,7 +34,7 @@ export default function AuthLayout({
               pre-video-background auth layout. */}
           <Image
             src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=2000&q=80&auto=format&fit=crop"
-            alt="Interior modern administrat de BH Group"
+            alt="Interior modern administrat de BH Stays"
             fill
             sizes="100vw"
             priority
@@ -49,7 +49,7 @@ export default function AuthLayout({
           <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Building2 className="size-4" />
           </span>
-          BH Group
+          BH Stays
         </Link>
         <ThemeToggle />
       </header>
@@ -66,7 +66,7 @@ export default function AuthLayout({
       </main>
 
       <footer className="relative z-10 px-6 py-6 text-center text-xs text-white/50">
-        © {new Date().getFullYear()} BH Group. Toate drepturile rezervate.
+        © {new Date().getFullYear()} BH Stays. Toate drepturile rezervate.
       </footer>
     </div>
   )

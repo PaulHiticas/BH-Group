@@ -145,7 +145,7 @@ function FinancialReportSection({ propertyId, from, to }: { propertyId: string; 
               {data.rows.map((row) => (
                 <TableRow key={row.propertyId}>
                   <TableCell className="font-medium">{row.propertyName}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.ownerName ?? "BH Group"}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.ownerName ?? "BH Stays"}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.grossRevenue, row.currency)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.commissionAmount, row.currency)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(row.expensesTotal, row.currency)}</TableCell>

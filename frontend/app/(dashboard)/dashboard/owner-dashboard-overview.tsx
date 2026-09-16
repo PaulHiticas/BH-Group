@@ -31,7 +31,7 @@ export function OwnerDashboardOverview() {
           {isUserLoading ? <Skeleton className="h-8 w-64" /> : `Bine ai venit, ${user?.firstName}!`}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Situația proprietăților tale administrate de BH Group.
+          Situația proprietăților tale administrate de BH Stays.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export function OwnerDashboardOverview() {
         </Card>
         <Card>
           <CardHeader>
-            <CardDescription>Comision BH Group</CardDescription>
+            <CardDescription>Comision BH Stays</CardDescription>
             <CardTitle className="text-2xl">
               {isLoading || !summary ? (
                 <Skeleton className="h-8 w-32" />

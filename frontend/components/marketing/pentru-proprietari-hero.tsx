@@ -28,7 +28,7 @@ export function PentruProprietariHero() {
         <div className="absolute inset-0">
           <Image
             src="https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=2000&q=80&auto=format&fit=crop"
-            alt="Living modern administrat de BH Group"
+            alt="Living modern administrat de BH Stays"
             fill
             sizes="100vw"
             priority

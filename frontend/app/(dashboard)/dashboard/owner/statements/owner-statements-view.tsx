@@ -26,7 +26,7 @@ export function OwnerStatementsView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Deconturile mele</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Istoricul deconturilor de plată generate de BH Group pentru proprietățile tale.
+          Istoricul deconturilor de plată generate de BH Stays pentru proprietățile tale.
         </p>
       </div>
 

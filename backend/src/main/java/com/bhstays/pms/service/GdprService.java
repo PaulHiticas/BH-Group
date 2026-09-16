@@ -1,0 +1,353 @@
+package com.bhstays.pms.service;
+
+import com.bhstays.pms.common.PiiMasking;
+import com.bhstays.pms.common.exception.BadRequestException;
+import com.bhstays.pms.config.AppProperties;
+import com.bhstays.pms.domain.AssistantChat;
+import com.bhstays.pms.domain.AssistantChatMessage;
+import com.bhstays.pms.domain.AssistantChatSenderType;
+import com.bhstays.pms.domain.AuditAction;
+import com.bhstays.pms.domain.GdprRecordType;
+import com.bhstays.pms.domain.GdprRequest;
+import com.bhstays.pms.domain.GdprRequestType;
+import com.bhstays.pms.domain.GdprVerificationMethod;
+import com.bhstays.pms.domain.LateCheckoutRequest;
+import com.bhstays.pms.domain.Message;
+import com.bhstays.pms.domain.PropertyLead;
+import com.bhstays.pms.domain.Reservation;
+import com.bhstays.pms.domain.User;
+import com.bhstays.pms.dto.gdpr.GdprAssistantChatExport;
+import com.bhstays.pms.dto.gdpr.GdprAssistantChatMessageExport;
+import com.bhstays.pms.dto.gdpr.GdprEraseResultResponse;
+import com.bhstays.pms.dto.gdpr.GdprExportResponse;
+import com.bhstays.pms.dto.gdpr.GdprLateCheckoutExport;
+import com.bhstays.pms.dto.gdpr.GdprLeadExport;
+import com.bhstays.pms.dto.gdpr.GdprMessageExport;
+import com.bhstays.pms.dto.gdpr.GdprReservationExport;
+import com.bhstays.pms.dto.gdpr.GdprSearchMatchResponse;
+import com.bhstays.pms.repository.AssistantChatMessageRepository;
+import com.bhstays.pms.repository.AssistantChatRepository;
+import com.bhstays.pms.repository.GdprRequestRepository;
+import com.bhstays.pms.repository.LateCheckoutRequestRepository;
+import com.bhstays.pms.repository.MessageRepository;
+import com.bhstays.pms.repository.NotificationRepository;
+import com.bhstays.pms.repository.PropertyLeadRepository;
+import com.bhstays.pms.repository.ReservationRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+/**
+ * Technical support for data-subject-access and erasure requests
+ * (GDPR arts. 15/17): guests aren't user accounts here, so requests are
+ * looked up by email across reservations, property leads, and AI-assistant
+ * handoff chats rather than by a user id.
+ *
+ * Erasure anonymizes rather than deletes reservations - the row itself
+ * (dates, amounts, property, status) is kept for fiscal record-keeping,
+ * only the personally-identifying fields are cleared. This matches what
+ * the public privacy policy already promises, but the exact legally
+ * required retention period is a legal question, not a technical one -
+ * this only implements the mechanism, on demand.
+ *
+ * Erasure also has to reach every copy of the guest's PII, not just the
+ * Reservation row it originates from: the unauthenticated
+ * {@code managementToken} link (still usable to view/modify/cancel/
+ * message the booking otherwise), every message in the thread (staff
+ * replies can restate the guest's own details back at them, not just
+ * their own messages), the free-standing Notification rows a guest
+ * message (or a late checkout request) fans out to (title/body copied in
+ * at creation time, no FK back to the reservation), and the free-text
+ * {@code guestNote} on any {@link com.bhstays.pms.domain.LateCheckoutRequest}
+ * tied to the reservation - a guest can write anything in it, including
+ * their own name or phone number, via the unauthenticated
+ * management-token link.
+ *
+ * Assistant chats are handled the same way, adapted to that entity: only the
+ * visitor's own (GUEST) messages are redacted, not the AI/staff turns
+ * (those are the assistant's or a staff member's own writing), and the
+ * admin notification a handoff creates is redacted too, matched by its
+ * {@code /dashboard/assistant-chats/{id}} link path. Beyond an on-demand
+ * erasure request, assistant chats also age out on their own - see
+ * {@link AssistantChatService#purgeOldChats()} - since unlike a
+ * reservation there's no fiscal reason to keep one around indefinitely.
+ *
+ * Neither the general audit log nor the {@link GdprRequest} compliance
+ * register ever get the full email - only {@link PiiMasking#maskEmail}'d
+ * form plus a keyed {@link PiiMasking#fingerprintEmail} for exact-match
+ * verification. The whole point of this feature is to stop retaining a
+ * data subject's PII on request; logging it in full here would just move
+ * the problem, not solve it. The audit log write is deliberately deferred
+ * to run only after this method's own transaction commits (see
+ * {@link #afterSuccessfulCommit}) - {@link AuditService#record} uses
+ * REQUIRES_NEW and commits independently, so calling it eagerly would let
+ * "GDPR_DATA_ERASED" reach the audit log even on a request whose
+ * anonymization was later rolled back.
+ */
+@Service
+@RequiredArgsConstructor
+public class GdprService {
+
+    private static final String REDACTED_MESSAGE = "[mesaj șters - solicitare GDPR]";
+    private static final String REDACTED_NOTIFICATION_TITLE = "Mesaj șters (solicitare GDPR)";
+    private static final String REDACTED_NOTIFICATION_BODY = "[conținut șters - solicitare GDPR]";
+    /** Romanian CNP (and most national ID numbers) are long runs of digits - a cheap, effective tripwire. */
+    private static final Pattern LOOKS_LIKE_ID_NUMBER = Pattern.compile("\\d{8,}");
+    private static final int MAX_VERIFICATION_NOTE_LENGTH = 300;
+
+    private final ReservationRepository reservationRepository;
+    private final PropertyLeadRepository propertyLeadRepository;
+    private final AssistantChatRepository assistantChatRepository;
+    private final AssistantChatMessageRepository assistantChatMessageRepository;
+    private final MessageRepository messageRepository;
+    private final NotificationRepository notificationRepository;
+    private final LateCheckoutRequestRepository lateCheckoutRequestRepository;
+    private final GdprRequestRepository gdprRequestRepository;
+    private final AuditService auditService;
+    private final AppProperties appProperties;
+
+    @Transactional(readOnly = true)
+    public List<GdprSearchMatchResponse> search(String email) {
+        List<GdprSearchMatchResponse> results = new java.util.ArrayList<>();
+
+        for (Reservation r : reservationRepository.findByGuestEmailIgnoreCase(email)) {
+            results.add(new GdprSearchMatchResponse(
+                    GdprRecordType.RESERVATION, r.getId(), r.getGuestFullName(), r.getGuestEmail(),
+                    r.getGuestPhone(), r.getProperty().getName() + " (" + r.getCheckInDate() + " - " + r.getCheckOutDate() + ")",
+                    r.getCreatedAt()));
+        }
+        for (PropertyLead lead : propertyLeadRepository.findByEmailIgnoreCase(email)) {
+            results.add(new GdprSearchMatchResponse(
+                    GdprRecordType.LEAD, lead.getId(), lead.getFullName(), lead.getEmail(),
+                    lead.getPhone(), "Lead: " + (lead.getCity() != null ? lead.getCity() : "-"),
+                    lead.getCreatedAt()));
+        }
+        for (AssistantChat chat : assistantChatRepository.findByGuestEmailIgnoreCase(email)) {
+            results.add(new GdprSearchMatchResponse(
+                    GdprRecordType.ASSISTANT_CHAT, chat.getId(),
+                    chat.getGuestName() != null && !chat.getGuestName().isBlank() ? chat.getGuestName() : "Vizitator anonim",
+                    chat.getGuestEmail(), null,
+                    "Conversație asistent AI (" + chat.getStatus() + ")",
+                    chat.getCreatedAt()));
+        }
+        return results;
+    }
+
+    @Transactional
+    public GdprExportResponse export(String email, GdprVerificationMethod verificationMethod,
+                                      String verificationNote, User actor) {
+        requireValidVerification(verificationMethod, verificationNote);
+
+        List<Reservation> reservations = reservationRepository.findByGuestEmailIgnoreCase(email);
+        List<PropertyLead> leads = propertyLeadRepository.findByEmailIgnoreCase(email);
+        List<AssistantChat> assistantChats = assistantChatRepository.findByGuestEmailIgnoreCase(email);
+        if (reservations.isEmpty() && leads.isEmpty() && assistantChats.isEmpty()) {
+            throw new BadRequestException("Nu s-au găsit înregistrări pentru acest email");
+        }
+
+        List<UUID> reservationIdsForExport = reservations.stream().map(Reservation::getId).toList();
+
+        Map<UUID, List<Message>> messagesByReservation = reservationIdsForExport.isEmpty()
+                ? Map.of()
+                : messageRepository.findByReservationIdInOrderByCreatedAtAsc(reservationIdsForExport)
+                    .stream().collect(Collectors.groupingBy(m -> m.getReservation().getId()));
+
+        Map<UUID, List<LateCheckoutRequest>> lateCheckoutByReservation = reservationIdsForExport.isEmpty()
+                ? Map.of()
+                : lateCheckoutRequestRepository.findByReservationIdIn(reservationIdsForExport)
+                    .stream().collect(Collectors.groupingBy(r -> r.getReservation().getId()));
+
+        List<GdprReservationExport> reservationExports = reservations.stream()
+                .map(r -> new GdprReservationExport(
+                        r.getId(), r.getProperty().getName(), r.getGuestFirstName(), r.getGuestLastName(),
+                        r.getGuestEmail(), r.getGuestPhone(), r.getCheckInDate(), r.getCheckOutDate(),
+                        r.getNumberOfGuests(), r.getStatus(), r.getSource(), r.getTotalAmount(), r.getCurrency(),
+                        r.getNotes(), r.getCreatedAt(),
+                        messagesByReservation.getOrDefault(r.getId(), List.of()).stream()
+                                .map(m -> new GdprMessageExport(m.getSenderType(), m.getBody(), m.getCreatedAt()))
+                                .toList(),
+                        lateCheckoutByReservation.getOrDefault(r.getId(), List.of()).stream()
+                                .map(lc -> new GdprLateCheckoutExport(lc.getStatus(), lc.getGuestNote(), lc.getCreatedAt()))
+                                .toList()))
+                .toList();
+
+        List<GdprLeadExport> leadExports = leads.stream()
+                .map(l -> new GdprLeadExport(l.getId(), l.getFullName(), l.getEmail(), l.getPhone(), l.getCity(),
+                        l.getMessage(), l.isContacted(), l.getCreatedAt()))
+                .toList();
+
+        List<UUID> chatIdsForExport = assistantChats.stream().map(AssistantChat::getId).toList();
+        Map<UUID, List<AssistantChatMessage>> messagesByChat = chatIdsForExport.isEmpty()
+                ? Map.of()
+                : assistantChatMessageRepository.findByChatIdInOrderByCreatedAtAsc(chatIdsForExport)
+                    .stream().collect(Collectors.groupingBy(m -> m.getChat().getId()));
+
+        List<GdprAssistantChatExport> assistantChatExports = assistantChats.stream()
+                .map(c -> new GdprAssistantChatExport(
+                        c.getId(), c.getStatus(), c.getCreatedAt(), c.getLastMessageAt(),
+                        messagesByChat.getOrDefault(c.getId(), List.of()).stream()
+                                .map(m -> new GdprAssistantChatMessageExport(m.getSenderType(), m.getBody(), m.getCreatedAt()))
+                                .toList()))
+                .toList();
+
+        int recordsAffected = reservationExports.size() + leadExports.size() + assistantChatExports.size();
+        recordComplianceEntryAndAuditAfterCommit(GdprRequestType.EXPORT, AuditAction.GDPR_DATA_EXPORTED,
+                actor, email, verificationMethod, recordsAffected,
+                "Export de date GDPR pentru %s (%d rezervări, %d lead-uri, %d conversații asistent)"
+                        .formatted(PiiMasking.maskEmail(email), reservationExports.size(), leadExports.size(),
+                                assistantChatExports.size()));
+
+        return new GdprExportResponse(email, Instant.now(), reservationExports, leadExports, assistantChatExports);
+    }
+
+    @Transactional
+    public GdprEraseResultResponse erase(String email, GdprVerificationMethod verificationMethod,
+                                          String verificationNote, User actor) {
+        requireValidVerification(verificationMethod, verificationNote);
+
+        List<Reservation> reservations = reservationRepository.findByGuestEmailIgnoreCase(email);
+        List<PropertyLead> leads = propertyLeadRepository.findByEmailIgnoreCase(email);
+        List<AssistantChat> assistantChats = assistantChatRepository.findByGuestEmailIgnoreCase(email);
+        if (reservations.isEmpty() && leads.isEmpty() && assistantChats.isEmpty()) {
+            throw new BadRequestException("Nu s-au găsit înregistrări pentru acest email");
+        }
+
+        List<UUID> reservationIds = reservations.stream().map(Reservation::getId).toList();
+        int messagesRedacted = reservationIds.isEmpty()
+                ? 0
+                : messageRepository.redactMessagesForReservations(reservationIds, REDACTED_MESSAGE);
+
+        if (!reservationIds.isEmpty()) {
+            List<String> linkPaths = reservationIds.stream()
+                    .map(id -> "/dashboard/reservations/" + id)
+                    .toList();
+            notificationRepository.redactByLinkPaths(linkPaths, REDACTED_NOTIFICATION_TITLE, REDACTED_NOTIFICATION_BODY);
+        }
+
+        // Late checkout requests carry their own free-text guestNote,
+        // submittable by the guest directly - not covered by clearing the
+        // Reservation fields above.
+        int lateCheckoutNotesRedacted = reservationIds.isEmpty()
+                ? 0
+                : lateCheckoutRequestRepository.redactGuestNoteForReservations(reservationIds);
+
+        for (Reservation r : reservations) {
+            r.setGuestFirstName("Șters");
+            r.setGuestLastName("(GDPR)");
+            r.setGuestEmail(null);
+            r.setGuestPhone(null);
+            r.setNotes(null);
+            r.setAccessCode(null);
+            // revoke the unauthenticated self-service link - otherwise anyone still
+            // holding it can keep viewing, modifying, cancelling, or messaging about
+            // a booking whose guest asked to no longer be tracked.
+            r.setManagementToken(null);
+        }
+        reservationRepository.saveAll(reservations);
+
+        for (PropertyLead lead : leads) {
+            lead.setFullName("Șters (GDPR)");
+            lead.setEmail(null);
+            lead.setPhone(null);
+            lead.setMessage(null);
+        }
+        propertyLeadRepository.saveAll(leads);
+
+        List<UUID> chatIds = assistantChats.stream().map(AssistantChat::getId).toList();
+        int assistantChatMessagesRedacted = chatIds.isEmpty()
+                ? 0
+                : assistantChatMessageRepository.redactMessagesForChats(
+                        chatIds, AssistantChatSenderType.GUEST, REDACTED_MESSAGE);
+
+        if (!chatIds.isEmpty()) {
+            List<String> chatLinkPaths = chatIds.stream()
+                    .map(id -> "/dashboard/assistant-chats/" + id)
+                    .toList();
+            notificationRepository.redactByLinkPaths(chatLinkPaths, REDACTED_NOTIFICATION_TITLE, REDACTED_NOTIFICATION_BODY);
+        }
+
+        for (AssistantChat chat : assistantChats) {
+            chat.setGuestName("Șters (GDPR)");
+            chat.setGuestEmail(null);
+        }
+        assistantChatRepository.saveAll(assistantChats);
+
+        int recordsAffected = reservations.size() + leads.size() + assistantChats.size();
+        recordComplianceEntryAndAuditAfterCommit(GdprRequestType.ERASE, AuditAction.GDPR_DATA_ERASED,
+                actor, email, verificationMethod, recordsAffected,
+                ("Date GDPR șterse pentru %s (%d rezervări anonimizate, %d lead-uri anonimizate, "
+                        + "%d mesaje redactate, %d note de check-out târziu redactate, "
+                        + "%d conversații asistent anonimizate, %d mesaje de asistent redactate)")
+                        .formatted(PiiMasking.maskEmail(email), reservations.size(), leads.size(),
+                                messagesRedacted, lateCheckoutNotesRedacted,
+                                assistantChats.size(), assistantChatMessagesRedacted));
+
+        return new GdprEraseResultResponse(
+                reservations.size(), leads.size(), messagesRedacted, lateCheckoutNotesRedacted,
+                assistantChats.size(), assistantChatMessagesRedacted);
+    }
+
+    private void requireValidVerification(GdprVerificationMethod verificationMethod, String verificationNote) {
+        if (verificationMethod == null) {
+            throw new BadRequestException("Metoda de verificare a identității este obligatorie");
+        }
+        if (verificationNote == null || verificationNote.isBlank()) {
+            throw new BadRequestException("Notița de verificare este obligatorie");
+        }
+        if (verificationNote.length() > MAX_VERIFICATION_NOTE_LENGTH) {
+            throw new BadRequestException("Notița de verificare este prea lungă (max " + MAX_VERIFICATION_NOTE_LENGTH + " caractere)");
+        }
+        if (LOOKS_LIKE_ID_NUMBER.matcher(verificationNote).find()) {
+            throw new BadRequestException(
+                    "Notița de verificare pare să conțină un CNP sau un număr de act de identitate - "
+                            + "nu introduce acte sau identificatori personali aici, doar cum a fost verificată identitatea");
+        }
+    }
+
+    /**
+     * Persists the compliance-register row inside this transaction (so it
+     * rolls back together with the anonymization if anything fails), but
+     * defers the {@link AuditService#record} call - which commits
+     * independently via REQUIRES_NEW - until this transaction has actually
+     * committed. Without the deferral, a failure between this call and the
+     * method returning would leave an audit entry claiming success for an
+     * operation that was, in fact, rolled back.
+     */
+    private void recordComplianceEntryAndAuditAfterCommit(GdprRequestType type, AuditAction auditAction, User actor,
+                                                            String email, GdprVerificationMethod verificationMethod,
+                                                            int recordsAffected, String auditDescription) {
+        String maskedEmail = PiiMasking.maskEmail(email);
+        String fingerprint = PiiMasking.fingerprintEmail(email, appProperties.getJwt().getSecret());
+
+        gdprRequestRepository.save(GdprRequest.builder()
+                .requestType(type)
+                .actor(actor)
+                .maskedEmail(maskedEmail)
+                .emailFingerprint(fingerprint)
+                .verificationMethod(verificationMethod)
+                .verifiedAt(Instant.now())
+                .recordsAffected(recordsAffected)
+                .build());
+
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    auditService.record(auditAction, actor, auditDescription, null, null);
+                }
+            });
+        } else {
+            // no active transaction synchronization (e.g. called outside a
+            // managed transaction in a test) - fall back to recording immediately.
+            auditService.record(auditAction, actor, auditDescription, null, null);
+        }
+    }
+}
