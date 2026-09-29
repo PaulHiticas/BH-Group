@@ -86,7 +86,7 @@ export default function OwnerPropertyDetailPage({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">
-              Comision BH Group{property.commissionPercent != null ? ` (${property.commissionPercent}%)` : ""}
+              Comision BH Stays{property.commissionPercent != null ? ` (${property.commissionPercent}%)` : ""}
             </span>
             <span>-{formatCurrency(property.commissionAmount, property.currency)}</span>
           </div>

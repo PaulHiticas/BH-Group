@@ -22,18 +22,18 @@ const fraunces = Fraunces({
   axes: ["opsz", "SOFT", "WONK"],
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhgroup.io";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://bhstays.ro";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "BH Group — Administrare premium de proprietăți",
-    template: "%s | BH Group",
+    default: "BH Stays — Administrare premium de proprietăți",
+    template: "%s | BH Stays",
   },
   description:
     "Administrare premium de proprietăți pentru închirieri pe termen scurt — Airbnb, Booking.com și rezervări directe.",
   openGraph: {
-    siteName: "BH Group",
+    siteName: "BH Stays",
     locale: "ro_RO",
     type: "website",
   },

@@ -1,37 +1,37 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: bhgroup-postgres
+    container_name: bhstays-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-bhgroup_pms}
-      POSTGRES_USER: ${POSTGRES_USER:-bhgroup}
+      POSTGRES_DB: ${POSTGRES_DB:-bhstays_pms}
+      POSTGRES_USER: ${POSTGRES_USER:-bhstays}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-strong-password}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bhgroup} -d ${POSTGRES_DB:-bhgroup_pms}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bhstays} -d ${POSTGRES_DB:-bhstays_pms}"]
       interval: 5s
       timeout: 5s
       retries: 10
     networks:
-      - bhgroup-network
+      - bhstays-network
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: bhgroup-backend
+    container_name: bhstays-backend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
-      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bhgroup_pms}
-      DB_USERNAME: ${POSTGRES_USER:-bhgroup}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-bhstays_pms}
+      DB_USERNAME: ${POSTGRES_USER:-bhstays}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-strong-password}
       JWT_SECRET: ${JWT_SECRET}
       JWT_ACCESS_TOKEN_EXPIRATION_MS: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:-900000}
@@ -42,7 +42,7 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_FROM: ${MAIL_FROM}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
-      APP_NAME: ${APP_NAME:-BH Group PMS}
+      APP_NAME: ${APP_NAME:-BH Stays}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
@@ -65,7 +65,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     networks:
-      - bhgroup-network
+      - bhstays-network
 
   frontend:
     build:
@@ -76,7 +76,7 @@ services:
         NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
         NEXT_PUBLIC_COMPANY_EMAIL: ${NEXT_PUBLIC_COMPANY_EMAIL:-}
         NEXT_PUBLIC_COMPANY_PHONE: ${NEXT_PUBLIC_COMPANY_PHONE:-}
-    container_name: bhgroup-frontend
+    container_name: bhstays-frontend
     restart: unless-stopped
     depends_on:
       - backend
@@ -88,10 +88,10 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     networks:
-      - bhgroup-network
+      - bhstays-network
 
 networks:
-  bhgroup-network:
+  bhstays-network:
     driver: bridge
 
 volumes:

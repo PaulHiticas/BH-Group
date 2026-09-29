@@ -22,7 +22,7 @@ export default function PaymentLayout({
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Building2 className="size-3.5" />
           </span>
-          BH Group
+          BH Stays
         </Link>
         <ThemeToggle />
       </header>

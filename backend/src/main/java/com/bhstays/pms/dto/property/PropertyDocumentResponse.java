@@ -1,0 +1,16 @@
+package com.bhstays.pms.dto.property;
+
+import com.bhstays.pms.domain.PropertyDocumentType;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.UUID;
+
+public record PropertyDocumentResponse(
+        UUID id,
+        String fileName,
+        String url,
+        PropertyDocumentType documentType,
+        LocalDate expiresAt,
+        Instant createdAt
+) {
+}

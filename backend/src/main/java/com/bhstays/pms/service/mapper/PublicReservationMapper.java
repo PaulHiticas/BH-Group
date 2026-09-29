@@ -1,0 +1,31 @@
+package com.bhstays.pms.service.mapper;
+
+import com.bhstays.pms.dto.publicapi.PublicReservationResponse;
+import com.bhstays.pms.domain.Reservation;
+import org.springframework.stereotype.Component;
+
+@Component
+public class PublicReservationMapper {
+
+    public PublicReservationResponse toResponse(Reservation reservation) {
+        return new PublicReservationResponse(
+                reservation.getId(),
+                reservation.getProperty().getName(),
+                reservation.getProperty().getAddress().getCity(),
+                reservation.getGuestFirstName(),
+                reservation.getGuestLastName(),
+                reservation.getGuestEmail(),
+                reservation.getGuestPhone(),
+                reservation.getCheckInDate(),
+                reservation.getCheckOutDate(),
+                reservation.getNumberOfGuests(),
+                reservation.getStatus(),
+                reservation.getTotalAmount(),
+                reservation.getCurrency(),
+                reservation.getManagementToken(),
+                reservation.getProperty().isLateCheckoutEnabled(),
+                reservation.getProperty().getLateCheckoutTime(),
+                reservation.getProperty().getLateCheckoutFee()
+        );
+    }
+}

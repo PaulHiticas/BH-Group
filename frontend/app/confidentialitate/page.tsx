@@ -6,7 +6,7 @@ import { siteConfig } from "@/lib/site-config"
 
 export const metadata: Metadata = {
   title: "Politica de confidențialitate",
-  description: "Cum colectează, folosește și protejează BH Group datele tale personale.",
+  description: "Cum colectează, folosește și protejează BH Stays datele tale personale.",
 }
 
 export default function PrivacyPolicyPage() {
@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
           <section>
             <h2>1. Cine suntem</h2>
             <p>
-              BH Group administrează proprietăți pentru închiriere pe termen scurt și
+              BH Stays administrează proprietăți pentru închiriere pe termen scurt și
               operează acest site pentru a permite oaspeților să caute și să rezerve
               cazare, respectiv proprietarilor să solicite servicii de administrare.
               Suntem operator de date cu caracter personal conform Regulamentului (UE)

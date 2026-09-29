@@ -23,7 +23,7 @@ export function OwnerPropertiesView() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Proprietățile mele</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Proprietățile administrate de BH Group în numele tău.
+          Proprietățile administrate de BH Stays în numele tău.
         </p>
       </div>
 
@@ -36,7 +36,7 @@ export function OwnerPropertiesView() {
       ) : !data || data.content.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
           <p className="text-sm text-muted-foreground">
-            Nu ai încă nicio proprietate administrată de BH Group.
+            Nu ai încă nicio proprietate administrată de BH Stays.
           </p>
         </div>
       ) : (

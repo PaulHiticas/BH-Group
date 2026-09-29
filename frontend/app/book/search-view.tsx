@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataPagination } from "@/components/ui/data-pagination"
+import { DateRangePicker } from "@/components/booking/date-range-picker"
+import { GuestPicker } from "@/components/booking/guest-picker"
 import { PublicPropertyCard } from "@/components/booking/public-property-card"
 import { usePublicProperties } from "@/hooks/use-public-booking"
 import { ALL_FACILITIES, FACILITY_LABELS } from "@/lib/property-labels"
@@ -29,8 +31,21 @@ const LeafletMap = dynamic(() => import("@/components/map/leaflet-map"), {
 function SearchForm() {
   const initialParams = useSearchParams()
   const [search, setSearch] = useState(initialParams.get("search") ?? "")
+  // `guests` is still the single total the API filters on, and still starts
+  // undefined so an untouched search stays unfiltered exactly as before.
+  // adults/children only back the picker's display and come from the URL when
+  // the homepage bar put them there.
   const [guests, setGuests] = useState<number | undefined>(
     initialParams.get("guests") ? Number(initialParams.get("guests")) : undefined
+  )
+  const [adults, setAdults] = useState(() => {
+    const fromUrl = Number(initialParams.get("adults"))
+    if (fromUrl > 0) return fromUrl
+    const total = Number(initialParams.get("guests"))
+    return total > 0 ? total - Math.max(0, Number(initialParams.get("children")) || 0) : 2
+  })
+  const [children, setChildren] = useState(() =>
+    Math.max(0, Number(initialParams.get("children")) || 0)
   )
   const [checkIn, setCheckIn] = useState(initialParams.get("checkIn") ?? "")
   const [checkOut, setCheckOut] = useState(initialParams.get("checkOut") ?? "")
@@ -93,14 +108,17 @@ function SearchForm() {
         </p>
       </div>
 
-      <div className="mx-auto flex w-full max-w-3xl flex-wrap items-end gap-3 rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-        <div className="flex min-w-48 flex-1 flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Destinație</label>
+      {/* Segments in one bar on desktop, stacked full-width on phones. Dates
+          and guests are popovers, so opening either overlays the page instead
+          of pushing the results down. */}
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 rounded-2xl border border-border/60 bg-card p-3 shadow-sm sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+        <div className="flex min-w-0 flex-col gap-1.5 sm:min-w-48 sm:flex-1">
+          <span className="px-1 text-xs font-medium text-muted-foreground">Destinație</span>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Oraș sau nume proprietate"
-              className="pl-9"
+              className="h-11 rounded-xl pl-9"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value)
@@ -109,47 +127,44 @@ function SearchForm() {
             />
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Check-in</label>
-          <Input
-            type="date"
-            value={checkIn}
-            onChange={(e) => {
-              setCheckIn(e.target.value)
-              setPage(0)
-            }}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Check-out</label>
-          <Input
-            type="date"
-            value={checkOut}
-            onChange={(e) => {
-              setCheckOut(e.target.value)
-              setPage(0)
-            }}
-          />
-        </div>
-        <div className="flex w-24 flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">Oaspeți</label>
-          <Input
-            type="number"
-            min={1}
-            value={guests ?? ""}
-            onChange={(e) => {
-              setGuests(e.target.value ? Number(e.target.value) : undefined)
-              setPage(0)
-            }}
-          />
-        </div>
-        <Button type="button" onClick={() => setPage(0)}>
+
+        <DateRangePicker
+          label="Perioadă"
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onChange={(from, to) => {
+            setCheckIn(from)
+            setCheckOut(to)
+            setPage(0)
+          }}
+          className="sm:w-52"
+        />
+
+        <GuestPicker
+          label="Oaspeți"
+          adults={adults}
+          childrenCount={children}
+          onChange={(nextAdults, nextChildren) => {
+            setAdults(nextAdults)
+            setChildren(nextChildren)
+            setGuests(nextAdults + nextChildren)
+            setPage(0)
+          }}
+          className="sm:w-44"
+        />
+
+        <Button
+          type="button"
+          className="h-11 w-full gap-2 rounded-xl px-5 sm:w-auto"
+          onClick={() => setPage(0)}
+        >
+          <Search className="size-4" />
           Caută
         </Button>
         <Button
           type="button"
           variant="outline"
-          className="gap-2"
+          className="h-11 w-full gap-2 rounded-xl sm:w-auto"
           onClick={() => setShowFilters((prev) => !prev)}
         >
           <SlidersHorizontal className="size-4" />
@@ -233,7 +248,7 @@ function SearchForm() {
           ))}
         </div>
       ) : !data || data.content.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 py-16 text-center">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border/60 px-6 py-10 text-center sm:py-14">
           <p className="text-sm text-muted-foreground">
             Nu au fost găsite proprietăți disponibile pentru criteriile selectate.
           </p>

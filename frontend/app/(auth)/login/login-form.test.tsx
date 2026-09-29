@@ -49,12 +49,12 @@ describe("LoginForm", () => {
     const user = userEvent.setup()
     renderWithProviders(<LoginForm />)
 
-    await user.type(screen.getByLabelText("Email"), "admin@bhgroup.io")
+    await user.type(screen.getByLabelText("Email"), "admin@bhstays.ro")
     await user.type(screen.getByLabelText("Parolă"), "parola123")
     await user.click(screen.getByRole("button", { name: "Autentificare" }))
 
     expect(mutate).toHaveBeenCalledTimes(1)
-    expect(mutate).toHaveBeenCalledWith({ email: "admin@bhgroup.io", password: "parola123" })
+    expect(mutate).toHaveBeenCalledWith({ email: "admin@bhstays.ro", password: "parola123" })
   })
 
   it("disables the submit button while the login mutation is pending", () => {

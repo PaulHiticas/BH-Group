@@ -11,7 +11,7 @@ export function SiteFooter() {
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Building2 className="size-4" />
             </span>
-            BH Group
+            BH Stays
           </div>
           <p className="max-w-xs text-sm text-muted-foreground">
             Administrare premium de proprietăți pentru închirieri pe termen scurt, cu rezervare directă prin platforma noastră.
@@ -51,7 +51,7 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="flex flex-col items-center justify-between gap-3 border-t border-border/60 px-6 py-6 text-center text-xs text-muted-foreground sm:flex-row sm:px-10 sm:text-left">
-        <span>© {new Date().getFullYear()} BH Group. Toate drepturile rezervate.</span>
+        <span>© {new Date().getFullYear()} BH Stays. Toate drepturile rezervate.</span>
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
           <Link href="/termeni-si-conditii" className="text-muted-foreground/70 hover:text-foreground">
             Termeni și condiții

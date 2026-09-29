@@ -22,13 +22,13 @@ export default function BookLayout({
           <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Building2 className="size-3.5" />
           </span>
-          BH Group
+          BH Stays
         </Link>
         <ThemeToggle />
       </header>
       <main className="flex-1 px-6 py-8">{children}</main>
       <footer className="flex items-center justify-center gap-4 px-6 py-6 text-center text-xs text-muted-foreground">
-        <span>© {new Date().getFullYear()} BH Group. Toate drepturile rezervate.</span>
+        <span>© {new Date().getFullYear()} BH Stays. Toate drepturile rezervate.</span>
         <Link href="/login" className="text-muted-foreground/70 hover:text-foreground">
           Acces echipă
         </Link>

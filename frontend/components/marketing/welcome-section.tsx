@@ -14,14 +14,14 @@ export function WelcomeSection() {
         <Reveal className="relative aspect-[4/3] overflow-hidden rounded-3xl">
           <Image
             src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=80&auto=format&fit=crop"
-            alt="Apartament BH Group"
+            alt="Apartament BH Stays"
             fill
             sizes="(min-width: 1024px) 50vw, 100vw"
             className="kb-image object-cover"
           />
         </Reveal>
         <Reveal delay={0.1}>
-          <span className="text-sm font-medium text-primary">Bine ai venit la BH Group</span>
+          <span className="text-sm font-medium text-primary">Bine ai venit la BH Stays</span>
           <h2 className="mt-3 text-balance font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
             Locuiește ca un localnic, oriunde te oprești
           </h2>

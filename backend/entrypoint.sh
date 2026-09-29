@@ -7,7 +7,7 @@ set -e
 # container start, before dropping to the unprivileged app user.
 if [ -n "$UPLOAD_DIR" ]; then
   mkdir -p "$UPLOAD_DIR"
-  chown -R bhgroup:bhgroup "$UPLOAD_DIR"
+  chown -R bhstays:bhstays "$UPLOAD_DIR"
 fi
 
-exec su-exec bhgroup java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar app.jar
+exec su-exec bhstays java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -jar app.jar

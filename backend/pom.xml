@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.bhgroup</groupId>
+    <groupId>com.bhstays</groupId>
     <artifactId>pms-backend</artifactId>
     <version>0.1.0</version>
     <name>pms-backend</name>
-    <description>BH Group Property Management System - Backend API</description>
+    <description>BH Stays Property Management System - Backend API</description>
     <packaging>jar</packaging>
 
     <properties>

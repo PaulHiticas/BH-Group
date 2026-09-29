@@ -76,7 +76,7 @@ export function IcalSyncCard({
         <p className="mb-2 text-xs text-muted-foreground">
           {integrationMode === "CHANNEL_MANAGER"
             ? "Proprietatea este gestionată printr-un channel manager extern; sincronizarea iCal de mai jos este dezactivată."
-            : "Alege dacă disponibilitatea se gestionează manual din BH Group sau prin importul automat de calendare iCal."}
+            : "Alege dacă disponibilitatea se gestionează manual din BH Stays sau prin importul automat de calendare iCal."}
         </p>
         <Select
           value={icalActive ? "ICAL" : "MANUAL"}
@@ -97,10 +97,10 @@ export function IcalSyncCard({
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-medium">Exportă calendarul BH Group către Airbnb/Booking.com</p>
+        <p className="mb-2 text-sm font-medium">Exportă calendarul BH Stays către Airbnb/Booking.com</p>
         <p className="mb-2 text-xs text-muted-foreground">
           Adaugă acest link în setările &bdquo;Import calendar&rdquo; din Airbnb sau Booking.com, ca ei
-          să nu mai arate disponibile datele deja rezervate prin BH Group.
+          să nu mai arate disponibile datele deja rezervate prin BH Stays.
         </p>
         {exportUrl ? (
           <div className="flex gap-2">
@@ -129,7 +129,7 @@ export function IcalSyncCard({
         <p className="mb-2 text-sm font-medium">Importă calendare din Airbnb/Booking.com</p>
         <p className="mb-2 text-xs text-muted-foreground">
           Adaugă link-ul .ics de export din Airbnb/Booking.com aici — rezervările lor vor bloca automat
-          calendarul BH Group (sincronizare orară, sau apasă &bdquo;Sincronizează acum&rdquo;).
+          calendarul BH Stays (sincronizare orară, sau apasă &bdquo;Sincronizează acum&rdquo;).
           {!icalActive && " Comută modul de mai sus pe „Sincronizare iCal” pentru a activa importul."}
         </p>
 

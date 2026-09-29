@@ -8,14 +8,14 @@ CDN (`images.unsplash.com`) rather than downloaded and rehosted.
 [Unsplash License](https://unsplash.com/license), which permits commercial
 use, modification, and use without attribution, with two exceptions we don't
 run into here: compiling photos into a competing stock-photo service, and
-implying a person or brand shown in a photo endorses BH Group. No image
+implying a person or brand shown in a photo endorses BH Stays. No image
 below shows an identifiable person in a way that could read as an
 endorsement.
 
-These are **placeholder/stock imagery**, not photos of actual BH Group
+These are **placeholder/stock imagery**, not photos of actual BH Stays
 properties — none of the copy near them claims otherwise (see the Phase 1
 audit of public-facing copy). Before a real production launch, they should
-be replaced with actual photography of BH Group's own managed properties,
+be replaced with actual photography of BH Stays's own managed properties,
 at which point this file should be updated to reflect the new source and
 licensing (owned/commissioned photography, a model release if people are
 shown, etc.).
