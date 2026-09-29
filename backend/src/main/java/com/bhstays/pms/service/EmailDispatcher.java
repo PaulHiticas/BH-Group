@@ -39,6 +39,13 @@ class EmailDispatcher {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
             helper.setFrom(appProperties.getMail().getFrom());
+            // From is a no-reply on the signed domain; replies are steered to
+            // a mailbox that is actually read. Skipped when unconfigured so
+            // the header is never set to an empty value.
+            String replyTo = appProperties.getMail().getReplyTo();
+            if (replyTo != null && !replyTo.isBlank()) {
+                helper.setReplyTo(replyTo);
+            }
             helper.setTo(toEmail);
             helper.setSubject(subject);
             helper.setText(templateEngine.process(template, context), true);

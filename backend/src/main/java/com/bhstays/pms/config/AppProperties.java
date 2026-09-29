@@ -24,7 +24,14 @@ public class AppProperties {
     @Getter
     @Setter
     public static class Mail {
+        /** Envelope sender. Must be a sender the SMTP provider has verified. */
         private String from;
+        /**
+         * Where replies go. The From address is a no-reply on the
+         * DKIM-signed domain, which is what keeps mail out of spam, but a
+         * guest hitting Reply should still reach a mailbox someone reads.
+         */
+        private String replyTo;
     }
 
     @Getter
