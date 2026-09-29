@@ -41,6 +41,7 @@ services:
       MAIL_USERNAME: ${MAIL_USERNAME}
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_FROM: ${MAIL_FROM}
+      MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       APP_NAME: ${APP_NAME:-BH Stays}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}

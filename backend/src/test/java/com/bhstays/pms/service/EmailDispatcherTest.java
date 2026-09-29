@@ -1,5 +1,6 @@
 package com.bhstays.pms.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -45,6 +46,36 @@ class EmailDispatcherTest {
         emailDispatcher.dispatch("guest@example.com", "Subiect", "email/password-reset-email", new Context());
 
         verify(mailSender).send(any(MimeMessage.class));
+    }
+
+    /**
+     * From is the no-reply address on the DKIM-signed domain, so a guest who
+     * hits Reply has to be steered to a mailbox somebody actually reads.
+     */
+    @Test
+    void dispatch_setsReplyToTheConfiguredMailbox() throws Exception {
+        appProperties.getMail().setReplyTo("bhstaysinfo@gmail.com");
+        MimeMessage message = new MimeMessage((jakarta.mail.Session) null);
+        when(mailSender.createMimeMessage()).thenReturn(message);
+        when(templateEngine.process(anyString(), any(Context.class))).thenReturn("<html>ok</html>");
+
+        emailDispatcher.dispatch("guest@example.com", "Subiect", "email/password-reset-email", new Context());
+
+        assertThat(message.getFrom()[0].toString()).isEqualTo("no-reply@bhstays.ro");
+        assertThat(message.getReplyTo()[0].toString()).isEqualTo("bhstaysinfo@gmail.com");
+    }
+
+    @Test
+    void dispatch_leavesReplyToUnset_whenNotConfigured() throws Exception {
+        appProperties.getMail().setReplyTo(null);
+        MimeMessage message = new MimeMessage((jakarta.mail.Session) null);
+        when(mailSender.createMimeMessage()).thenReturn(message);
+        when(templateEngine.process(anyString(), any(Context.class))).thenReturn("<html>ok</html>");
+
+        emailDispatcher.dispatch("guest@example.com", "Subiect", "email/password-reset-email", new Context());
+
+        // With no Reply-To header, getReplyTo() falls back to the From address.
+        assertThat(message.getReplyTo()[0].toString()).isEqualTo("no-reply@bhstays.ro");
     }
 
     @Test
