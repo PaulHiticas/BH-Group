@@ -3,11 +3,14 @@ package com.bhstays.pms.controller;
 import com.bhstays.pms.common.exception.ResourceNotFoundException;
 import com.bhstays.pms.common.response.ApiResponse;
 import com.bhstays.pms.domain.Property;
+import com.bhstays.pms.dto.pricing.AiPricingRecommendationResponse;
 import com.bhstays.pms.dto.pricing.DynamicPriceBreakdownResponse;
 import com.bhstays.pms.dto.pricing.DynamicPricingConfigResponse;
 import com.bhstays.pms.dto.pricing.DynamicPricingConfigUpdateRequest;
 import com.bhstays.pms.repository.PropertyRepository;
+import com.bhstays.pms.security.SecurityUtils;
 import com.bhstays.pms.service.DynamicPricingConfigService;
+import com.bhstays.pms.service.PricingRecommendationService;
 import com.bhstays.pms.service.PricingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -35,6 +39,7 @@ public class DynamicPricingController {
 
     private final DynamicPricingConfigService dynamicPricingConfigService;
     private final PricingService pricingService;
+    private final PricingRecommendationService pricingRecommendationService;
     private final PropertyRepository propertyRepository;
 
     @GetMapping("/config")
@@ -49,6 +54,17 @@ public class DynamicPricingController {
             @PathVariable UUID propertyId, @Valid @RequestBody DynamicPricingConfigUpdateRequest request) {
         return ResponseEntity.ok(ApiResponse.success(
                 dynamicPricingConfigService.update(propertyId, request), "Dynamic pricing configuration updated"));
+    }
+
+    @PostMapping("/ai-recommendation")
+    @Operation(summary = "Ask the AI for a suggested dynamic pricing configuration (advisory, changes nothing)")
+    public ResponseEntity<ApiResponse<AiPricingRecommendationResponse>> aiRecommendation(
+            @PathVariable UUID propertyId) {
+        var principal = SecurityUtils.getCurrentPrincipal();
+        return ResponseEntity.ok(ApiResponse.success(pricingRecommendationService.recommend(
+                propertyId,
+                principal.map(p -> p.getId()).orElse(null),
+                principal.map(p -> p.getEmail()).orElse(null))));
     }
 
     @GetMapping("/breakdown")
