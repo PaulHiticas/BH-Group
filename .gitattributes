@@ -1,0 +1,22 @@
+# Line endings are normalised to LF inside the repository; what lands in the
+# working tree is then decided per pattern below.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# With core.autocrlf=true (the Windows default) and no attributes, git rewrites
+# every text file to CRLF on checkout - including shell scripts. A script whose
+# shebang ends in CR fails on Linux with a message that points nowhere useful:
+#
+#   exec /entrypoint.sh: no such file or directory
+#
+# The kernel is looking for the interpreter "/bin/sh\r", which does not exist.
+# backend/entrypoint.sh is copied straight into the runtime image and used as
+# its ENTRYPOINT, so a CRLF checkout breaks the container even though the blob
+# in git was always LF.
+
+# Let git detect text files and store them with LF.
+* text=auto
+
+# Shell scripts must keep LF in the working tree too, on every platform: they
+# are executed inside Linux containers regardless of where they were checked out.
+*.sh text eol=lf
