@@ -44,6 +44,10 @@ services:
       MAIL_REPLY_TO: ${MAIL_REPLY_TO:-}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       APP_NAME: ${APP_NAME:-BH Stays}
+      # Without this line the backend never sees the flag and falls back to
+      # false, so the refresh cookie ships without Secure even on HTTPS -
+      # setting REFRESH_COOKIE_SECURE=true in .env would silently do nothing.
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
