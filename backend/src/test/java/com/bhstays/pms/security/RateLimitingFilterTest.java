@@ -108,6 +108,33 @@ class RateLimitingFilterTest {
         }
     }
 
+    @Test
+    void capsAiPricingRecommendationsPerProperty() throws Exception {
+        String propertyA = "/api/v1/properties/11111111-1111-1111-1111-111111111111/pricing/ai-recommendation";
+        String propertyB = "/api/v1/properties/22222222-2222-2222-2222-222222222222/pricing/ai-recommendation";
+
+        for (int i = 0; i < 10; i++) {
+            assertThat(doPost(propertyA).getStatus()).isEqualTo(200);
+        }
+        assertThat(doPost(propertyA).getStatus()).isEqualTo(429);
+
+        // A different property has its own allowance - one being re-analysed
+        // must not lock the rest of the portfolio out.
+        assertThat(doPost(propertyB).getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void leavesOtherPropertyEndpointsAlone() throws Exception {
+        // The rule is anchored on the /pricing/ai-recommendation suffix, so the
+        // shared /api/v1/properties/ prefix must not throttle anything else.
+        for (int i = 0; i < 25; i++) {
+            assertThat(doPost("/api/v1/properties/11111111-1111-1111-1111-111111111111/photos")
+                    .getStatus()).isEqualTo(200);
+            assertThat(doPost("/api/v1/properties/11111111-1111-1111-1111-111111111111/pricing/config")
+                    .getStatus()).isEqualTo(200);
+        }
+    }
+
     private MockHttpServletResponse doPost(String uri) throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("POST", uri);
         MockHttpServletResponse response = new MockHttpServletResponse();
