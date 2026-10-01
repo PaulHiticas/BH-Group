@@ -2,25 +2,43 @@ package com.bhstays.pms.dto.pricing;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
- * A suggested dynamic-pricing configuration, with the numbers it was derived
- * from. Advisory only: nothing is written to the property's configuration by
- * asking for a recommendation - applying it is a separate, deliberate
- * {@code PUT /pricing/config} by the admin.
+ * A suggested dynamic-pricing configuration, with everything needed to judge
+ * it rather than just trust it: the metrics behind it, why the model landed
+ * there, and what it could not see.
+ *
+ * <p>Advisory only: asking for a recommendation writes nothing. Applying it
+ * stays a deliberate {@code PUT /pricing/config} by the admin.
  */
 public record AiPricingRecommendationResponse(
         UUID propertyId,
         String currency,
-        PricingSignals signals,
         RecommendedConfig recommendation,
-        String rationale,
+        Confidence confidence,
+        String summary,
+        List<String> reasons,
+        PricingMetrics metricsUsed,
+        List<String> warnings,
+        List<String> missingData,
         Instant generatedAt
 ) {
 
-    /** What the model was shown - returned so a recommendation can be judged, not just trusted. */
-    public record PricingSignals(
+    /**
+     * How much the numbers behind this are worth leaning on. Derived from the
+     * data actually available, not claimed by the model - the server knows
+     * how thin the history is, the model only knows what it was handed.
+     */
+    public enum Confidence {
+        LOW,
+        MEDIUM,
+        HIGH
+    }
+
+    /** What the model was shown. */
+    public record PricingMetrics(
             int windowDays,
             int bookedNights,
             int windowNights,

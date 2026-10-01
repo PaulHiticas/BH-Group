@@ -17,6 +17,7 @@ import com.bhstays.pms.domain.Property;
 import com.bhstays.pms.domain.Reservation;
 import com.bhstays.pms.domain.ReservationSource;
 import com.bhstays.pms.domain.ReservationStatus;
+import com.bhstays.pms.domain.SeasonalRate;
 import com.bhstays.pms.dto.pricing.AiPricingRecommendationResponse;
 import com.bhstays.pms.dto.pricing.DynamicPricingConfigResponse;
 import com.bhstays.pms.repository.LocalEventRepository;
@@ -149,10 +150,10 @@ class PricingRecommendationServiceTest {
 
         AiPricingRecommendationResponse result = service.recommend(propertyId, actorId, "admin@bhstays.ro");
 
-        assertThat(result.signals().bookedNights()).isEqualTo(4);
-        assertThat(result.signals().windowNights()).isEqualTo(30);
-        assertThat(result.signals().averageDailyRate()).isEqualByComparingTo("200.00");
-        assertThat(result.signals().occupancyRate()).isEqualByComparingTo("0.13");
+        assertThat(result.metricsUsed().bookedNights()).isEqualTo(4);
+        assertThat(result.metricsUsed().windowNights()).isEqualTo(30);
+        assertThat(result.metricsUsed().averageDailyRate()).isEqualByComparingTo("200.00");
+        assertThat(result.metricsUsed().occupancyRate()).isEqualByComparingTo("0.13");
         assertThat(result.currency()).isEqualTo("RON");
 
         // The query must be asked to exclude cancellations and no-shows.
@@ -239,6 +240,91 @@ class PricingRecommendationServiceTest {
                 .isInstanceOf(ApiException.class);
 
         verify(auditService, never()).recordForUserId(any(), any(), any(), anyString(), any(), any());
+    }
+
+    @Test
+    void recommend_passesThroughTheModelsSummaryReasonsAndWarnings() {
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any())).thenReturn(List.of());
+        stubClaude("""
+                {"enabled":false,"summary":"Ocupare zero, nu activăm încă.",
+                 "reasons":["Nicio rezervare în 30 de zile.","  ",null,"Tarif de bază peste piață."],
+                 "warnings":["Prețul minim poate scădea sub costuri."]}
+                """);
+
+        var result = service.recommend(propertyId, actorId, "admin@bhstays.ro");
+
+        assertThat(result.summary()).isEqualTo("Ocupare zero, nu activăm încă.");
+        // Blank and null entries are dropped rather than rendered as empty rows.
+        assertThat(result.reasons())
+                .containsExactly("Nicio rezervare în 30 de zile.", "Tarif de bază peste piață.");
+        assertThat(result.warnings()).contains("Prețul minim poate scădea sub costuri.");
+    }
+
+    /** Older prompts called the summary "rationale"; it must still surface. */
+    @Test
+    void recommend_fallsBackToRationale_whenSummaryIsAbsent() {
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any())).thenReturn(List.of());
+        stubClaude("{\"enabled\":false,\"rationale\":\"Prea puține date.\"}");
+
+        assertThat(service.recommend(propertyId, actorId, "admin@bhstays.ro").summary())
+                .isEqualTo("Prea puține date.");
+    }
+
+    @Test
+    void recommend_reportsLowConfidenceAndMissingData_whenNothingIsBooked() {
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any())).thenReturn(List.of());
+        stubClaude("{\"enabled\":false,\"summary\":\"x\",\"warnings\":[]}");
+
+        var result = service.recommend(propertyId, actorId, "admin@bhstays.ro");
+
+        assertThat(result.confidence()).isEqualTo(AiPricingRecommendationResponse.Confidence.LOW);
+        assertThat(result.missingData()).contains(
+                "Nicio noapte rezervată în fereastra analizată.",
+                "Nicio perioadă sezonieră configurată.",
+                "Niciun eveniment local viitor înregistrat.");
+        // The model said nothing was wrong; thin data is the server's to flag.
+        assertThat(result.warnings()).isNotEmpty();
+    }
+
+    @Test
+    void recommend_reportsHighConfidence_whenTheWindowIsWellBooked() {
+        LocalDate today = LocalDate.now();
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any()))
+                .thenReturn(List.of(reservation(today.plusDays(1), today.plusDays(13),
+                        ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "2400.00")));
+        when(seasonalRateRepository.findByPropertyIdOrderByStartDateAsc(propertyId))
+                .thenReturn(List.of(new SeasonalRate()));
+        stubClaude("{\"enabled\":true,\"minPrice\":150,\"maxPrice\":320,\"summary\":\"Cerere bună.\"}");
+
+        var result = service.recommend(propertyId, actorId, "admin@bhstays.ro");
+
+        assertThat(result.metricsUsed().bookedNights()).isEqualTo(12);
+        assertThat(result.confidence()).isEqualTo(AiPricingRecommendationResponse.Confidence.HIGH);
+    }
+
+    @Test
+    void recommend_reportsMediumConfidence_whenBookingsAreThinButReal() {
+        LocalDate today = LocalDate.now();
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any()))
+                .thenReturn(List.of(reservation(today.plusDays(1), today.plusDays(3),
+                        ReservationStatus.CONFIRMED, ReservationSource.DIRECT, "400.00")));
+        stubClaude("{\"enabled\":false,\"summary\":\"Semnal slab.\"}");
+
+        assertThat(service.recommend(propertyId, actorId, "admin@bhstays.ro").confidence())
+                .isEqualTo(AiPricingRecommendationResponse.Confidence.MEDIUM);
+    }
+
+    @Test
+    void recommend_exposesTheMetricsBehindTheSuggestion() {
+        when(reservationRepository.findCalendarEntries(any(), any(), any(), any())).thenReturn(List.of());
+        stubClaude("{\"enabled\":false,\"summary\":\"x\"}");
+
+        var metrics = service.recommend(propertyId, actorId, "admin@bhstays.ro").metricsUsed();
+
+        assertThat(metrics.windowDays()).isEqualTo(30);
+        assertThat(metrics.basePricePerNight()).isEqualByComparingTo("200.00");
+        assertThat(metrics.averageDailyRate()).isNull();
+        assertThat(metrics.occupancyRate()).isEqualByComparingTo("0.00");
     }
 
     @Test

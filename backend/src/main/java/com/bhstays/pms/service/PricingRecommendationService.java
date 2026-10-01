@@ -68,7 +68,9 @@ public class PricingRecommendationService {
               "occupancyMultiplierMax": number,
               "leadTimeDays": integer,
               "leadTimeMultiplier": number,
-              "rationale": "two or three sentences, in Romanian, explaining the call"
+              "summary": "one or two sentences, in Romanian, stating the call",
+              "reasons": ["two to four short sentences, in Romanian, one reason each"],
+              "warnings": ["in Romanian, what could go wrong if this is applied; [] if nothing"]
             }
 
             Rules:
@@ -81,6 +83,9 @@ public class PricingRecommendationService {
             - Multipliers must stay between 0.50 and 3.00.
             - Be conservative when there is little booking history: narrow multipliers,
               and leave "enabled" false if the signals are too thin to price on.
+            - An administrator reads summary, reasons and warnings before deciding
+              whether to apply any of this, so tie them to the actual numbers you
+              were given rather than writing generic advice.
             """;
 
     private final PropertyRepository propertyRepository;
@@ -114,7 +119,16 @@ public class PricingRecommendationService {
         JsonNode answer = askClaude(prompt, propertyId);
 
         AiPricingRecommendationResponse.RecommendedConfig recommendation = toRecommendation(answer, signals);
-        String rationale = answer.path("rationale").asText("");
+
+        List<String> missingData = missingData(property, signals);
+        AiPricingRecommendationResponse.Confidence confidence = confidence(signals, missingData);
+        List<String> warnings = new java.util.ArrayList<>(strings(answer, "warnings"));
+        if (confidence == AiPricingRecommendationResponse.Confidence.LOW) {
+            // The model can only warn about what it was shown; that the history
+            // itself is too thin to price on is ours to say.
+            warnings.add("Datele sunt prea puține pentru o recomandare solidă - "
+                    + "tratează valorile ca punct de plecare, nu ca rezultat.");
+        }
 
         auditService.recordForUserId(
                 AuditAction.PRICING_AI_RECOMMENDATION_REQUESTED, actorId, actorEmail,
@@ -127,14 +141,90 @@ public class PricingRecommendationService {
         return new AiPricingRecommendationResponse(
                 propertyId,
                 signals.currency(),
-                new AiPricingRecommendationResponse.PricingSignals(
+                recommendation,
+                confidence,
+                // A model that skips "summary" still owes an explanation; older
+                // answers called it "rationale", so accept either.
+                text(answer, "summary", text(answer, "rationale", "")),
+                strings(answer, "reasons"),
+                new AiPricingRecommendationResponse.PricingMetrics(
                         windowDays, signals.bookedNights(), signals.windowNights(),
                         signals.occupancyRate(), signals.averageDailyRate(),
                         property.getBasePricePerNight(),
                         signals.seasonalRates(), signals.upcomingEvents()),
-                recommendation,
-                rationale,
+                List.copyOf(warnings),
+                missingData,
                 Instant.now());
+    }
+
+    /**
+     * Inputs that simply were not there. Kept apart from the model's own
+     * warnings because this is fact rather than judgement: an admin weighing a
+     * recommendation needs to know which signals were absent, not merely that
+     * the model felt unsure.
+     */
+    private List<String> missingData(Property property, PricingSignalData signals) {
+        List<String> missing = new java.util.ArrayList<>();
+        if (property.getBasePricePerNight() == null) {
+            missing.add("Tariful de bază pe noapte nu este setat pentru proprietate.");
+        }
+        if (signals.bookedNights() == 0) {
+            missing.add("Nicio noapte rezervată în fereastra analizată.");
+        } else if (signals.averageDailyRate() == null) {
+            missing.add("Tarif mediu realizat indisponibil (rezervări fără valoare totală).");
+        }
+        if (signals.seasonalRates() == 0) {
+            missing.add("Nicio perioadă sezonieră configurată.");
+        }
+        if (signals.upcomingEvents() == 0) {
+            missing.add("Niciun eveniment local viitor înregistrat.");
+        }
+        return List.copyOf(missing);
+    }
+
+    /**
+     * How much real demand the recommendation rests on - deliberately computed
+     * here rather than asked of the model, which would only be reporting how
+     * confident it sounds.
+     */
+    private AiPricingRecommendationResponse.Confidence confidence(
+            PricingSignalData signals, List<String> missingData) {
+
+        if (signals.bookedNights() == 0 || signals.averageDailyRate() == null) {
+            return AiPricingRecommendationResponse.Confidence.LOW;
+        }
+        // A quarter of the window sold, and at least a handful of nights, is
+        // enough of a pattern to price against.
+        boolean enoughHistory = signals.bookedNights() >= Math.max(5, signals.windowNights() / 4);
+        return enoughHistory && missingData.size() <= 1
+                ? AiPricingRecommendationResponse.Confidence.HIGH
+                : AiPricingRecommendationResponse.Confidence.MEDIUM;
+    }
+
+    /** Reads a JSON string array, dropping blanks; anything else yields empty. */
+    private List<String> strings(JsonNode node, String field) {
+        JsonNode array = node.path(field);
+        if (!array.isArray()) {
+            return List.of();
+        }
+        List<String> values = new java.util.ArrayList<>();
+        for (JsonNode item : array) {
+            // A JSON null stringifies to the literal "null", which would read
+            // as a bullet point in the UI.
+            if (item == null || item.isNull()) {
+                continue;
+            }
+            String value = item.asText("").trim();
+            if (!value.isEmpty()) {
+                values.add(value);
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private String text(JsonNode node, String field, String fallback) {
+        String value = node.path(field).asText("").trim();
+        return value.isEmpty() ? fallback : value;
     }
 
     /**

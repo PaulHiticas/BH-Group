@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client"
+import { ApiError } from "@/lib/api/types"
 
 export interface DynamicPricingConfigResponse {
   propertyId: string
@@ -21,6 +22,72 @@ export interface DynamicPricingConfigPayload {
   occupancyMultiplierMax: number
   leadTimeDays: number
   leadTimeMultiplier: number
+}
+
+/** How much real booking history the recommendation rests on. */
+export type AiPricingConfidence = "LOW" | "MEDIUM" | "HIGH"
+
+/**
+ * Same shape as {@link DynamicPricingConfigPayload} on purpose: an accepted
+ * recommendation is applied by sending it straight to the update endpoint.
+ */
+export interface AiRecommendedPricingConfig {
+  enabled: boolean
+  minPrice: number | null
+  maxPrice: number | null
+  occupancyWindowDays: number
+  occupancyMultiplierMin: number
+  occupancyMultiplierMax: number
+  leadTimeDays: number
+  leadTimeMultiplier: number
+}
+
+/** The numbers the recommendation was computed from. */
+export interface AiPricingMetrics {
+  windowDays: number
+  bookedNights: number
+  windowNights: number
+  /** Booked share of the window, 0–1. */
+  occupancyRate: number
+  averageDailyRate: number | null
+  basePricePerNight: number | null
+  seasonalRatesConfigured: number
+  upcomingLocalEvents: number
+}
+
+export interface AiPricingRecommendationResponse {
+  propertyId: string
+  currency: string
+  recommendation: AiRecommendedPricingConfig
+  confidence: AiPricingConfidence
+  summary: string
+  reasons: string[]
+  metricsUsed: AiPricingMetrics
+  warnings: string[]
+  missingData: string[]
+  generatedAt: string
+}
+
+/** Thrown when a recommendation comes back addressed to another property. */
+export const AI_RECOMMENDATION_PROPERTY_MISMATCH = "AI_RECOMMENDATION_PROPERTY_MISMATCH"
+
+/**
+ * Romanian message for a failed recommendation. Lives here rather than in the
+ * hook so the toast and the inline error on the form say the same thing.
+ */
+export function aiRecommendationErrorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    // 503 is how the backend reports that the model failed or answered
+    // something it could not parse - there is nothing to retry differently.
+    if (error.status === 503) return "Recomandarea AI nu este disponibilă acum"
+    if (error.status === 403) return "Nu ai permisiunea de a genera recomandări de preț"
+    if (error.status === 404) return "Proprietatea nu a fost găsită"
+    return error.message
+  }
+  if (error instanceof Error && error.message === AI_RECOMMENDATION_PROPERTY_MISMATCH) {
+    return "Recomandarea primită era pentru altă proprietate și a fost ignorată"
+  }
+  return "Generarea recomandării AI a eșuat"
 }
 
 export interface LocalEventResponse {
@@ -95,6 +162,13 @@ export const pricingApi = {
 
   updateConfig: (propertyId: string, payload: DynamicPricingConfigPayload) =>
     apiClient.put<DynamicPricingConfigResponse>(`/properties/${propertyId}/pricing/config`, payload),
+
+  // Advisory: this changes nothing server-side. Applying the suggestion is
+  // still a separate updateConfig call the admin has to trigger.
+  getAiRecommendation: (propertyId: string) =>
+    apiClient.post<AiPricingRecommendationResponse>(
+      `/properties/${propertyId}/pricing/ai-recommendation`
+    ),
 
   getBreakdown: (propertyId: string, params: BreakdownParams) =>
     apiClient.get<DynamicPriceBreakdownResponse>(
