@@ -100,6 +100,20 @@ fi
 docker compose --env-file .env.production -f compose.production.yml config --quiet
 ```
 
+#### AI pricing pénznem- és árkorlátok
+
+Az AI árajánlás jelenleg kizárólag RON pénznemre engedélyezett. A kötelező,
+nem titkos korlátokat a `PRICING_AI_ABSOLUTE_MIN_RON`,
+`PRICING_AI_ABSOLUTE_MAX_RON`, `PRICING_AI_MIN_BASE_RATIO` és
+`PRICING_AI_MAX_BASE_RATIO` változók adják. Ismeretlen vagy vegyes pénznemre a
+backend kontrollált `422` választ ad, és nem tölti ki az űrlapot.
+
+EUR vagy más pénznem későbbi engedélyezéséhez külön, pénznemhez kötött abszolút
+minimumot és maximumot kell hozzáadni az `AppProperties.PricingAi` osztályhoz,
+az environment template-ekhez és mindkét Compose fájlhoz, majd a backend
+validátorában explicit pénznem-policy mappinget és határérték-teszteket kell
+felvenni. Automatikus devizakonverzió vagy a RON limitek újrahasználata tilos.
+
 ### 3. Build, migráció és indítás
 
 ```bash

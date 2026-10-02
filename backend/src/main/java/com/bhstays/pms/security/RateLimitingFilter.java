@@ -28,7 +28,19 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class RateLimitingFilter extends OncePerRequestFilter {
 
-    private record RateLimitRule(String method, String pathPrefix, int maxRequests, long windowMillis) {
+    /**
+     * {@code pathSuffix} is for routes whose variable part sits in the middle
+     * (".../properties/{id}/pricing/..."), where a prefix alone would match far
+     * more than intended. {@code perResource} keys the bucket on the full URI
+     * rather than just the prefix, so one property's traffic cannot exhaust
+     * another's allowance.
+     */
+    private record RateLimitRule(String method, String pathPrefix, int maxRequests, long windowMillis,
+                                  String pathSuffix, boolean perResource) {
+
+        RateLimitRule(String method, String pathPrefix, int maxRequests, long windowMillis) {
+            this(method, pathPrefix, maxRequests, windowMillis, null, false);
+        }
     }
 
     private record Window(AtomicInteger count, long windowStart) {
@@ -63,7 +75,15 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             // event would leave a paid booking unconfirmed. Well above any
             // realistic delivery rate here; a throttled delivery is retried by
             // Stripe anyway, and unsigned payloads are rejected regardless.
-            new RateLimitRule("POST", "/api/v1/public/payments/webhook", 120, 60 * 1000L)
+            new RateLimitRule("POST", "/api/v1/public/payments/webhook", 120, 60 * 1000L),
+            // Each AI pricing recommendation is a paid Anthropic call, so it is
+            // capped per property rather than per endpoint - one property being
+            // re-analysed must not lock the others out. This filter runs before
+            // authentication (see SecurityConfig), so the caller half of the key
+            // is the client IP in practice; it upgrades to the user id by itself
+            // if the filter order ever changes.
+            new RateLimitRule("POST", "/api/v1/properties/", 10, 10 * 60 * 1000L,
+                    "/pricing/ai-recommendation", true)
     );
 
     private final Map<String, Window> windows = new ConcurrentHashMap<>();
@@ -85,7 +105,7 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             return;
         }
 
-        String key = rule.pathPrefix() + "|" + clientIp(request);
+        String key = (rule.perResource() ? request.getRequestURI() : rule.pathPrefix()) + "|" + caller(request);
         long now = System.currentTimeMillis();
 
         Window window = windows.compute(key, (k, existing) -> {
@@ -108,11 +128,23 @@ public class RateLimitingFilter extends OncePerRequestFilter {
     private RateLimitRule matchRule(HttpServletRequest request) {
         for (RateLimitRule rule : RULES) {
             if (rule.method().equalsIgnoreCase(request.getMethod())
-                    && request.getRequestURI().startsWith(rule.pathPrefix())) {
+                    && request.getRequestURI().startsWith(rule.pathPrefix())
+                    && (rule.pathSuffix() == null || request.getRequestURI().endsWith(rule.pathSuffix()))) {
                 return rule;
             }
         }
         return null;
+    }
+
+    /**
+     * Who the allowance belongs to: the authenticated user when the security
+     * context is already populated, otherwise the client IP. This filter
+     * currently runs ahead of authentication, so it is the IP today.
+     */
+    private String caller(HttpServletRequest request) {
+        return com.bhstays.pms.security.SecurityUtils.getCurrentPrincipal()
+                .map(principal -> "user:" + principal.getId())
+                .orElseGet(() -> "ip:" + clientIp(request));
     }
 
     private String clientIp(HttpServletRequest request) {

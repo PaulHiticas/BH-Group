@@ -4,6 +4,8 @@ import { useMemo } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
+  AI_RECOMMENDATION_PROPERTY_MISMATCH,
+  aiRecommendationErrorMessage,
   pricingApi,
   type BreakdownParams,
   type DynamicPricingConfigPayload,
@@ -36,6 +38,28 @@ export function useUpdatePricingConfig(propertyId: string) {
     },
     onError: (error) => {
       toast.error(errorMessage(error, "Salvarea configurației a eșuat"))
+    },
+  })
+}
+
+/**
+ * Asks the AI for a suggested pricing configuration. Advisory only: nothing is
+ * persisted, so there is no cache to invalidate - the caller decides whether to
+ * put the numbers into the form, and saving stays the existing update call.
+ */
+export function useAiPricingRecommendation(propertyId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const response = await pricingApi.getAiRecommendation(propertyId)
+      // The answer fills in a form, so a slow response for one property must
+      // never be accepted while another one is on screen.
+      if (response.propertyId !== propertyId) {
+        throw new Error(AI_RECOMMENDATION_PROPERTY_MISMATCH)
+      }
+      return response
+    },
+    onError: (error) => {
+      toast.error(aiRecommendationErrorMessage(error))
     },
   })
 }

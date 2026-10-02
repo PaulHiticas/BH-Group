@@ -1,5 +1,6 @@
 package com.bhstays.pms.config;
 
+import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -20,11 +21,19 @@ public class AppProperties {
     private Contact contact = new Contact();
     private Assistant assistant = new Assistant();
     private Stripe stripe = new Stripe();
+    private PricingAi pricingAi = new PricingAi();
 
     @Getter
     @Setter
     public static class Mail {
+        /** Envelope sender. Must be a sender the SMTP provider has verified. */
         private String from;
+        /**
+         * Where replies go. The From address is a no-reply on the
+         * DKIM-signed domain, which is what keeps mail out of spam, but a
+         * guest hitting Reply should still reach a mailbox someone reads.
+         */
+        private String replyTo;
     }
 
     @Getter
@@ -77,6 +86,24 @@ public class AppProperties {
         private int maxHistoryMessages;
         private long timeoutMs;
         private int retentionDays;
+    }
+
+    /**
+     * The AI pricing recommender. It calls the same Anthropic account as the
+     * assistant (one API key, one base URL), but a pricing analysis is a
+     * longer, heavier single request than a chat turn, so the model, token
+     * ceiling and timeout are tuned separately.
+     */
+    @Getter
+    @Setter
+    public static class PricingAi {
+        private String model;
+        private int maxTokens;
+        private long timeoutMs;
+        private BigDecimal absoluteMinRon;
+        private BigDecimal absoluteMaxRon;
+        private BigDecimal minBaseRatio;
+        private BigDecimal maxBaseRatio;
     }
 
     /**

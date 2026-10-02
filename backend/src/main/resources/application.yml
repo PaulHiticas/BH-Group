@@ -80,7 +80,8 @@ app:
   base-url: ${APP_BASE_URL:http://localhost:3000}
   api-base-url: ${APP_API_BASE_URL:http://localhost:8080/api/v1}
   mail:
-    from: ${MAIL_FROM:bhstaysinfo@gmail.com}
+    from: ${MAIL_FROM:no-reply@bhstays.ro}
+    reply-to: ${MAIL_REPLY_TO:bhstaysinfo@gmail.com}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
   jwt:
@@ -109,6 +110,17 @@ app:
     max-history-messages: ${ANTHROPIC_MAX_HISTORY_MESSAGES:16}
     timeout-ms: ${ANTHROPIC_TIMEOUT_MS:15000}
     retention-days: ${ASSISTANT_CHAT_RETENTION_DAYS:90}
+  # Shares the assistant's Anthropic key and base URL; only the model, token
+  # ceiling and timeout differ, because one pricing analysis is a bigger
+  # single call than a chat turn.
+  pricing-ai:
+    model: ${PRICING_AI_MODEL:claude-sonnet-5}
+    max-tokens: ${PRICING_AI_MAX_TOKENS:1200}
+    timeout-ms: ${PRICING_AI_TIMEOUT_MS:45000}
+    absolute-min-ron: ${PRICING_AI_ABSOLUTE_MIN_RON:50}
+    absolute-max-ron: ${PRICING_AI_ABSOLUTE_MAX_RON:5000}
+    min-base-ratio: ${PRICING_AI_MIN_BASE_RATIO:0.50}
+    max-base-ratio: ${PRICING_AI_MAX_BASE_RATIO:3.00}
   stripe:
     # Empty by default: no keys, no STRIPE gateway bean, card payments off.
     secret-key: ${STRIPE_SECRET_KEY:}

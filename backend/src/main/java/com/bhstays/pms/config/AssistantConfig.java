@@ -17,8 +17,21 @@ public class AssistantConfig {
     @Bean
     public RestClient anthropicRestClient() {
         AppProperties.Assistant assistant = appProperties.getAssistant();
-        Duration timeout = Duration.ofMillis(assistant.getTimeoutMs());
+        return anthropicClient(Duration.ofMillis(assistant.getTimeoutMs()));
+    }
 
+    /**
+     * Same Anthropic endpoint and credentials as the assistant's client, but
+     * its own timeout: a pricing analysis is one large request that needs
+     * longer than a chat turn, and sharing a client would force both to the
+     * same ceiling. Injected by bean name, so the assistant keeps its own.
+     */
+    @Bean
+    public RestClient pricingAiRestClient() {
+        return anthropicClient(Duration.ofMillis(appProperties.getPricingAi().getTimeoutMs()));
+    }
+
+    private RestClient anthropicClient(Duration timeout) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(timeout)
                 .build();
@@ -27,7 +40,9 @@ public class AssistantConfig {
         requestFactory.setReadTimeout(timeout);
 
         return RestClient.builder()
-                .baseUrl(assistant.getBaseUrl())
+                // The API key stays on the assistant config: one Anthropic
+                // account, one key, whichever feature is calling.
+                .baseUrl(appProperties.getAssistant().getBaseUrl())
                 .requestFactory(requestFactory)
                 .defaultHeader("anthropic-version", "2023-06-01")
                 .build();
