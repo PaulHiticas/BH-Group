@@ -31,6 +31,16 @@ COPY --from=build /app/public ./public
 COPY --from=build --chown=bhstays:bhstays /app/.next/standalone ./
 COPY --from=build --chown=bhstays:bhstays /app/.next/static ./.next/static
 
+# Next 15 pins a vulnerable PostCSS release for its build pipeline. CSS is
+# already compiled in the build stage, so keep that build-only package out of
+# the production filesystem while the compatible Next 15 line remains pinned.
+# The container starts with `node server.js`; npm/npx are build tooling and
+# must not carry their dependency tree into production either.
+RUN rm -rf /app/node_modules/next/node_modules/postcss \
+    /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
+
 USER bhstays
 EXPOSE 3000
 ENV PORT=3000
