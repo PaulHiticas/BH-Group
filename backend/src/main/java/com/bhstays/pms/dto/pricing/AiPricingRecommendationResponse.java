@@ -19,7 +19,7 @@ public record AiPricingRecommendationResponse(
         RecommendedConfig recommendation,
         Confidence confidence,
         String summary,
-        List<String> reasons,
+        List<PricingReason> reasons,
         PricingMetrics metricsUsed,
         List<String> warnings,
         List<String> missingData,
@@ -35,6 +35,30 @@ public record AiPricingRecommendationResponse(
         LOW,
         MEDIUM,
         HIGH
+    }
+
+    /** Closed vocabulary accepted from the model. Every returned code is re-validated against server data. */
+    public enum ReasonCode {
+        LOW_FUTURE_OCCUPANCY,
+        HIGH_FUTURE_OCCUPANCY,
+        BELOW_HISTORICAL_OCCUPANCY,
+        ABOVE_HISTORICAL_OCCUPANCY,
+        SHORT_LEAD_TIME,
+        LONG_LEAD_TIME,
+        LOCAL_EVENT_CONFIGURED,
+        INSUFFICIENT_HISTORY,
+        WEEKEND_DEMAND_PATTERN
+    }
+
+    /** Romanian copy and the exact evidence used to justify one accepted reason code. */
+    public record PricingReason(
+            ReasonCode code,
+            String message,
+            String indicator,
+            BigDecimal currentValue,
+            BigDecimal comparisonValue,
+            int periodDays
+    ) {
     }
 
     /** What the model was shown. */

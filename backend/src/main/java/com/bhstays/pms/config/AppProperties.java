@@ -1,5 +1,6 @@
 package com.bhstays.pms.config;
 
+import java.math.BigDecimal;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -99,6 +100,10 @@ public class AppProperties {
         private String model;
         private int maxTokens;
         private long timeoutMs;
+        private BigDecimal absoluteMinRon;
+        private BigDecimal absoluteMaxRon;
+        private BigDecimal minBaseRatio;
+        private BigDecimal maxBaseRatio;
     }
 
     /**

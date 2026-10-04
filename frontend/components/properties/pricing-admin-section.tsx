@@ -262,7 +262,14 @@ function AiRecommendationCard({
           <h5 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Motive</h5>
           <ul className="list-disc pl-5 text-sm">
             {recommendation.reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
+              <li key={reason.code}>
+                <span>{reason.message}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {reason.indicator}: {reason.currentValue}
+                  {reason.comparisonValue != null ? ` · referință ${reason.comparisonValue}` : ""}
+                  {` · ${reason.periodDays} zile`}
+                </span>
+              </li>
             ))}
           </ul>
         </div>
