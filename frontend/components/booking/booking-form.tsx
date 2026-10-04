@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { CheckCircle2, Pencil, XCircle } from "lucide-react"
+import { DateRangePicker } from "@/components/booking/date-range-picker"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -126,34 +127,35 @@ export function BookingForm({
                 </Link>
               </div>
             ) : (
-              <>
-                <FormField
-                  control={form.control}
-                  name="checkInDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Check-in</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="checkOutDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Check-out</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
+              <FormField
+                control={form.control}
+                name="checkInDate"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Perioadă</FormLabel>
+                    <FormControl>
+                      <DateRangePicker
+                        checkIn={checkInDate}
+                        checkOut={checkOutDate}
+                        onChange={(from, to) => {
+                          // Re-validate only once a submit has surfaced errors,
+                          // so picking dates clears them without nagging earlier.
+                          const options = {
+                            shouldDirty: true,
+                            shouldTouch: true,
+                            shouldValidate: form.formState.isSubmitted,
+                          }
+                          form.setValue("checkInDate", from, options)
+                          form.setValue("checkOutDate", to, options)
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage>
+                      {form.formState.errors.checkOutDate?.message}
+                    </FormMessage>
+                  </FormItem>
+                )}
+              />
             )}
             <FormField
               control={form.control}
