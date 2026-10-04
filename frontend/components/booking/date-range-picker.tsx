@@ -31,6 +31,10 @@ interface DateRangePickerProps {
   className?: string
   /** Renders the label above the trigger, matching the other search segments. */
   label?: string
+  /** Forwarded to the trigger so a form label and error message can point at it. */
+  id?: string
+  "aria-invalid"?: boolean
+  "aria-describedby"?: string
 }
 
 export function DateRangePicker({
@@ -39,6 +43,9 @@ export function DateRangePicker({
   onChange,
   className,
   label,
+  id,
+  "aria-invalid": ariaInvalid,
+  "aria-describedby": ariaDescribedBy,
 }: DateRangePickerProps) {
   const [open, setOpen] = useState(false)
   const [twoMonths, setTwoMonths] = useState(false)
@@ -104,8 +111,11 @@ export function DateRangePicker({
       )}
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger
+          id={id}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
           className={cn(
-            "flex h-11 w-full items-center gap-2 rounded-xl border border-input bg-background px-3 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-popup-open:bg-muted/50"
+            "flex h-11 w-full items-center gap-2 rounded-xl border border-input bg-background px-3 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive data-popup-open:bg-muted/50"
           )}
         >
           <CalendarDays className="size-4 shrink-0 text-muted-foreground" />
