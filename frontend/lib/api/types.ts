@@ -612,6 +612,10 @@ export interface PublicReservationResponse {
   lateCheckoutAvailable: boolean
   lateCheckoutTime: string | null
   lateCheckoutFee: number | null
+  /** Until when an unpaid booking keeps its dates; null once confirmed. */
+  holdExpiresAt: string | null
+  /** Latest online card payment's status, or null if none was started. */
+  cardPaymentStatus: PaymentStatus | null
 }
 
 // ---------------------------------------------------------------------------

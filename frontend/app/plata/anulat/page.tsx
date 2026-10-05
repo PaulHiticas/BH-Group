@@ -18,6 +18,8 @@ function PaymentCancelledInner() {
   const token = useSearchParams().get("token") ?? ""
   const { data: reservation, isLoading } = useBookingByToken(token)
   const startCheckout = useStartCardCheckout()
+  // Disabled from the first click until the browser has left for Stripe.
+  const checkoutBusy = startCheckout.isPending || startCheckout.isSuccess
 
   const stillPayable = reservation?.status === "PENDING"
 
@@ -41,9 +43,9 @@ function PaymentCancelledInner() {
       )}
 
       {stillPayable && token && (
-        <Button className="w-full" size="lg" disabled={startCheckout.isPending} onClick={() => startCheckout.mutate(token)}>
+        <Button className="w-full" size="lg" disabled={checkoutBusy} onClick={() => startCheckout.mutate(token)}>
           <CreditCard className="size-4" />
-          {startCheckout.isPending ? "Se deschide plata..." : "Reia plata cu cardul"}
+          {checkoutBusy ? "Se deschide plata..." : "Reia plata cu cardul"}
         </Button>
       )}
 

@@ -40,6 +40,10 @@ interface BookingFormProps {
   defaultCheckOut?: string
   defaultGuests?: number
   onSuccess: (reservation: PublicReservationResponse) => void
+  /** Overrides the submit label - e.g. "Continuă către plată" when card payment follows. */
+  submitLabel?: string
+  /** Keeps the form locked while the parent finishes what the submission started (e.g. opening checkout). */
+  busy?: boolean
 }
 
 function nights(checkIn: string, checkOut: string) {
@@ -54,6 +58,8 @@ export function BookingForm({
   defaultCheckOut,
   defaultGuests,
   onSuccess,
+  submitLabel = "Trimite cererea de rezervare",
+  busy = false,
 }: BookingFormProps) {
   const createBooking = useCreatePublicBooking()
   // Stable for the lifetime of this form instance: retries of the same
@@ -332,8 +338,9 @@ export function BookingForm({
           </Link>
           .
         </p>
-        <Button type="submit" size="lg" disabled={createBooking.isPending}>
-          {createBooking.isPending ? "Se trimite..." : "Trimite cererea de rezervare"}
+        {/* Stays disabled after success too: the page is moving on (or to Stripe), so a second click must not resubmit. */}
+        <Button type="submit" size="lg" disabled={createBooking.isPending || createBooking.isSuccess || busy}>
+          {createBooking.isPending || busy ? "Se trimite..." : submitLabel}
         </Button>
       </form>
     </Form>
