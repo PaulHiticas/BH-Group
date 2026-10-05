@@ -32,8 +32,8 @@ function PaymentCancelledInner() {
         <Skeleton className="h-5 w-72" />
       ) : stillPayable ? (
         <p className="text-sm text-muted-foreground">
-          Nu ți-am debitat nimic. Ținem perioada rezervată încă puțin — poți relua plata acum, sau
-          ne poți scrie din pagina rezervării dacă preferi transferul bancar.
+          Nu ți-am debitat nimic. Ținem perioada rezervată încă puțin — poți relua plata cu cardul
+          acum. Rezervarea se confirmă automat imediat ce plata este confirmată.
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">

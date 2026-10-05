@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { useCreatePublicBooking, usePublicAvailability, usePublicQuote } from "@/hooks/use-public-booking"
 import type { PublicBookingPayload } from "@/lib/api/public"
-import type { PublicPropertyResponse, PublicReservationResponse } from "@/lib/api/types"
+import type { PublicBookingCheckoutResponse, PublicPropertyResponse } from "@/lib/api/types"
 
 const bookingSchema = z.object({
   guestFirstName: z.string().min(1, "Prenumele este obligatoriu"),
@@ -39,8 +39,9 @@ interface BookingFormProps {
   defaultCheckIn?: string
   defaultCheckOut?: string
   defaultGuests?: number
-  onSuccess: (reservation: PublicReservationResponse) => void
-  /** Overrides the submit label - e.g. "Continuă către plată" when card payment follows. */
+  /** Receives the held booking and the Stripe Checkout URL to send the guest to. */
+  onSuccess: (booking: PublicBookingCheckoutResponse) => void
+  /** Overrides the submit button label. */
   submitLabel?: string
   /** Keeps the form locked while the parent finishes what the submission started (e.g. opening checkout). */
   busy?: boolean
@@ -58,7 +59,7 @@ export function BookingForm({
   defaultCheckOut,
   defaultGuests,
   onSuccess,
-  submitLabel = "Trimite cererea de rezervare",
+  submitLabel = "Continuă către plată",
   busy = false,
 }: BookingFormProps) {
   const createBooking = useCreatePublicBooking()
@@ -103,7 +104,12 @@ export function BookingForm({
   const editSelectionHref = `/book/${property.id}?checkIn=${checkInDate}&checkOut=${checkOutDate}&guests=${numberOfGuests}`
 
   function handleSubmit(values: z.infer<typeof bookingSchema>) {
-    const payload: PublicBookingPayload = { ...values, propertyId: property.id, idempotencyKey }
+    const payload: PublicBookingPayload = {
+      ...values,
+      propertyId: property.id,
+      idempotencyKey,
+      paymentMethod: "ONLINE_CARD",
+    }
     createBooking.mutate(payload, { onSuccess })
   }
 
@@ -328,7 +334,7 @@ export function BookingForm({
         </Card>
 
         <p className="text-xs text-muted-foreground">
-          Prin trimiterea cererii ești de acord cu{" "}
+          Continuând ești de acord cu{" "}
           <Link href="/termeni-si-conditii" className="underline hover:text-foreground" target="_blank">
             Termenii și condițiile
           </Link>{" "}

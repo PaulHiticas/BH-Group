@@ -618,6 +618,14 @@ export interface PublicReservationResponse {
   cardPaymentStatus: PaymentStatus | null
 }
 
+/** A held public booking plus the Stripe Checkout URL the guest is sent to. */
+export interface PublicBookingCheckoutResponse {
+  reservation: PublicReservationResponse
+  checkoutUrl: string
+  amount: number
+  currency: string
+}
+
 // ---------------------------------------------------------------------------
 // Leads (property owners interested in listing)
 // ---------------------------------------------------------------------------
