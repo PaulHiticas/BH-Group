@@ -104,8 +104,13 @@ Endpointul trebuie abonat la evenimentele `checkout.session.completed`,
 Rezervarea directă plătită cu cardul se confirmă automat **doar** din webhook-ul semnat
 (`payment_status=paid`, sumă și monedă identice cu cele calculate pe server) — revenirea
 clientului pe `/plata/succes` nu confirmă nimic. Administratorii primesc notificarea
-„Rezervare nouă plătită și confirmată” abia după confirmare. Plățile manuale (transfer,
-numerar) nu se confirmă automat.
+„Rezervare nouă plătită și confirmată” abia după confirmare.
+
+Rezervarea publică este **exclusiv cu cardul**: backend-ul respinge (400) orice altă metodă
+trimisă de client (`BANK_TRANSFER`, `ON_ARRIVAL` etc.). Fără Stripe configurat — sau dacă
+Stripe nu poate deschide sesiunea — nu se creează niciun HOLD și nicio rezervare (503), iar
+site-ul afișează că rezervarea online nu este momentan disponibilă, cu datele de contact.
+Plățile manuale (transfer, numerar, POS) rămân disponibile doar administratorilor autentificați.
 
 Dacă mediul a fost creat **înainte** de redenumirea în BH Stays, baza de date încă se
 numește `bhgroup_pms` cu userul `bhgroup`. Schimbarea variabilelor din compose nu
