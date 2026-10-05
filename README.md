@@ -97,6 +97,15 @@ Stripe: cheile `sk_live_`/`pk_live_` se pun doar când chiar vrei să încasezi 
 Stripe către `https://bhstays.ro/api/v1/public/payments/webhook/stripe`, iar
 `STRIPE_WEBHOOK_SECRET` trebuie să fie secretul acelui endpoint — altfel livrările sunt
 respinse cu 400 la verificarea semnăturii și rezervările plătite nu se confirmă singure.
+Endpointul trebuie abonat la evenimentele `checkout.session.completed`,
+`checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`,
+`checkout.session.expired` și `payment_intent.payment_failed`.
+
+Rezervarea directă plătită cu cardul se confirmă automat **doar** din webhook-ul semnat
+(`payment_status=paid`, sumă și monedă identice cu cele calculate pe server) — revenirea
+clientului pe `/plata/succes` nu confirmă nimic. Administratorii primesc notificarea
+„Rezervare nouă plătită și confirmată” abia după confirmare. Plățile manuale (transfer,
+numerar) nu se confirmă automat.
 
 Dacă mediul a fost creat **înainte** de redenumirea în BH Stays, baza de date încă se
 numește `bhgroup_pms` cu userul `bhgroup`. Schimbarea variabilelor din compose nu
