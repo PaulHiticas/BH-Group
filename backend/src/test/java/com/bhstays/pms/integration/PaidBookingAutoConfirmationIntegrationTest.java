@@ -5,9 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.bhstays.pms.domain.Address;
 import com.bhstays.pms.domain.AuditAction;
@@ -25,6 +30,7 @@ import com.bhstays.pms.domain.ReservationStatus;
 import com.bhstays.pms.domain.Role;
 import com.bhstays.pms.domain.User;
 import com.bhstays.pms.domain.UserStatus;
+import com.bhstays.pms.dto.payment.ManualPaymentCreateRequest;
 import com.bhstays.pms.payment.StripeGateway;
 import com.bhstays.pms.repository.AuditLogRepository;
 import com.bhstays.pms.repository.NotificationRepository;
@@ -35,6 +41,7 @@ import com.bhstays.pms.repository.ReservationRepository;
 import com.bhstays.pms.repository.UserRepository;
 import com.bhstays.pms.security.SecureTokenGenerator;
 import com.bhstays.pms.service.EmailService;
+import com.bhstays.pms.service.PaymentService;
 import com.bhstays.pms.service.PublicReservationService;
 import com.bhstays.pms.service.ReservationService;
 import com.bhstays.pms.service.StripeWebhookService;
@@ -58,10 +65,17 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * End-to-end proof, against a real Postgres, that a direct booking paid by
@@ -79,6 +93,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "app.stripe.publishable-key=pk_test_integration_dummy",
         "app.stripe.webhook-secret=" + PaidBookingAutoConfirmationIntegrationTest.WEBHOOK_SECRET
 })
+@AutoConfigureMockMvc
 class PaidBookingAutoConfirmationIntegrationTest extends AbstractIntegrationTest {
 
     static final String WEBHOOK_SECRET = "whsec_integration_test_secret";
@@ -106,8 +121,23 @@ class PaidBookingAutoConfirmationIntegrationTest extends AbstractIntegrationTest
     @Autowired
     private SecureTokenGenerator secureTokenGenerator;
 
+    @Autowired
+    private PaymentService paymentService;
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockitoBean
     private EmailService emailService;
+
+    /**
+     * Real gateway (real signature verification); only the outbound
+     * "open a Checkout session" call is stubbed per test, so nothing ever
+     * reaches Stripe.
+     */
+    @MockitoSpyBean
+    private StripeGateway stripeGateway;
 
     private Property property;
     private User admin;
@@ -396,16 +426,114 @@ class PaidBookingAutoConfirmationIntegrationTest extends AbstractIntegrationTest
                 ReservationStatus.NON_BLOCKING)).hasSize(1);
     }
 
-    @Test
-    void aGuestBookingWithoutCardPaymentStaysPendingAndUncaptured() {
-        Reservation reservation = reservationService.createGuestBooking(property.getId(), "Maria", "Pop",
-                "maria@example.com", "0722222222", LocalDate.of(2031, 9, 10), LocalDate.of(2031, 9, 14), 2,
-                "Plătesc prin transfer bancar", null);
+    // ------------------------------------------------------------------
+    // public booking is card-only
+    // ------------------------------------------------------------------
 
-        assertThat(reservationRepository.findById(reservation.getId()).orElseThrow().getStatus())
-                .isEqualTo(ReservationStatus.PENDING);
-        assertThat(paymentRepository.findByReservationIdOrderByCreatedAtDesc(reservation.getId())).isEmpty();
+    private String publicBookingBody(LocalDate checkIn, LocalDate checkOut, String paymentMethod) throws Exception {
+        Map<String, Object> body = new HashMap<>();
+        body.put("propertyId", property.getId().toString());
+        body.put("guestFirstName", "Maria");
+        body.put("guestLastName", "Pop");
+        body.put("guestEmail", "maria@example.com");
+        body.put("guestPhone", "0722222222");
+        body.put("checkInDate", checkIn.toString());
+        body.put("checkOutDate", checkOut.toString());
+        body.put("numberOfGuests", 2);
+        if (paymentMethod != null) {
+            body.put("paymentMethod", paymentMethod);
+        }
+        return objectMapper.writeValueAsString(body);
+    }
+
+    private List<Reservation> reservationsOfProperty() {
+        return reservationRepository.findAll().stream()
+                .filter(r -> r.getProperty().getId().equals(property.getId()))
+                .toList();
+    }
+
+    @Test
+    void aPublicBookingHoldsTheDatesAndSendsTheGuestStraightToStripeCheckout() throws Exception {
+        doReturn(new StripeGateway.StripeCheckoutSession("cs_public_" + UUID.randomUUID(),
+                "https://checkout.stripe.com/c/pay/cs_public"))
+                .when(stripeGateway).createCheckoutSession(any());
+
+        mockMvc.perform(post("/api/v1/public/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(publicBookingBody(LocalDate.of(2031, 9, 10), LocalDate.of(2031, 9, 14), "ONLINE_CARD")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.checkoutUrl").value("https://checkout.stripe.com/c/pay/cs_public"))
+                .andExpect(jsonPath("$.data.reservation.status").value("PENDING"));
+
+        List<Reservation> held = reservationsOfProperty();
+        assertThat(held).hasSize(1);
+        Reservation reservation = held.get(0);
+        List<Payment> payments = paymentRepository.findByReservationIdOrderByCreatedAtDesc(reservation.getId());
+        assertThat(payments).singleElement().satisfies(p -> {
+            assertThat(p.getProvider()).isEqualTo(PaymentProvider.STRIPE);
+            assertThat(p.getMethod()).isEqualTo(PaymentMethod.ONLINE_CARD);
+            assertThat(p.getStatus()).isEqualTo(PaymentStatus.PENDING);
+        });
+        // Nothing is confirmed, announced or emailed until Stripe says it is paid.
         assertThat(paidBookingNotifications(reservation)).isZero();
+        verifyConfirmationEmailSent(0);
+        verify(emailService, never()).sendBookingConfirmationEmail(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aPublicRequestForAManualPaymentMethodIsRejectedAndHoldsNothing() throws Exception {
+        for (String method : List.of("BANK_TRANSFER", "ON_ARRIVAL", "CASH")) {
+            mockMvc.perform(post("/api/v1/public/reservations")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(publicBookingBody(LocalDate.of(2031, 9, 20), LocalDate.of(2031, 9, 24), method)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        assertThat(reservationsOfProperty()).isEmpty();
+        verify(stripeGateway, never()).createCheckoutSession(any());
+    }
+
+    @Test
+    void whenStripeCannotOpenCheckout_noHoldIsLeftAndTheDatesStayBookable() throws Exception {
+        doThrow(new StripeGateway.StripePaymentException("Stripe unavailable", null))
+                .when(stripeGateway).createCheckoutSession(any());
+
+        mockMvc.perform(post("/api/v1/public/reservations")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(publicBookingBody(LocalDate.of(2031, 12, 10), LocalDate.of(2031, 12, 14), null)))
+                .andExpect(status().isServiceUnavailable());
+
+        assertThat(reservationsOfProperty()).isEmpty();
+        assertThat(reservationService.availability(property.getId(), LocalDate.of(2031, 12, 10),
+                LocalDate.of(2031, 12, 14)).available()).isTrue();
+    }
+
+    @Test
+    void anAdministratorCanStillRecordAManualPayment() {
+        Reservation adminBooking = reservationRepository.saveAndFlush(Reservation.builder()
+                .property(property)
+                .guestFirstName("Ion")
+                .guestLastName("Admin")
+                .checkInDate(LocalDate.of(2032, 1, 10))
+                .checkOutDate(LocalDate.of(2032, 1, 14))
+                .numberOfGuests(2)
+                .status(ReservationStatus.PENDING)
+                .source(ReservationSource.DIRECT)
+                .totalAmount(new BigDecimal("500.00"))
+                .currency("RON")
+                .build());
+
+        var recorded = paymentService.recordManualPayment(new ManualPaymentCreateRequest(
+                adminBooking.getId(), new BigDecimal("500.00"), PaymentMethod.BANK_TRANSFER, "Transfer primit"));
+
+        // Existing admin behaviour, unchanged by the card-only public flow.
+        assertThat(recorded.provider()).isEqualTo(PaymentProvider.MANUAL);
+        assertThat(recorded.method()).isEqualTo(PaymentMethod.BANK_TRANSFER);
+        assertThat(recorded.status()).isEqualTo(PaymentStatus.SUCCEEDED);
+        assertThat(reservationRepository.findById(adminBooking.getId()).orElseThrow().getStatus())
+                .isEqualTo(ReservationStatus.CONFIRMED);
+        // Not a card payment: no paid-booking notice and no card confirmation email.
+        assertThat(paidBookingNotifications(adminBooking)).isZero();
         verifyConfirmationEmailSent(0);
     }
 
