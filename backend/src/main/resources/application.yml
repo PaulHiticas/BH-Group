@@ -117,6 +117,10 @@ app:
     model: ${PRICING_AI_MODEL:claude-sonnet-5}
     max-tokens: ${PRICING_AI_MAX_TOKENS:1200}
     timeout-ms: ${PRICING_AI_TIMEOUT_MS:45000}
+    absolute-min-ron: ${PRICING_AI_ABSOLUTE_MIN_RON:50}
+    absolute-max-ron: ${PRICING_AI_ABSOLUTE_MAX_RON:5000}
+    min-base-ratio: ${PRICING_AI_MIN_BASE_RATIO:0.50}
+    max-base-ratio: ${PRICING_AI_MAX_BASE_RATIO:3.00}
   stripe:
     # Empty by default: no keys, no STRIPE gateway bean, card payments off.
     secret-key: ${STRIPE_SECRET_KEY:}
