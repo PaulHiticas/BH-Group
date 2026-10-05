@@ -131,7 +131,24 @@ const baseRecommendation: AiPricingRecommendationResponse = {
   },
   confidence: "MEDIUM",
   summary: "Ocupare moderată, recomand o bandă mai largă.",
-  reasons: ["Ocupare 40% în 30 de zile.", "Tarif mediu sub tariful de bază."],
+  reasons: [
+    {
+      code: "LOCAL_EVENT_CONFIGURED",
+      message: "Există cel puțin un eveniment local configurat în perioada analizată.",
+      indicator: "upcomingLocalEvents",
+      currentValue: 1,
+      comparisonValue: 1,
+      periodDays: 30,
+    },
+    {
+      code: "INSUFFICIENT_HISTORY",
+      message: "Istoricul disponibil este insuficient pentru o recomandare cu încredere ridicată.",
+      indicator: "bookedNights",
+      currentValue: 12,
+      comparisonValue: 15,
+      periodDays: 30,
+    },
+  ],
   metricsUsed: {
     windowDays: 30,
     bookedNights: 12,
@@ -382,8 +399,12 @@ describe("PricingAdminSection", () => {
 
       expect(screen.getByText("Ocupare moderată, recomand o bandă mai largă.")).toBeInTheDocument()
       expect(screen.getByText("Încredere: Medie")).toBeInTheDocument()
-      expect(screen.getByText("Ocupare 40% în 30 de zile.")).toBeInTheDocument()
-      expect(screen.getByText("Tarif mediu sub tariful de bază.")).toBeInTheDocument()
+      expect(
+        screen.getByText("Există cel puțin un eveniment local configurat în perioada analizată.")
+      ).toBeInTheDocument()
+      expect(
+        screen.getByText("Istoricul disponibil este insuficient pentru o recomandare cu încredere ridicată.")
+      ).toBeInTheDocument()
       expect(screen.getByText("12 / 30 (40%)")).toBeInTheDocument()
       expect(screen.getByText("Niciun eveniment local viitor înregistrat.")).toBeInTheDocument()
       expect(screen.getByText("Prețul minim scade sub tariful mediu realizat.")).toBeInTheDocument()
@@ -462,6 +483,33 @@ describe("PricingAdminSection", () => {
 
       expect(screen.getByText(/Recomandarea AI nu este disponibilă acum/)).toBeInTheDocument()
       expect(screen.getByLabelText("Preț minim (plafon siguranță)")).toHaveValue(100)
+    })
+
+    it("rejects an invalid AI response without changing or saving the form", () => {
+      const updateMutate = vi.fn()
+      mockHappyPath({ updateMutate })
+      vi.mocked(useAiPricingRecommendation).mockReturnValue({
+        mutate: vi.fn(),
+        isPending: false,
+        isError: true,
+        error: new ApiError(502, {
+          success: false,
+          errorCode: "PRICING_AI_INVALID_RESPONSE",
+          message: "Recomandarea de preț a fost respinsă.",
+          timestamp: "",
+          path: "",
+        }),
+        reset: vi.fn(),
+      } as never)
+      renderWithProviders(<PricingAdminSection propertyId="prop-1" city="Cluj-Napoca" />)
+
+      expect(screen.getByText(/Recomandarea AI a fost respinsă ca invalidă/)).toBeInTheDocument()
+      expect(screen.getByText(/Configurația de mai jos a rămas neschimbată/)).toBeInTheDocument()
+      expect(screen.getByLabelText("Preț minim (plafon siguranță)")).toHaveValue(100)
+      expect(screen.getByLabelText("Fereastră ocupare (zile)")).toHaveValue(14)
+      expect(screen.getByLabelText("Multiplicator ocupare — maxim")).toHaveValue(1.3)
+      expect(screen.queryByText("Ai modificări nesalvate")).not.toBeInTheDocument()
+      expect(updateMutate).not.toHaveBeenCalled()
     })
 
     it("leaves the form untouched when the request fails", async () => {
