@@ -1,5 +1,6 @@
 package com.bhstays.pms.service;
 
+import com.bhstays.pms.dto.report.CommissionSummaryCurrencyTotals;
 import com.bhstays.pms.dto.report.PropertyCommissionCurrencyResponse;
 import com.bhstays.pms.repository.projection.ReservationPaymentTotals;
 import java.math.BigDecimal;
@@ -38,6 +39,10 @@ import java.util.TreeMap;
  * each reservation's base and each property/currency commission rounded to
  * 2 decimals HALF_UP; portfolio totals are sums of those rounded values, so
  * they reconcile exactly with the per-property figures.
+ *
+ * <p>This is the only place the formula lives: the property report, the
+ * dashboard, /finance and owner statements all take their figures from
+ * {@link #calculate} and add them up with {@link #totals}.
  */
 public final class PropertyCommissionCalculator {
 
@@ -85,6 +90,46 @@ public final class PropertyCommissionCalculator {
                 .setScale(MONEY_SCALE, ROUNDING);
     }
 
+    /** A currency with nothing collected (e.g. only expenses) - zero amounts, same commission flags. */
+    public static PropertyCommissionCurrencyResponse empty(String currency, BigDecimal commissionPercent) {
+        return new Accumulator().toResponse(currency, commissionPercent);
+    }
+
+    /**
+     * Adds up per-property lines of one currency. Properties without a
+     * commission count in the net revenue but in neither share, so
+     * {@code net = bhStays + owners + unconfiguredNet} always holds.
+     */
+    public static CommissionSummaryCurrencyTotals totals(String currency,
+                                                         List<PropertyCommissionCurrencyResponse> lines) {
+        BigDecimal captured = BigDecimal.ZERO;
+        BigDecimal refunded = BigDecimal.ZERO;
+        BigDecimal net = BigDecimal.ZERO;
+        BigDecimal bhStays = BigDecimal.ZERO;
+        BigDecimal owners = BigDecimal.ZERO;
+        BigDecimal unconfiguredNet = BigDecimal.ZERO;
+        BigDecimal unallocatedNet = BigDecimal.ZERO;
+        int unconfiguredProperties = 0;
+        int unallocatedReservations = 0;
+        for (PropertyCommissionCurrencyResponse line : lines) {
+            captured = captured.add(line.capturedTotal());
+            refunded = refunded.add(line.refundedTotal());
+            net = net.add(line.netRevenue());
+            unallocatedNet = unallocatedNet.add(line.unallocatedNetRevenue());
+            unallocatedReservations += line.unallocatedReservationCount();
+            if (line.commissionConfigured()) {
+                bhStays = bhStays.add(line.bhStaysRevenue());
+                owners = owners.add(line.ownerAmount());
+            } else {
+                unconfiguredProperties++;
+                unconfiguredNet = unconfiguredNet.add(line.netRevenue());
+            }
+        }
+        return new CommissionSummaryCurrencyTotals(currency, money(captured), money(refunded), money(net),
+                money(bhStays), money(owners), lines.size(), unconfiguredProperties, money(unconfiguredNet),
+                money(unallocatedNet), unallocatedReservations);
+    }
+
     static BigDecimal commission(BigDecimal base, BigDecimal commissionPercent) {
         return base.multiply(commissionPercent).divide(ONE_HUNDRED, MONEY_SCALE, ROUNDING);
     }
@@ -107,6 +152,7 @@ public final class PropertyCommissionCalculator {
         private BigDecimal base = BigDecimal.ZERO;
         private BigDecimal unallocatedNet = BigDecimal.ZERO;
         private int reservations;
+        private int unallocatedReservations;
 
         void add(ReservationPaymentTotals row) {
             BigDecimal rowCaptured = orZero(row.capturedAmount());
@@ -120,6 +166,7 @@ public final class PropertyCommissionCalculator {
                 base = base.add(rowBase);
             } else {
                 unallocatedNet = unallocatedNet.add(rowCaptured.subtract(rowRefunded));
+                unallocatedReservations++;
             }
         }
 
@@ -139,6 +186,7 @@ public final class PropertyCommissionCalculator {
                     bhStaysRevenue,
                     ownerAmount,
                     money(unallocatedNet),
+                    unallocatedReservations,
                     reservations);
         }
     }

@@ -22,9 +22,9 @@ import com.bhstays.pms.service.mapper.OwnerStatementMapper;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -62,14 +62,29 @@ public class OwnerStatementService {
                 .filter(u -> u.getRole() == Role.OWNER)
                 .orElseThrow(() -> new BadRequestException("Proprietarul nu a fost găsit"));
 
-        var financials = ownerFinancialsService.computeForOwner(ownerId, periodStart, periodEnd);
-        Map<String, List<OwnerFinancialsService.PropertyFinancials>> byCurrency = financials.stream()
-                .filter(f -> f.grossRevenue().signum() != 0 || f.expensesTotal().signum() != 0)
-                .collect(Collectors.groupingBy(OwnerFinancialsService.PropertyFinancials::currency, LinkedHashMap::new, Collectors.toList()));
-
-        if (byCurrency.isEmpty()) {
+        var financials = ownerFinancialsService.computeForOwner(ownerId, periodStart, periodEnd).stream()
+                .filter(OwnerFinancialsService.PropertyFinancials::hasActivity)
+                .toList();
+        if (financials.isEmpty()) {
             throw new BadRequestException("Nicio activitate financiară găsită pentru acest proprietar în perioada selectată");
         }
+
+        // A statement must never show a made-up split: money collected for a
+        // property without a commission percent cannot be divided yet.
+        List<String> unconfigured = financials.stream()
+                .filter(OwnerFinancialsService.PropertyFinancials::awaitsCommission)
+                .map(OwnerFinancialsService.PropertyFinancials::propertyName)
+                .distinct()
+                .toList();
+        if (!unconfigured.isEmpty()) {
+            throw new BadRequestException("Comisionul de administrare nu este configurat pentru: "
+                    + String.join(", ", unconfigured) + ". Setează procentul înainte de a genera decontul.");
+        }
+
+        // One statement per currency - a statement never mixes currencies.
+        Map<String, List<OwnerFinancialsService.PropertyFinancials>> byCurrency = financials.stream()
+                .collect(Collectors.groupingBy(OwnerFinancialsService.PropertyFinancials::currency, TreeMap::new,
+                        Collectors.toList()));
 
         List<OwnerStatementResponse> results = new java.util.ArrayList<>();
         for (var entry : byCurrency.entrySet()) {
@@ -83,20 +98,28 @@ public class OwnerStatementService {
                                 + " în perioada " + periodStart + " - " + periodEnd);
             }
 
-            BigDecimal grossRevenue = sum(rows, OwnerFinancialsService.PropertyFinancials::grossRevenue);
-            BigDecimal commissionAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::commissionAmount);
+            BigDecimal commissionAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::settledCommission);
+            BigDecimal ownerAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::settledOwnerAmount);
             BigDecimal expensesTotal = sum(rows, OwnerFinancialsService.PropertyFinancials::expensesTotal);
-            BigDecimal netPayout = grossRevenue.subtract(commissionAmount).subtract(expensesTotal);
+            BigDecimal netPayout = ownerAmount.subtract(expensesTotal);
 
             OwnerStatement statement = OwnerStatement.builder()
                     .owner(owner)
                     .periodStart(periodStart)
                     .periodEnd(periodEnd)
                     .currency(currency)
-                    .grossRevenue(grossRevenue)
+                    .calculationMethod(OwnerStatement.CALCULATION_CAPTURED_ACCOMMODATION)
+                    .capturedTotal(sum(rows, OwnerFinancialsService.PropertyFinancials::capturedTotal))
+                    .refundedTotal(sum(rows, OwnerFinancialsService.PropertyFinancials::refundedTotal))
+                    .grossRevenue(sum(rows, OwnerFinancialsService.PropertyFinancials::netRevenue))
+                    .commissionableBase(sum(rows, OwnerFinancialsService.PropertyFinancials::commissionableBase))
                     .commissionAmount(commissionAmount)
+                    .ownerAmount(ownerAmount)
                     .expensesTotal(expensesTotal)
                     .netPayout(netPayout)
+                    .unallocatedNetRevenue(sum(rows, OwnerFinancialsService.PropertyFinancials::unallocatedNetRevenue))
+                    .unallocatedReservationCount(rows.stream()
+                            .mapToInt(OwnerFinancialsService.PropertyFinancials::unallocatedReservationCount).sum())
                     .status(OwnerStatementStatus.ISSUED)
                     .generatedBy(actor)
                     .build();
@@ -105,14 +128,22 @@ public class OwnerStatementService {
             List<OwnerStatementLine> lines = new java.util.ArrayList<>();
             for (var row : rows) {
                 Property property = propertyRepository.findById(row.propertyId()).orElse(null);
+                BigDecimal lineOwnerAmount = row.settledOwnerAmount();
                 lines.add(ownerStatementLineRepository.save(OwnerStatementLine.builder()
                         .statement(statement)
                         .property(property)
                         .propertyName(row.propertyName())
-                        .grossRevenue(row.grossRevenue())
-                        .commissionAmount(row.commissionAmount())
+                        .capturedTotal(row.capturedTotal())
+                        .refundedTotal(row.refundedTotal())
+                        .grossRevenue(row.netRevenue())
+                        .commissionableBase(row.commissionableBase())
+                        .commissionPercent(row.commissionPercent())
+                        .commissionAmount(row.settledCommission())
+                        .ownerAmount(lineOwnerAmount)
                         .expensesTotal(row.expensesTotal())
-                        .netAmount(row.netPayout())
+                        .netAmount(lineOwnerAmount.subtract(row.expensesTotal()))
+                        .unallocatedNetRevenue(row.unallocatedNetRevenue())
+                        .unallocatedReservationCount(row.unallocatedReservationCount())
                         .build()));
             }
 
@@ -184,8 +215,13 @@ public class OwnerStatementService {
                         s.getOwner().getFirstName() + " " + s.getOwner().getLastName(),
                         s.getPeriodStart().toString(),
                         s.getPeriodEnd().toString(),
+                        s.getCalculationMethod(),
+                        s.getCapturedTotal() != null ? s.getCapturedTotal().toString() : "",
+                        s.getRefundedTotal() != null ? s.getRefundedTotal().toString() : "",
                         s.getGrossRevenue().toString(),
+                        s.getCommissionableBase() != null ? s.getCommissionableBase().toString() : "",
                         s.getCommissionAmount().toString(),
+                        s.getOwnerAmount() != null ? s.getOwnerAmount().toString() : "",
                         s.getExpensesTotal().toString(),
                         s.getNetPayout().toString(),
                         s.getCurrency(),

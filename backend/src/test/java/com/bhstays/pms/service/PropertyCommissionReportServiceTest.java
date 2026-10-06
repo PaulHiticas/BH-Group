@@ -89,6 +89,8 @@ class PropertyCommissionReportServiceTest {
         assertThat(ron.includedPropertyCount()).isEqualTo(3);
         assertThat(ron.unconfiguredPropertyCount()).isEqualTo(1);
         assertThat(ron.unconfiguredNetRevenue()).isEqualByComparingTo("300.00");
+        assertThat(ron.capturedTotal()).isEqualByComparingTo("1800.00");
+        assertThat(ron.refundedTotal()).isEqualByComparingTo("500.00");
         // reconciles: net = BH Stays + owners + not-yet-configured
         assertThat(ron.bhStaysRevenue().add(ron.ownersAmount()).add(ron.unconfiguredNetRevenue()))
                 .isEqualByComparingTo(ron.propertiesNetRevenue());
@@ -106,13 +108,13 @@ class PropertyCommissionReportServiceTest {
 
         verify(paymentRepository).sumCapturedByReservation(
                 eq(Set.of(PaymentStatus.SUCCEEDED, PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED)),
-                eq(null), eq(null));
+                eq(PropertyCommissionReportService.OPEN_START), eq(PropertyCommissionReportService.OPEN_END));
     }
 
     @Test
     void propertyReport_returnsOneLinePerCurrency() {
         when(propertyRepository.findCommissionSettings(ten.id())).thenReturn(Optional.of(ten));
-        when(paymentRepository.sumCapturedByReservationForProperty(eq(ten.id()), any(), eq(FROM), eq(TO)))
+        when(paymentRepository.sumCapturedByReservationForProperties(eq(List.of(ten.id())), any(), eq(FROM), eq(TO)))
                 .thenReturn(List.of(
                         paid(ten, "RON", "1000.00", "800.00", "1000.00", "0"),
                         paid(ten, "EUR", "200.00", "150.00", "200.00", "0")));

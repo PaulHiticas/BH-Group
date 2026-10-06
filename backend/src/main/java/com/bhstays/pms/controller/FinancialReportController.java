@@ -68,7 +68,9 @@ public class FinancialReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             HttpServletResponse response) throws IOException {
         CsvWriter.write(response, "raport-financiar.csv",
-                List.of("Proprietate", "Proprietar", "Venit brut", "Comision", "Cheltuieli", "Profit net", "Monedă"),
+                List.of("Proprietate", "Proprietar", "Încasat", "Refunduri", "Venit net", "Bază comisionabilă",
+                        "Comision %", "Venit BH Stays", "Sumă proprietar", "Fără defalcare", "Cheltuieli",
+                        "Profit net", "Monedă"),
                 financialReportService.exportRows(propertyId, from, to));
     }
 }

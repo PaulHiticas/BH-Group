@@ -23,8 +23,8 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
                 sum(p.amount), sum(p.refundedAmount))
             from Payment p join p.reservation r
             where p.status in :statuses
-              and (cast(:from as java.time.LocalDate) is null or r.checkInDate >= cast(:from as java.time.LocalDate))
-              and (cast(:to as java.time.LocalDate) is null or r.checkInDate <= cast(:to as java.time.LocalDate))
+              and r.checkInDate >= :from
+              and r.checkInDate <= :to
             """;
 
     String RESERVATION_PAYMENT_TOTALS_GROUP_BY = """
@@ -48,29 +48,11 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
     BigDecimal sumNetPaidForReservation(@Param("reservationId") UUID reservationId,
                                          @Param("statuses") Collection<PaymentStatus> statuses);
 
-    /**
-     * Net captured revenue (amount minus successful refunds) for a
-     * property's reservations checking in within [from, to], grouped by
-     * currency so amounts in different currencies are never summed
-     * together. Each row is {@code [String currency, BigDecimal netAmount]}.
-     */
-    @Query("""
-            select p.currency, coalesce(sum(p.amount - p.refundedAmount), 0)
-            from Payment p
-            where p.reservation.property.id = :propertyId
-              and p.status in :statuses
-              and (cast(:from as java.time.LocalDate) is null or p.reservation.checkInDate >= cast(:from as java.time.LocalDate))
-              and (cast(:to as java.time.LocalDate) is null or p.reservation.checkInDate <= cast(:to as java.time.LocalDate))
-            group by p.currency
-            """)
-    List<Object[]> sumNetPaidByPropertyGroupedByCurrency(@Param("propertyId") UUID propertyId,
-                                                           @Param("statuses") Collection<PaymentStatus> statuses,
-                                                           @Param("from") LocalDate from,
-                                                           @Param("to") LocalDate to);
 
     /**
      * Captured amount and successful refunds per reservation and payment
-     * currency, for reservations checking in within [from, to], across all
+     * currency, for reservations checking in within [from, to] (both
+     * required - an open period is passed as explicit bounds), across all
      * properties - one query for the whole portfolio. Amounts come from the
      * payment rows themselves (not from webhook events), so a duplicate
      * webhook delivery can never count a capture or a refund twice.
@@ -80,11 +62,12 @@ public interface PaymentRepository extends JpaRepository<Payment, UUID> {
                                                              @Param("from") LocalDate from,
                                                              @Param("to") LocalDate to);
 
-    /** {@link #sumCapturedByReservation} restricted to one property. */
-    @Query(RESERVATION_PAYMENT_TOTALS_SELECT + " and r.property.id = :propertyId "
+    /** {@link #sumCapturedByReservation} restricted to the given properties (must not be empty). */
+    @Query(RESERVATION_PAYMENT_TOTALS_SELECT + " and r.property.id in :propertyIds "
             + RESERVATION_PAYMENT_TOTALS_GROUP_BY)
-    List<ReservationPaymentTotals> sumCapturedByReservationForProperty(@Param("propertyId") UUID propertyId,
-                                                                        @Param("statuses") Collection<PaymentStatus> statuses,
-                                                                        @Param("from") LocalDate from,
-                                                                        @Param("to") LocalDate to);
+    List<ReservationPaymentTotals> sumCapturedByReservationForProperties(
+            @Param("propertyIds") Collection<UUID> propertyIds,
+            @Param("statuses") Collection<PaymentStatus> statuses,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to);
 }

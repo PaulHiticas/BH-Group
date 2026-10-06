@@ -12,12 +12,15 @@ import java.math.BigDecimal;
  */
 public record CommissionSummaryCurrencyTotals(
         String currency,
+        BigDecimal capturedTotal,
+        BigDecimal refundedTotal,
         BigDecimal propertiesNetRevenue,
         BigDecimal bhStaysRevenue,
         BigDecimal ownersAmount,
         int includedPropertyCount,
         int unconfiguredPropertyCount,
         BigDecimal unconfiguredNetRevenue,
-        BigDecimal unallocatedNetRevenue
+        BigDecimal unallocatedNetRevenue,
+        int unallocatedReservationCount
 ) {
 }

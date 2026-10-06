@@ -21,17 +21,18 @@ public interface PropertyRepository extends JpaRepository<Property, UUID>, JpaSp
 
     List<Property> findByOwnerId(UUID ownerId);
 
-    @Query("""
-            select new com.bhstays.pms.repository.projection.PropertyCommissionSettings(p.id, p.name, p.commissionPercent)
-            from Property p
-            order by p.name
-            """)
+    String COMMISSION_SETTINGS_SELECT = """
+            select new com.bhstays.pms.repository.projection.PropertyCommissionSettings(
+                p.id, p.name, p.commissionPercent, o.id, o.firstName, o.lastName)
+            from Property p left join p.owner o
+            """;
+
+    @Query(COMMISSION_SETTINGS_SELECT + " order by p.name")
     List<PropertyCommissionSettings> findAllCommissionSettings();
 
-    @Query("""
-            select new com.bhstays.pms.repository.projection.PropertyCommissionSettings(p.id, p.name, p.commissionPercent)
-            from Property p
-            where p.id = :id
-            """)
+    @Query(COMMISSION_SETTINGS_SELECT + " where p.id = :id")
     Optional<PropertyCommissionSettings> findCommissionSettings(@Param("id") UUID id);
+
+    @Query(COMMISSION_SETTINGS_SELECT + " where o.id = :ownerId order by p.name")
+    List<PropertyCommissionSettings> findCommissionSettingsByOwnerId(@Param("ownerId") UUID ownerId);
 }

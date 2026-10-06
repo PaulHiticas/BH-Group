@@ -85,8 +85,8 @@ class OwnerStatementServiceTest {
     @Test
     void generate_computesNetPayoutAndPersistsStatementWithLines() {
         when(ownerFinancialsService.computeForOwner(owner.getId(), periodStart, periodEnd)).thenReturn(List.of(
-                new OwnerFinancialsService.PropertyFinancials(propertyId, "Casa Mare", "RON",
-                        new BigDecimal("1000.00"), new BigDecimal("200.00"), new BigDecimal("50.00"), new BigDecimal("750.00"))
+                // captured 1100, refunded 100 -> net 1000; base 800 at 25% -> 200; owner 800; expenses 50 -> 750
+                row(propertyId, "RON", "1100.00", "100.00", "800.00", "25.00", "200.00", "50.00")
         ));
         when(ownerStatementRepository.findByOwnerIdAndCurrencyAndPeriodStartAndPeriodEnd(
                 owner.getId(), "RON", periodStart, periodEnd)).thenReturn(Optional.empty());
@@ -98,16 +98,24 @@ class OwnerStatementServiceTest {
         verify(ownerStatementRepository).save(argThatStatement(s ->
                 s.getNetPayout().compareTo(new BigDecimal("750.00")) == 0
                         && s.getGrossRevenue().compareTo(new BigDecimal("1000.00")) == 0
+                        && s.getCapturedTotal().compareTo(new BigDecimal("1100.00")) == 0
+                        && s.getRefundedTotal().compareTo(new BigDecimal("100.00")) == 0
+                        && s.getCommissionableBase().compareTo(new BigDecimal("800.00")) == 0
+                        && s.getCommissionAmount().compareTo(new BigDecimal("200.00")) == 0
+                        && s.getOwnerAmount().compareTo(new BigDecimal("800.00")) == 0
+                        && OwnerStatement.CALCULATION_CAPTURED_ACCOMMODATION.equals(s.getCalculationMethod())
                         && s.getStatus() == OwnerStatementStatus.ISSUED));
-        verify(ownerStatementLineRepository).save(any());
+        verify(ownerStatementLineRepository).save(org.mockito.ArgumentMatchers.argThat(line ->
+                line.getCommissionPercent().compareTo(new BigDecimal("25.00")) == 0
+                        && line.getOwnerAmount().compareTo(new BigDecimal("800.00")) == 0
+                        && line.getNetAmount().compareTo(new BigDecimal("750.00")) == 0));
         verify(auditService).record(eq(AuditAction.OWNER_STATEMENT_GENERATED), any(), any(), any(), any());
     }
 
     @Test
     void generate_rejectsDuplicatePeriodForSameOwnerAndCurrency() {
         when(ownerFinancialsService.computeForOwner(owner.getId(), periodStart, periodEnd)).thenReturn(List.of(
-                new OwnerFinancialsService.PropertyFinancials(propertyId, "Casa Mare", "RON",
-                        new BigDecimal("1000.00"), new BigDecimal("200.00"), BigDecimal.ZERO, new BigDecimal("800.00"))
+                row(propertyId, "RON", "1000.00", "0", "800.00", "25.00", "200.00", "0")
         ));
         when(ownerStatementRepository.findByOwnerIdAndCurrencyAndPeriodStartAndPeriodEnd(
                 owner.getId(), "RON", periodStart, periodEnd))
@@ -120,8 +128,7 @@ class OwnerStatementServiceTest {
     @Test
     void generate_rejectsWhenNoFinancialActivity() {
         when(ownerFinancialsService.computeForOwner(owner.getId(), periodStart, periodEnd)).thenReturn(List.of(
-                new OwnerFinancialsService.PropertyFinancials(propertyId, "Casa Mare", "RON",
-                        BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
+                row(propertyId, "RON", "0", "0", "0", "25.00", "0", "0")
         ));
 
         assertThatThrownBy(() -> ownerStatementService.generate(owner.getId(), periodStart, periodEnd, actor))
@@ -174,6 +181,49 @@ class OwnerStatementServiceTest {
 
         assertThatThrownBy(() -> ownerStatementService.getForOwner(owner.getId(), statement.getId()))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void generate_rejectsWhenAPropertyWithCollectedMoneyHasNoCommission() {
+        when(ownerFinancialsService.computeForOwner(owner.getId(), periodStart, periodEnd)).thenReturn(List.of(
+                row(propertyId, "RON", "500.00", "0", "400.00", null, null, "0")
+        ));
+
+        assertThatThrownBy(() -> ownerStatementService.generate(owner.getId(), periodStart, periodEnd, actor))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("Comisionul de administrare nu este configurat pentru: Casa Mare");
+        verify(ownerStatementRepository, never()).save(any());
+    }
+
+    @Test
+    void generate_issuesOneStatementPerCurrency() {
+        when(ownerFinancialsService.computeForOwner(owner.getId(), periodStart, periodEnd)).thenReturn(List.of(
+                row(propertyId, "RON", "500.00", "0", "400.00", "20.00", "80.00", "0"),
+                row(propertyId, "EUR", "100.00", "0", "100.00", "20.00", "20.00", "0")
+        ));
+        when(ownerStatementRepository.findByOwnerIdAndCurrencyAndPeriodStartAndPeriodEnd(any(), any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(propertyRepository.findById(propertyId)).thenReturn(Optional.empty());
+
+        assertThat(ownerStatementService.generate(owner.getId(), periodStart, periodEnd, actor)).hasSize(2);
+        verify(ownerStatementRepository).save(argThatStatement(s -> "EUR".equals(s.getCurrency())
+                && s.getOwnerAmount().compareTo(new BigDecimal("80.00")) == 0));
+        verify(ownerStatementRepository).save(argThatStatement(s -> "RON".equals(s.getCurrency())
+                && s.getOwnerAmount().compareTo(new BigDecimal("420.00")) == 0));
+    }
+
+    /** A row as OwnerFinancialsService returns it; owner amount and payout follow the shared formula. */
+    private static OwnerFinancialsService.PropertyFinancials row(UUID propertyId, String currency, String captured,
+                                                                  String refunded, String base, String percent,
+                                                                  String commission, String expenses) {
+        BigDecimal net = new BigDecimal(captured).subtract(new BigDecimal(refunded));
+        BigDecimal ownerAmount = commission != null ? net.subtract(new BigDecimal(commission)) : null;
+        return new OwnerFinancialsService.PropertyFinancials(propertyId, "Casa Mare", currency,
+                new BigDecimal(captured), new BigDecimal(refunded), net, new BigDecimal(base),
+                percent != null ? new BigDecimal(percent) : null, percent != null,
+                commission != null ? new BigDecimal(commission) : null, ownerAmount,
+                BigDecimal.ZERO, 0, new BigDecimal(expenses),
+                ownerAmount != null ? ownerAmount.subtract(new BigDecimal(expenses)) : null);
     }
 
     private OwnerStatement argThatStatement(java.util.function.Predicate<OwnerStatement> predicate) {

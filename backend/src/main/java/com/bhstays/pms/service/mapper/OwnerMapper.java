@@ -4,6 +4,7 @@ import com.bhstays.pms.domain.Property;
 import com.bhstays.pms.domain.PropertyDocument;
 import com.bhstays.pms.domain.PropertyPhoto;
 import com.bhstays.pms.dto.owner.OwnerPropertyResponse;
+import com.bhstays.pms.dto.owner.OwnerRevenueLine;
 import com.bhstays.pms.dto.property.AddressDto;
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -13,15 +14,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class OwnerMapper {
 
-    private static final String CURRENCY = "RON";
+    /** The only currency the deprecated flat revenue fields ever covered. */
+    public static final String LEGACY_CURRENCY = "RON";
     private final PropertyMapper propertyMapper;
 
     public OwnerMapper(PropertyMapper propertyMapper) {
         this.propertyMapper = propertyMapper;
     }
 
+    /** {@code revenueByCurrency} comes from OwnerFinancialsService - nothing is computed here. */
     public OwnerPropertyResponse toResponse(Property property, List<PropertyPhoto> photos,
-                                             BigDecimal grossRevenue, List<PropertyDocument> documents) {
+                                             List<OwnerRevenueLine> revenueByCurrency, List<PropertyDocument> documents) {
         String coverUrl = photos.stream()
                 .sorted(Comparator.comparing(PropertyPhoto::isCover, Comparator.reverseOrder())
                         .thenComparingInt(PropertyPhoto::getSortOrder))
@@ -29,11 +32,12 @@ public class OwnerMapper {
                 .findFirst()
                 .orElse(null);
 
-        BigDecimal commissionPercent = property.getCommissionPercent();
-        BigDecimal commissionAmount = commissionPercent != null
-                ? grossRevenue.multiply(commissionPercent).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
-        BigDecimal netRevenue = grossRevenue.subtract(commissionAmount);
+        OwnerRevenueLine ron = legacyLine(revenueByCurrency);
+        BigDecimal grossRevenue = ron != null ? ron.netRevenue() : BigDecimal.ZERO;
+        BigDecimal commissionAmount = ron != null && ron.bhStaysCommission() != null
+                ? ron.bhStaysCommission() : BigDecimal.ZERO;
+        BigDecimal netRevenue = ron != null && ron.ownerAmount() != null
+                ? ron.ownerAmount() : grossRevenue.subtract(commissionAmount);
 
         return new OwnerPropertyResponse(
                 property.getId(),
@@ -48,12 +52,20 @@ public class OwnerMapper {
                 property.getBedrooms(),
                 property.getBathrooms(),
                 property.getMaxGuests(),
-                commissionPercent,
+                property.getCommissionPercent(),
                 coverUrl,
                 grossRevenue,
                 commissionAmount,
                 netRevenue,
-                CURRENCY,
-                documents.stream().map(propertyMapper::toDocumentResponse).toList());
+                LEGACY_CURRENCY,
+                documents.stream().map(propertyMapper::toDocumentResponse).toList(),
+                revenueByCurrency);
+    }
+
+    public static OwnerRevenueLine legacyLine(List<OwnerRevenueLine> revenueByCurrency) {
+        return revenueByCurrency.stream()
+                .filter(line -> LEGACY_CURRENCY.equals(line.currency()))
+                .findFirst()
+                .orElse(null);
     }
 }
