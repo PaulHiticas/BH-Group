@@ -129,6 +129,9 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
                 .accommodationAmount(accommodation != null ? new BigDecimal(accommodation) : null)
                 .cleaningFeeAmount(accommodation != null ? new BigDecimal(cleaning) : null)
                 .extraGuestFeeAmount(accommodation != null ? new BigDecimal(extraGuest) : null)
+                .lateCheckoutFeeAmount(accommodation != null ? BigDecimal.ZERO : null)
+                .taxAmount(accommodation != null ? BigDecimal.ZERO : null)
+                .addonAmount(accommodation != null ? BigDecimal.ZERO : null)
                 .build());
     }
 
@@ -187,19 +190,45 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
                 .isInstanceOf(DataIntegrityViolationException.class);
 
         Reservation reservation = reservation(property, LocalDate.of(2044, 1, 10), "RON", "500.00", null, null, null);
-        // a breakdown that does not add up to the total
+        String breakdown = "update reservations set accommodation_amount = ?, cleaning_fee_amount = ?, "
+                + "extra_guest_fee_amount = ?, late_checkout_fee_amount = ?, tax_amount = ?, addon_amount = ? "
+                + "where id = ?";
+        // parts that do not add up to the total, by a single cent
+        assertThatThrownBy(() -> jdbcTemplate.update(breakdown,
+                new BigDecimal("300.00"), new BigDecimal("50.00"), new BigDecimal("40.00"), new BigDecimal("30.00"),
+                new BigDecimal("40.00"), new BigDecimal("39.99"), reservation.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        // a partial breakdown (late checkout, tax and add-ons missing)
         assertThatThrownBy(() -> jdbcTemplate.update(
-                "update reservations set accommodation_amount = 400, cleaning_fee_amount = 50, "
+                "update reservations set accommodation_amount = 400, cleaning_fee_amount = 100, "
                         + "extra_guest_fee_amount = 0 where id = ?", reservation.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        // a partial breakdown
-        assertThatThrownBy(() -> jdbcTemplate.update(
-                "update reservations set accommodation_amount = 500 where id = ?", reservation.getId()))
+        // a negative part
+        assertThatThrownBy(() -> jdbcTemplate.update(breakdown,
+                new BigDecimal("520.00"), new BigDecimal("0"), new BigDecimal("0"), new BigDecimal("0"),
+                new BigDecimal("-20.00"), new BigDecimal("0"), reservation.getId()))
                 .isInstanceOf(DataIntegrityViolationException.class);
-        // a consistent one is accepted
-        assertThat(jdbcTemplate.update(
-                "update reservations set accommodation_amount = 400, cleaning_fee_amount = 100, "
-                        + "extra_guest_fee_amount = 0 where id = ?", reservation.getId())).isEqualTo(1);
+        // a breakdown that reconciles exactly is accepted
+        assertThat(jdbcTemplate.update(breakdown,
+                new BigDecimal("300.00"), new BigDecimal("50.00"), new BigDecimal("40.00"), new BigDecimal("30.00"),
+                new BigDecimal("40.00"), new BigDecimal("40.00"), reservation.getId())).isEqualTo(1);
+
+        // owner statements: rows issued before V40 are LEGACY_GROSS; a new-formula row must reconcile
+        User owner = staff(Role.OWNER);
+        UUID legacyId = UUID.randomUUID();
+        jdbcTemplate.update("insert into owner_statements (id, owner_id, period_start, period_end, currency, "
+                        + "gross_revenue, commission_amount, expenses_total, net_payout) "
+                        + "values (?, ?, '2044-01-01', '2044-01-31', 'RON', 500, 100, 0, 400)",
+                legacyId, owner.getId());
+        assertThat(jdbcTemplate.queryForObject("select calculation_method from owner_statements where id = ?",
+                String.class, legacyId)).isEqualTo("LEGACY_GROSS");
+        assertThatThrownBy(() -> jdbcTemplate.update("insert into owner_statements (id, owner_id, period_start, "
+                        + "period_end, currency, gross_revenue, commission_amount, expenses_total, net_payout, "
+                        + "calculation_method, captured_total, refunded_total, commissionable_base, owner_amount, "
+                        + "unallocated_net_revenue, unallocated_reservation_count) values (?, ?, '2044-02-01', "
+                        + "'2044-02-28', 'RON', 500, 80, 0, 400, 'CAPTURED_ACCOMMODATION', 500, 0, 400, 420, 0, 0)",
+                UUID.randomUUID(), owner.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     // ------------------------------------------------------------------
@@ -327,6 +356,9 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
                 .accommodationAmount(new BigDecimal("400.00"))
                 .cleaningFeeAmount(new BigDecimal("100.00"))
                 .extraGuestFeeAmount(BigDecimal.ZERO)
+                .lateCheckoutFeeAmount(BigDecimal.ZERO)
+                .taxAmount(BigDecimal.ZERO)
+                .addonAmount(BigDecimal.ZERO)
                 .currency("RON")
                 .managementToken(secureTokenGenerator.generateRawToken())
                 .holdExpiresAt(Instant.now().plus(35, ChronoUnit.MINUTES))

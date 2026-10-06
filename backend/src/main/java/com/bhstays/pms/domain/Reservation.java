@@ -81,10 +81,13 @@ public class Reservation extends BaseEntity {
     private String currency = "RON";
 
     /**
-     * Price breakdown snapshot of {@link #totalAmount}: nightly accommodation
-     * after any stay discount, cleaning fee and extra-guest fee, always
-     * adding up to the total (enforced by a DB CHECK). Null when the total
-     * did not come from the pricing engine, so the split is unknown.
+     * Price breakdown snapshot of {@link #totalAmount}. Only
+     * {@code accommodationAmount} is commissionable: nightly rates (base,
+     * weekend, seasonal, dynamic) after the weekly/monthly stay discount.
+     * Every other part is kept in its own column and is never commissioned.
+     * The parts always add up exactly to the total (DB CHECK); all are null
+     * when the total did not come from the pricing engine, so the split is
+     * unknown.
      */
     @Column(name = "accommodation_amount", precision = 10, scale = 2)
     private BigDecimal accommodationAmount;
@@ -94,6 +97,15 @@ public class Reservation extends BaseEntity {
 
     @Column(name = "extra_guest_fee_amount", precision = 10, scale = 2)
     private BigDecimal extraGuestFeeAmount;
+
+    @Column(name = "late_checkout_fee_amount", precision = 10, scale = 2)
+    private BigDecimal lateCheckoutFeeAmount;
+
+    @Column(name = "tax_amount", precision = 10, scale = 2)
+    private BigDecimal taxAmount;
+
+    @Column(name = "addon_amount", precision = 10, scale = 2)
+    private BigDecimal addonAmount;
 
     @Column(length = 2000)
     private String notes;
