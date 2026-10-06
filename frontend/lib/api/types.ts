@@ -718,6 +718,60 @@ export interface FinancialReportSummaryResponse {
   totals: FinancialReportCurrencyTotals[]
 }
 
+/**
+ * One property's collected money in one currency. `bhStaysRevenue` and
+ * `ownerAmount` are null while the property has no commission configured.
+ * `unallocatedNetRevenue` is collected money whose reservation has no price
+ * breakdown, so it is not part of `commissionableBase`.
+ */
+export interface PropertyCommissionCurrency {
+  currency: string
+  capturedTotal: number
+  refundedTotal: number
+  netRevenue: number
+  commissionableBase: number
+  commissionPercent: number | null
+  commissionConfigured: boolean
+  bhStaysRevenue: number | null
+  ownerAmount: number | null
+  unallocatedNetRevenue: number
+  paidReservationCount: number
+}
+
+export interface PropertyCommissionReportResponse {
+  propertyId: string
+  propertyName: string
+  from: string | null
+  to: string | null
+  commissionPercent: number | null
+  commissionConfigured: boolean
+  currencies: PropertyCommissionCurrency[]
+}
+
+/** propertiesNetRevenue = bhStaysRevenue + ownersAmount + unconfiguredNetRevenue */
+export interface CommissionSummaryCurrencyTotals {
+  currency: string
+  propertiesNetRevenue: number
+  bhStaysRevenue: number
+  ownersAmount: number
+  includedPropertyCount: number
+  unconfiguredPropertyCount: number
+  unconfiguredNetRevenue: number
+  unallocatedNetRevenue: number
+}
+
+export interface UnconfiguredProperty {
+  propertyId: string
+  propertyName: string
+}
+
+export interface CommissionSummaryResponse {
+  from: string | null
+  to: string | null
+  totals: CommissionSummaryCurrencyTotals[]
+  unconfiguredProperties: UnconfiguredProperty[]
+}
+
 // ---------------------------------------------------------------------------
 // Messaging & notifications
 // ---------------------------------------------------------------------------
