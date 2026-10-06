@@ -14,6 +14,8 @@ const refetch = vi.fn()
 function totals(overrides: Partial<CommissionSummaryCurrencyTotals>): CommissionSummaryCurrencyTotals {
   return {
     currency: "RON",
+    capturedTotal: 2000,
+    refundedTotal: 0,
     propertiesNetRevenue: 2000,
     bhStaysRevenue: 430,
     ownersAmount: 970,
@@ -21,6 +23,7 @@ function totals(overrides: Partial<CommissionSummaryCurrencyTotals>): Commission
     unconfiguredPropertyCount: 1,
     unconfiguredNetRevenue: 600,
     unallocatedNetRevenue: 0,
+    unallocatedReservationCount: 0,
     ...overrides,
   }
 }
@@ -30,7 +33,7 @@ function summary(overrides: Partial<CommissionSummaryResponse> = {}): Commission
     from: null,
     to: null,
     totals: [
-      totals({ currency: "EUR", propertiesNetRevenue: 100, bhStaysRevenue: 20, ownersAmount: 80, includedPropertyCount: 1, unconfiguredPropertyCount: 0, unconfiguredNetRevenue: 0 }),
+      totals({ currency: "EUR", propertiesNetRevenue: 100, bhStaysRevenue: 20, ownersAmount: 80, includedPropertyCount: 1, unconfiguredPropertyCount: 0, unconfiguredNetRevenue: 0, unallocatedNetRevenue: 50, unallocatedReservationCount: 1 }),
       totals({}),
     ],
     unconfiguredProperties: [{ propertyId: "p-unset", propertyName: "Apartament fără comision" }],
@@ -64,8 +67,10 @@ describe("CommissionSummarySection", () => {
     expect(within(ron).getByText("Sumă datorată proprietarilor").closest("[data-slot=card]")).toHaveTextContent(/970,00\sRON/)
     expect(ron).toHaveTextContent("4 proprietăți incluse în RON.")
     expect(ron).toHaveTextContent(/600,00\sRON de la 1 proprietate fără comision configurat/)
+    expect(ron).not.toHaveTextContent("fără defalcare")
 
     const eur = screen.getByRole("group", { name: "Totaluri EUR" })
+    expect(eur).toHaveTextContent(/1 rezervare fără defalcare a prețului \(50,00\sEUR\): incluse în venitul net/)
     expect(within(eur).getByText("Venit BH Stays din comisioane").closest("[data-slot=card]")).toHaveTextContent(/20,00\sEUR/)
     expect(eur).toHaveTextContent("1 proprietate inclusă în EUR.")
     expect(within(eur).queryByText(/RON/)).not.toBeInTheDocument()

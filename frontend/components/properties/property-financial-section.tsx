@@ -108,10 +108,11 @@ function CurrencyBreakdown({ line }: { line: PropertyCommissionCurrency }) {
         Comisionul se aplică doar cazării ({formatMoney(line.commissionableBase, currency)} după refunduri);
         taxa de curățenie și taxa pentru oaspeți suplimentari rămân integral proprietarului.
       </p>
-      {line.unallocatedNetRevenue > 0 && (
+      {line.unallocatedReservationCount > 0 && (
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
-          {formatMoney(line.unallocatedNetRevenue, currency)} provin din rezervări fără defalcare a prețului și nu
-          sunt incluși în baza comisionabilă.
+          {line.unallocatedReservationCount}{" "}
+          {line.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului (
+          {formatMoney(line.unallocatedNetRevenue, currency)}): incluse în venitul net, fără comision BH Stays.
         </p>
       )}
     </section>

@@ -28,6 +28,7 @@ function currencyLine(overrides: Partial<PropertyCommissionCurrency>): PropertyC
     bhStaysRevenue: 200,
     ownerAmount: 1050,
     unallocatedNetRevenue: 0,
+    unallocatedReservationCount: 0,
     paidReservationCount: 2,
     ...overrides,
   }
@@ -115,11 +116,11 @@ describe("PropertyFinancialSection", () => {
   })
 
   it("mentions collected money that has no price breakdown", () => {
-    mockReport({ data: report([currencyLine({ unallocatedNetRevenue: 200 })]) })
+    mockReport({ data: report([currencyLine({ unallocatedNetRevenue: 200, unallocatedReservationCount: 2 })]) })
 
     renderWithProviders(<PropertyFinancialSection propertyId={PROPERTY_ID} commissionPercent={20} canManage={false} />)
 
-    expect(screen.getByText(/200,00\sRON provin din rezervări fără defalcare/)).toBeInTheDocument()
+    expect(screen.getByText(/2 rezervări fără defalcare a prețului \(\s*200,00\sRON\s*\)/)).toBeInTheDocument()
   })
 
   it("has loading, empty and error states", async () => {

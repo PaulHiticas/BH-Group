@@ -106,9 +106,10 @@ function CurrencyTotals({ totals }: { totals: CommissionSummaryCurrencyTotals })
           ` ${formatMoney(totals.unconfiguredNetRevenue, currency)} de la ${totals.unconfiguredPropertyCount} ` +
             `${totals.unconfiguredPropertyCount === 1 ? "proprietate" : "proprietăți"} fără comision configurat ` +
             "nu sunt împărțiți între BH Stays și proprietari."}
-        {totals.unallocatedNetRevenue > 0 &&
-          ` ${formatMoney(totals.unallocatedNetRevenue, currency)} provin din rezervări fără defalcare a ` +
-            "prețului și nu sunt comisionați."}
+        {totals.unallocatedReservationCount > 0 &&
+          ` ${totals.unallocatedReservationCount} ` +
+            `${totals.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului ` +
+            `(${formatMoney(totals.unallocatedNetRevenue, currency)}): incluse în venitul net, fără comision BH Stays.`}
       </p>
     </div>
   )
