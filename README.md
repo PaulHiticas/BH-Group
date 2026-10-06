@@ -45,10 +45,38 @@ configuration, Docker Compose.
   deconturile proprii
 - **Sincronizare iCal** — import/export calendare Airbnb și Booking.com
 - **Lead-uri** — capturare lead-uri și cereri de estimare venit din site-ul public
-- **Rapoarte financiare & dashboard** — panou central cu indicatori agregați
+- **Rapoarte financiare & dashboard** — panou central cu indicatori agregați; venitul
+  proprietăților separat de venitul BH Stays din comisioane (vezi mai jos)
 - **Notificări** — notificări in-app pentru evenimente relevante pe rol
 - **GDPR** — căutare, export și anonimizare a datelor unui oaspete la cerere
   (drepturile persoanei vizate)
+
+## Venitul proprietăților vs. venitul BH Stays
+
+Apartamentele aparțin proprietarilor; BH Stays păstrează doar comisionul de administrare,
+configurat separat pe fiecare proprietate (`0.00–100.00%`, maximum două zecimale) din pagina
+proprietății sau din formularul de editare — fără deployment. Doar `SUPER_ADMIN` și
+`ADMINISTRATOR` îl pot modifica; fiecare modificare apare în audit log (doar procentele).
+Rapoartele le pot citi `SUPER_ADMIN`, `ADMINISTRATOR` și `ACCOUNTANT`.
+
+Se raportează exclusiv bani încasați (plăți `SUCCEEDED` / `PARTIALLY_REFUNDED` / `REFUNDED`),
+separat pe fiecare monedă, fără conversii valutare. Rezervările intră în perioadă după data
+de check-in. Pentru fiecare proprietate și monedă:
+
+```
+venit net proprietate = încasat − refunduri reușite
+bază comisionabilă    = partea de cazare din încasat, după refunduri
+venit BH Stays        = bază comisionabilă × procent / 100
+sumă proprietar       = venit net proprietate − venit BH Stays
+```
+
+Partea de cazare vine din defalcarea prețului salvată pe rezervare (cazare / taxă de
+curățenie / taxă oaspete suplimentar) atunci când totalul provine din motorul de prețuri.
+Taxa de curățenie și taxa pentru oaspeți suplimentari nu se comisionează niciodată. Un refund
+parțial reduce baza proporțional. Încasările rezervărilor fără defalcare (ex. total introdus
+manual, diferit de cotația sistemului) apar ca „fără defalcare” și nu intră în bază. Fără
+procent configurat, proprietatea apare ca „Comision neconfigurat” și nu i se calculează venit
+BH Stays.
 
 ## Rulare locală
 
