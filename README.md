@@ -57,26 +57,50 @@ Apartamentele aparțin proprietarilor; BH Stays păstrează doar comisionul de a
 configurat separat pe fiecare proprietate (`0.00–100.00%`, maximum două zecimale) din pagina
 proprietății sau din formularul de editare — fără deployment. Doar `SUPER_ADMIN` și
 `ADMINISTRATOR` îl pot modifica; fiecare modificare apare în audit log (doar procentele).
-Rapoartele le pot citi `SUPER_ADMIN`, `ADMINISTRATOR` și `ACCOUNTANT`.
+Rapoartele, `/finance` și deconturile le pot vedea `SUPER_ADMIN`, `ADMINISTRATOR` și
+`ACCOUNTANT`; proprietarul își vede doar propriile proprietăți și deconturi.
 
-Se raportează exclusiv bani încasați (plăți `SUCCEEDED` / `PARTIALLY_REFUNDED` / `REFUNDED`),
-separat pe fiecare monedă, fără conversii valutare. Rezervările intră în perioadă după data
-de check-in. Pentru fiecare proprietate și monedă:
+**O singură formulă, peste tot.** Raportul proprietății, dashboardul, `/finance`, deconturile
+proprietarilor și portalul proprietarului iau cifrele din același calcul
+(`PropertyCommissionCalculator` prin `PropertyCommissionReportService`). Se folosesc doar bani
+încasați (plăți `SUCCEEDED` / `PARTIALLY_REFUNDED` / `REFUNDED`; pending, failed, cancelled și
+hold-urile nu contează), separat pe fiecare monedă, fără conversii. Rezervările intră în perioadă
+după data de check-in. Pentru fiecare proprietate, perioadă și monedă:
 
 ```
 venit net proprietate = încasat − refunduri reușite
 bază comisionabilă    = partea de cazare din încasat, după refunduri
 venit BH Stays        = bază comisionabilă × procent / 100
 sumă proprietar       = venit net proprietate − venit BH Stays
+net de plată (decont) = sumă proprietar − cheltuieli facturate proprietarului
 ```
 
-Partea de cazare vine din defalcarea prețului salvată pe rezervare (cazare / taxă de
-curățenie / taxă oaspete suplimentar) atunci când totalul provine din motorul de prețuri.
-Taxa de curățenie și taxa pentru oaspeți suplimentari nu se comisionează niciodată. Un refund
-parțial reduce baza proporțional. Încasările rezervărilor fără defalcare (ex. total introdus
-manual, diferit de cotația sistemului) apar ca „fără defalcare” și nu intră în bază. Fără
-procent configurat, proprietatea apare ca „Comision neconfigurat” și nu i se calculează venit
-BH Stays.
+**Clasificarea componentelor**, salvate pe rezervare din cotația sistemului și reconciliate exact
+cu totalul (CHECK în baza de date):
+
+| Componentă | Comisionabilă |
+|---|---|
+| Cazare: tarif de bază, weekend, sezonier, dynamic pricing, minus discountul săptămânal/lunar | da |
+| Taxa de curățenie | nu |
+| Taxa pentru oaspeți suplimentari | nu |
+| Late checkout | nu |
+| Taxe | nu |
+| Addon-uri | nu |
+
+Motorul de prețuri nu include late checkout, taxe sau addon-uri în totalul rezervării, deci
+acestea sunt 0 în snapshot; o plată separată pentru late checkout, peste o rezervare plătită
+integral, nu este comisionată (partea de cazare e plafonată la valoarea din snapshot). Un refund
+parțial reduce baza proporțional.
+
+**Istoric.** Rezervările fără defalcare verificabilă (create înainte de snapshot sau cu un total
+diferit de cotația sistemului) apar ca „fără defalcare”: banii încasați intră în venitul net, dar
+nu se calculează automat comision pe ei, și sunt numărați separat în rapoarte și deconturi. Nu se
+estimează nimic.
+
+**Procent neconfigurat.** Proprietatea apare ca „Comision neconfigurat”, fără venit BH Stays și
+fără sumă proprietar; un decont nu poate fi generat cât timp o proprietate cu încasări nu are
+procent. Deconturile emise înainte de această formulă sunt marcate `LEGACY_GROSS` și rămân exact
+cum au fost emise. Fiecare decont acoperă o singură monedă.
 
 ## Rulare locală
 

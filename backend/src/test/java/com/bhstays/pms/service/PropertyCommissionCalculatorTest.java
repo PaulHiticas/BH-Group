@@ -157,6 +157,8 @@ class PropertyCommissionCalculatorTest {
 
         assertThat(line.netRevenue()).isEqualByComparingTo("700.00");
         assertThat(line.unallocatedNetRevenue()).isEqualByComparingTo("200.00");
+        assertThat(line.unallocatedReservationCount()).isEqualTo(1);
+        assertThat(line.paidReservationCount()).isEqualTo(2);
         assertThat(line.commissionableBase()).isEqualByComparingTo("400.00");
         assertThat(line.bhStaysRevenue()).isEqualByComparingTo("80.00");
         assertThat(line.ownerAmount()).isEqualByComparingTo("620.00");
@@ -182,6 +184,45 @@ class PropertyCommissionCalculatorTest {
         assertThat(line.commissionableBase()).isEqualByComparingTo("400.00");
         assertThat(line.bhStaysRevenue()).isEqualByComparingTo("40.00");
         assertThat(line.ownerAmount()).isEqualByComparingTo("560.00");
+    }
+
+    @Test
+    void lateCheckoutOrAddOnPaidOnTopOfAFullyPaidStay_isNotCommissioned() {
+        // 500 stay (400 accommodation) fully paid + a separate 50 late-checkout payment
+        PropertyCommissionCurrencyResponse line = single("20", row("RON", "500.00", "400.00", "550.00", "0"));
+
+        assertThat(line.netRevenue()).isEqualByComparingTo("550.00");
+        assertThat(line.commissionableBase()).isEqualByComparingTo("400.00");
+        assertThat(line.bhStaysRevenue()).isEqualByComparingTo("80.00");
+        assertThat(line.ownerAmount()).isEqualByComparingTo("470.00");
+    }
+
+    @Test
+    void totals_reconcileNetWithBothSharesAndUnconfiguredMoney() {
+        List<PropertyCommissionCurrencyResponse> lines = List.of(
+                single("20", row("RON", "500.00", "400.00", "500.00", "100.00")),
+                single(null, row("RON", "300.00", "300.00", "300.00", "0")),
+                single("10", row("RON", "200.00", null, "200.00", "0")));
+
+        var totals = PropertyCommissionCalculator.totals("RON", lines);
+
+        assertThat(totals.capturedTotal()).isEqualByComparingTo("1000.00");
+        assertThat(totals.refundedTotal()).isEqualByComparingTo("100.00");
+        assertThat(totals.propertiesNetRevenue()).isEqualByComparingTo("900.00");
+        assertThat(totals.bhStaysRevenue()).isEqualByComparingTo("64.00");      // 20% of 320, 10% of 0
+        assertThat(totals.ownersAmount()).isEqualByComparingTo("536.00");       // 336 + 200
+        assertThat(totals.unconfiguredNetRevenue()).isEqualByComparingTo("300.00");
+        assertThat(totals.unallocatedNetRevenue()).isEqualByComparingTo("200.00");
+        assertThat(totals.unallocatedReservationCount()).isEqualTo(1);
+        assertThat(totals.bhStaysRevenue().add(totals.ownersAmount()).add(totals.unconfiguredNetRevenue()))
+                .isEqualByComparingTo(totals.propertiesNetRevenue());
+    }
+
+    @Test
+    void emptyLine_keepsTheCommissionFlags() {
+        assertThat(PropertyCommissionCalculator.empty("EUR", new BigDecimal("15")).bhStaysRevenue())
+                .isEqualByComparingTo("0.00");
+        assertThat(PropertyCommissionCalculator.empty("EUR", null).bhStaysRevenue()).isNull();
     }
 
     @Test

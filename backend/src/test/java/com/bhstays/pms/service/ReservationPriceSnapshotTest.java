@@ -35,10 +35,44 @@ class ReservationPriceSnapshotTest {
         assertThat(reservation.getAccommodationAmount()).isEqualByComparingTo("400.00");
         assertThat(reservation.getCleaningFeeAmount()).isEqualByComparingTo("100.00");
         assertThat(reservation.getExtraGuestFeeAmount()).isEqualByComparingTo("50.00");
+        // the pricing engine never quotes these into a booking total
+        assertThat(reservation.getLateCheckoutFeeAmount()).isEqualByComparingTo("0");
+        assertThat(reservation.getTaxAmount()).isEqualByComparingTo("0");
+        assertThat(reservation.getAddonAmount()).isEqualByComparingTo("0");
         assertThat(reservation.getAccommodationAmount()
                 .add(reservation.getCleaningFeeAmount())
-                .add(reservation.getExtraGuestFeeAmount()))
+                .add(reservation.getExtraGuestFeeAmount())
+                .add(reservation.getLateCheckoutFeeAmount())
+                .add(reservation.getTaxAmount())
+                .add(reservation.getAddonAmount()))
                 .isEqualByComparingTo(reservation.getTotalAmount());
+    }
+
+    @Test
+    void discountIsPartOfAccommodation() {
+        // 500 nightly - 50 weekly discount + 100 cleaning = 550
+        Reservation reservation = reservation("550.00", "RON");
+        PriceQuoteResponse discounted = new PriceQuoteResponse(true, null, LocalDate.of(2030, 1, 1),
+                LocalDate.of(2030, 1, 8), 7, new BigDecimal("500.00"), BigDecimal.ZERO, new BigDecimal("100.00"),
+                new BigDecimal("10"), new BigDecimal("50.00"), new BigDecimal("550.00"), "RON", null, null);
+
+        ReservationPriceSnapshot.apply(reservation, discounted);
+
+        assertThat(reservation.getAccommodationAmount()).isEqualByComparingTo("450.00");
+    }
+
+    @Test
+    void partsThatDoNotReconcileWithTheQuotedNightlySubtotal_clearTheBreakdown() {
+        // total says 550 but nightly 400 + fees 150 would only be 550 with no discount; quoted discount 1.00
+        Reservation reservation = reservation("550.00", "RON");
+        PriceQuoteResponse inconsistent = new PriceQuoteResponse(true, null, LocalDate.of(2030, 1, 1),
+                LocalDate.of(2030, 1, 4), 3, new BigDecimal("400.00"), new BigDecimal("50.00"), new BigDecimal("100.00"),
+                null, new BigDecimal("1.00"), new BigDecimal("550.00"), "RON", null, null);
+
+        ReservationPriceSnapshot.apply(reservation, inconsistent);
+
+        assertThat(reservation.getAccommodationAmount()).isNull();
+        assertThat(reservation.getAddonAmount()).isNull();
     }
 
     @Test
