@@ -80,6 +80,21 @@ public class Reservation extends BaseEntity {
     @Builder.Default
     private String currency = "RON";
 
+    /**
+     * Price breakdown snapshot of {@link #totalAmount}: nightly accommodation
+     * after any stay discount, cleaning fee and extra-guest fee, always
+     * adding up to the total (enforced by a DB CHECK). Null when the total
+     * did not come from the pricing engine, so the split is unknown.
+     */
+    @Column(name = "accommodation_amount", precision = 10, scale = 2)
+    private BigDecimal accommodationAmount;
+
+    @Column(name = "cleaning_fee_amount", precision = 10, scale = 2)
+    private BigDecimal cleaningFeeAmount;
+
+    @Column(name = "extra_guest_fee_amount", precision = 10, scale = 2)
+    private BigDecimal extraGuestFeeAmount;
+
     @Column(length = 2000)
     private String notes;
 
