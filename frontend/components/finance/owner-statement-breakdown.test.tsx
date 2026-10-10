@@ -65,7 +65,7 @@ describe("OwnerStatementBreakdown", () => {
     expect(figure("Comision BH Stays")).toHaveTextContent(/-160,00\sRON/)
     expect(figure("Sumă proprietar")).toHaveTextContent(/840,00\sRON/)
     expect(figure("Net de plată")).toHaveTextContent(/740,00\sRON/)
-    expect(screen.getByRole("status")).toHaveTextContent(/1 rezervare fără defalcare a prețului \(250,00\sRON\)/)
+    expect(screen.getByRole("status")).toHaveTextContent(/1 rezervare fără snapshot verificabil \(250,00\sRON\)/)
 
     const line = screen.getByRole("row", { name: /Casa Mare/ })
     expect(line).toHaveTextContent("20%")
@@ -94,6 +94,31 @@ describe("OwnerStatementBreakdown", () => {
     expect(figure("Net de plată")).toHaveTextContent(/700,00\sRON/)
     expect(screen.queryByText("Bază comisionabilă (cazare)")).not.toBeInTheDocument()
   })
+
+  it("shows a later refund commission reduction as a credit, without a double minus", () => {
+    renderWithProviders(
+      <OwnerStatementBreakdown
+        statement={statement({
+          capturedTotal: 0,
+          refundedTotal: 100,
+          grossRevenue: -100,
+          commissionableBase: -80,
+          commissionAmount: -16,
+          ownerAmount: -84,
+          expensesTotal: 0,
+          netPayout: -84,
+          unallocatedNetRevenue: 0,
+          unallocatedReservationCount: 0,
+          lines: [],
+        })}
+      />
+    )
+
+    expect(figure("Refunduri")).toHaveTextContent(/-100,00\sRON/)
+    expect(figure("Comision BH Stays")).toHaveTextContent(/^16,00\sRON$/)
+    expect(figure("Sumă proprietar")).toHaveTextContent(/-84,00\sRON/)
+    expect(figure("Comision BH Stays")).not.toHaveTextContent("--")
+  })
 })
 
 function revenueLine(overrides: Partial<OwnerRevenueLine>): OwnerRevenueLine {
@@ -103,12 +128,11 @@ function revenueLine(overrides: Partial<OwnerRevenueLine>): OwnerRevenueLine {
     refundedTotal: 0,
     netRevenue: 1000,
     commissionableBase: 800,
-    commissionPercent: 20,
+    commissionPercents: [20],
     bhStaysCommission: 160,
     ownerAmount: 840,
     netPayout: 740,
     expensesTotal: 100,
-    unconfiguredNetRevenue: 0,
     unallocatedNetRevenue: 0,
     unallocatedReservationCount: 0,
     ...overrides,
@@ -133,15 +157,37 @@ describe("OwnerRevenueLines", () => {
     expect(within(ron).getByText("Net de plată").nextSibling).toHaveTextContent(/740,00\sRON/)
   })
 
-  it("does not invent a split while a commission is not configured", () => {
+  it("lists every snapshot percent and flags money that was not commissioned", () => {
     renderWithProviders(
       <OwnerRevenueLines
-        lines={[revenueLine({ bhStaysCommission: null, ownerAmount: null, netPayout: null, unconfiguredNetRevenue: 500 })]}
+        lines={[revenueLine({ commissionPercents: [20, 25], unallocatedNetRevenue: 250, unallocatedReservationCount: 1 })]}
       />
     )
 
-    expect(screen.getByText("Sumă proprietar").nextSibling).toHaveTextContent("—")
-    expect(screen.getByRole("status")).toHaveTextContent(/500,00\sRON așteaptă configurarea comisionului/)
+    expect(screen.getByText("Comision BH Stays (20% / 25%)")).toBeInTheDocument()
+    expect(screen.getByRole("status")).toHaveTextContent(/1 rezervare fără snapshot verificabil \(\s*250,00\sRON\s*\)/)
+  })
+
+  it("shows a negative commission adjustment as money returned to the owner", () => {
+    renderWithProviders(
+      <OwnerRevenueLines
+        lines={[
+          revenueLine({
+            capturedTotal: 0,
+            refundedTotal: 100,
+            netRevenue: -100,
+            commissionableBase: -80,
+            bhStaysCommission: -16,
+            ownerAmount: -84,
+            netPayout: -84,
+            expensesTotal: 0,
+          }),
+        ]}
+      />
+    )
+
+    const block = screen.getByRole("region", { name: "Încasări RON" })
+    expect(within(block).getByText("Comision BH Stays (20%)").nextSibling).toHaveTextContent(/^16,00\sRON$/)
   })
 
   it("has an empty state", () => {

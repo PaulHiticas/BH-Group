@@ -35,7 +35,9 @@ export function CommissionSummarySection() {
           <h2 id="commission-summary-title" className="text-lg font-semibold tracking-tight">
             Încasări și comisioane
           </h2>
-          <p className="text-sm text-muted-foreground">Doar bani încasați, după refunduri.</p>
+          <p className="text-sm text-muted-foreground">
+            Doar bani încasați, după data plății; refundurile, după data refundului.
+          </p>
         </div>
         <ReportPeriodFilter value={period} onChange={setPeriod} />
       </div>
@@ -102,13 +104,9 @@ function CurrencyTotals({ totals }: { totals: CommissionSummaryCurrencyTotals })
       <p className="text-xs text-muted-foreground">
         {totals.includedPropertyCount}{" "}
         {totals.includedPropertyCount === 1 ? "proprietate inclusă" : "proprietăți incluse"} în {currency}.
-        {totals.unconfiguredPropertyCount > 0 &&
-          ` ${formatMoney(totals.unconfiguredNetRevenue, currency)} de la ${totals.unconfiguredPropertyCount} ` +
-            `${totals.unconfiguredPropertyCount === 1 ? "proprietate" : "proprietăți"} fără comision configurat ` +
-            "nu sunt împărțiți între BH Stays și proprietari."}
         {totals.unallocatedReservationCount > 0 &&
           ` ${totals.unallocatedReservationCount} ` +
-            `${totals.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului ` +
+            `${totals.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără snapshot verificabil ` +
             `(${formatMoney(totals.unallocatedNetRevenue, currency)}): incluse în venitul net, fără comision BH Stays.`}
       </p>
     </div>
@@ -131,7 +129,7 @@ function UnconfiguredWarning({ properties }: { properties: UnconfiguredProperty[
           : `${properties.length} proprietăți au comisionul neconfigurat`}
       </AlertTitle>
       <AlertDescription>
-        <p>Venitul BH Stays nu include aceste proprietăți până nu le setezi procentul de administrare.</p>
+        <p>Rezervările noi ale acestor proprietăți nu vor avea comision BH Stays până nu setezi procentul.</p>
         <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
           {shown.map((property) => (
             <li key={property.propertyId}>

@@ -31,6 +31,11 @@ export function formatPercent(value: number) {
   return new Intl.NumberFormat("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value) + "%"
 }
 
+/** The reservations' snapshotted percents in a period ("20% / 25%"), or a dash when none applied. */
+export function formatPercents(values: number[]) {
+  return values.length === 0 ? "—" : values.map(formatPercent).join(" / ")
+}
+
 export interface DateRange {
   from: string
   to: string

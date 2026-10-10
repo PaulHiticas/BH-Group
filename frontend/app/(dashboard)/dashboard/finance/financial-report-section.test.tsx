@@ -24,8 +24,8 @@ function row(overrides: Partial<FinancialReportRowResponse>): FinancialReportRow
     refundedTotal: 250,
     netRevenue: 750,
     commissionableBase: 600,
-    commissionPercent: 20,
-    commissionConfigured: true,
+    commissionPercents: [20],
+    propertyCommissionPercent: 20,
     bhStaysRevenue: 120,
     ownerAmount: 630,
     unallocatedNetRevenue: 0,
@@ -48,8 +48,6 @@ function revenue(overrides: Partial<CommissionSummaryCurrencyTotals>): Commissio
     bhStaysRevenue: 120,
     ownersAmount: 630,
     includedPropertyCount: 1,
-    unconfiguredPropertyCount: 0,
-    unconfiguredNetRevenue: 0,
     unallocatedNetRevenue: 0,
     unallocatedReservationCount: 0,
     ...overrides,
@@ -75,9 +73,9 @@ const report: FinancialReportSummaryResponse = {
     }),
     row({
       propertyId: "p2", propertyName: "Apartament neconfigurat", ownerName: null, capturedTotal: 400,
-      refundedTotal: 0, netRevenue: 400, commissionableBase: 300, commissionPercent: null,
-      commissionConfigured: false, bhStaysRevenue: null, ownerAmount: null, expensesTotal: 0, netProfit: 400,
-      unallocatedNetRevenue: 100, unallocatedReservationCount: 1,
+      refundedTotal: 0, netRevenue: 400, commissionableBase: 0, commissionPercents: [],
+      propertyCommissionPercent: null, bhStaysRevenue: 0, ownerAmount: 400, expensesTotal: 0, netProfit: 400,
+      unallocatedNetRevenue: 400, unallocatedReservationCount: 1,
     }),
   ],
   totals: [
@@ -92,8 +90,8 @@ const report: FinancialReportSummaryResponse = {
     {
       currency: "RON",
       revenue: revenue({
-        capturedTotal: 1400, propertiesNetRevenue: 1150, unconfiguredPropertyCount: 1,
-        unconfiguredNetRevenue: 400, unallocatedNetRevenue: 100, unallocatedReservationCount: 1,
+        capturedTotal: 1400, propertiesNetRevenue: 1150, ownersAmount: 1030,
+        unallocatedNetRevenue: 400, unallocatedReservationCount: 1,
       }),
       totalExpenses: 150,
       totalNetProfit: 1000,
@@ -121,7 +119,7 @@ describe("FinancialReportSection (/finance)", () => {
     expect(ronRow).toHaveTextContent(/630,00\sRON/)
     expect(eurRow).toHaveTextContent(/40,00\sEUR/)
     expect(within(eurRow).queryByText(/RON/)).not.toBeInTheDocument()
-    expect(unsetRow).toHaveTextContent("Neconfigurat")
+    expect(within(unsetRow).getAllByRole("cell")[5]).toHaveTextContent("—")
     expect(unsetRow).toHaveTextContent("BH Stays")
 
     // the deprecated gross/commission fields are never displayed as collected money
@@ -142,13 +140,13 @@ describe("FinancialReportSection (/finance)", () => {
     expect(within(totalEur).queryByText(/RON/)).not.toBeInTheDocument()
   })
 
-  it("explains unconfigured and unallocated money", () => {
+  it("explains money that was not commissioned", () => {
     mockReport({ data: report })
     renderWithProviders(<FinancialReportSection propertyId="" from="" to="" />)
 
     const notes = screen.getByRole("status")
-    expect(notes).toHaveTextContent(/400,00\sRON de la 1 proprietate cu comision neconfigurat/)
-    expect(notes).toHaveTextContent(/1 rezervare fără defalcare a prețului \(100,00\sRON\)/)
+    expect(notes).toHaveTextContent(/1 rezervare fără snapshot verificabil \(400,00\sRON\)/)
+    expect(notes).not.toHaveTextContent(/EUR/)
   })
 
   it("passes the period and property filters through", () => {

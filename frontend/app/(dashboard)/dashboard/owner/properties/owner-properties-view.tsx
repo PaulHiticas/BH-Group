@@ -69,7 +69,7 @@ export function OwnerPropertiesView() {
                           <div key={line.currency} className="flex items-center justify-between">
                             <span className="text-muted-foreground">Sumă proprietar ({line.currency})</span>
                             <span className="font-medium">
-                              {line.ownerAmount != null ? formatMoney(line.ownerAmount, line.currency) : "Comision neconfigurat"}
+                              {formatMoney(line.ownerAmount, line.currency)}
                             </span>
                           </div>
                         ))

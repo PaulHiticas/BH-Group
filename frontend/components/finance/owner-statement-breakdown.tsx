@@ -39,12 +39,15 @@ function CapturedAccommodationBreakdown({ statement }: { statement: OwnerStateme
     <div className="flex flex-col gap-4">
       <dl className="grid gap-2 text-sm" aria-label={`Rezumat decont ${currency}`}>
         <SummaryRow label="Încasat" value={money(statement.capturedTotal)} />
-        <SummaryRow label="Refunduri" value={`-${money(statement.refundedTotal)}`} />
+        <SummaryRow
+          label="Refunduri"
+          value={statement.refundedTotal != null ? formatMoney(-statement.refundedTotal, currency) : "—"}
+        />
         <SummaryRow label="Venit net încasat" value={money(statement.grossRevenue)} strong />
         <SummaryRow label="Bază comisionabilă (cazare)" value={money(statement.commissionableBase)} />
-        <SummaryRow label="Comision BH Stays" value={`-${money(statement.commissionAmount)}`} />
+        <SummaryRow label="Comision BH Stays" value={formatMoney(-statement.commissionAmount, currency)} />
         <SummaryRow label="Sumă proprietar" value={money(statement.ownerAmount)} strong />
-        <SummaryRow label="Cheltuieli facturate" value={`-${money(statement.expensesTotal)}`} />
+        <SummaryRow label="Cheltuieli facturate" value={formatMoney(-statement.expensesTotal, currency)} />
         <SummaryRow label="Net de plată" value={money(statement.netPayout)} strong />
       </dl>
       <p className="text-xs text-muted-foreground">
@@ -54,7 +57,7 @@ function CapturedAccommodationBreakdown({ statement }: { statement: OwnerStateme
       {statement.unallocatedReservationCount != null && statement.unallocatedReservationCount > 0 && (
         <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
           {statement.unallocatedReservationCount}{" "}
-          {statement.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului (
+          {statement.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără snapshot verificabil (
           {money(statement.unallocatedNetRevenue)}): incluse în venitul net, fără comision BH Stays.
         </p>
       )}
@@ -102,8 +105,8 @@ function LegacyBreakdown({ statement }: { statement: OwnerStatementResponse }) {
       </p>
       <dl className="grid gap-2 text-sm" aria-label={`Rezumat decont ${currency}`}>
         <SummaryRow label="Venit net încasat" value={formatMoney(statement.grossRevenue, currency)} strong />
-        <SummaryRow label="Comision BH Stays" value={`-${formatMoney(statement.commissionAmount, currency)}`} />
-        <SummaryRow label="Cheltuieli facturate" value={`-${formatMoney(statement.expensesTotal, currency)}`} />
+        <SummaryRow label="Comision BH Stays" value={formatMoney(-statement.commissionAmount, currency)} />
+        <SummaryRow label="Cheltuieli facturate" value={formatMoney(-statement.expensesTotal, currency)} />
         <SummaryRow label="Net de plată" value={formatMoney(statement.netPayout, currency)} strong />
       </dl>
       <Table>

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table"
 import { downloadFile } from "@/lib/download-file"
 import { useFinancialReport } from "@/hooks/use-financial-reports"
-import { formatMoney, formatPercent } from "@/lib/commission"
+import { formatMoney, formatPercents } from "@/lib/commission"
 import type { FinancialReportCurrencyTotals } from "@/lib/api/types"
 
 interface FinancialReportSectionProps {
@@ -28,9 +28,10 @@ interface FinancialReportSectionProps {
 
 /**
  * Collected money per property and currency - the same figures as the
- * property page and the dashboard (captured payments minus refunds,
- * commission on accommodation only) - plus expenses. Totals are per
- * currency; RON and EUR are never added together.
+ * property page and the dashboard (captures by capture date, refunds by
+ * refund date, commission on accommodation only at each reservation's
+ * snapshotted percent) - plus expenses. Totals are per currency; RON and
+ * EUR are never added together.
  */
 export function FinancialReportSection({ propertyId, from, to }: FinancialReportSectionProps) {
   const { data, isLoading, isError, refetch } = useFinancialReport({ propertyId: propertyId || undefined, from, to })
@@ -95,19 +96,9 @@ export function FinancialReportSection({ propertyId, from, to }: FinancialReport
                     <TableCell className="text-right">{formatMoney(row.capturedTotal, row.currency)}</TableCell>
                     <TableCell className="text-right">{formatMoney(row.refundedTotal, row.currency)}</TableCell>
                     <TableCell className="text-right">{formatMoney(row.netRevenue, row.currency)}</TableCell>
-                    <TableCell className="text-right">
-                      {row.commissionConfigured && row.commissionPercent != null ? (
-                        formatPercent(row.commissionPercent)
-                      ) : (
-                        <span className="text-amber-700 dark:text-amber-400">Neconfigurat</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {row.bhStaysRevenue != null ? formatMoney(row.bhStaysRevenue, row.currency) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {row.ownerAmount != null ? formatMoney(row.ownerAmount, row.currency) : "—"}
-                    </TableCell>
+                    <TableCell className="text-right">{formatPercents(row.commissionPercents)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(row.bhStaysRevenue, row.currency)}</TableCell>
+                    <TableCell className="text-right">{formatMoney(row.ownerAmount, row.currency)}</TableCell>
                     <TableCell className="text-right">{formatMoney(row.expensesTotal, row.currency)}</TableCell>
                     <TableCell className={`text-right font-medium ${row.netProfit < 0 ? "text-destructive" : ""}`}>
                       {formatMoney(row.netProfit, row.currency)}
@@ -143,21 +134,14 @@ export function FinancialReportSection({ propertyId, from, to }: FinancialReport
   )
 }
 
-/** Why "Venit BH Stays" + "Sumă proprietar" can be less than "Venit net", per currency. */
+/** Money that was not commissioned because its reservation has no verifiable snapshot, per currency. */
 function ReconciliationNotes({ totals }: { totals: FinancialReportCurrencyTotals[] }) {
   const notes = totals.flatMap(({ currency, revenue }) => {
     const lines: string[] = []
-    if (revenue.unconfiguredPropertyCount > 0) {
-      lines.push(
-        `${formatMoney(revenue.unconfiguredNetRevenue, currency)} de la ${revenue.unconfiguredPropertyCount} ` +
-          `${revenue.unconfiguredPropertyCount === 1 ? "proprietate" : "proprietăți"} cu comision neconfigurat ` +
-          "nu sunt împărțiți între BH Stays și proprietari."
-      )
-    }
     if (revenue.unallocatedReservationCount > 0) {
       lines.push(
         `${revenue.unallocatedReservationCount} ` +
-          `${revenue.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului ` +
+          `${revenue.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără snapshot verificabil ` +
           `(${formatMoney(revenue.unallocatedNetRevenue, currency)}): incluse în venitul net, fără comision BH Stays.`
       )
     }

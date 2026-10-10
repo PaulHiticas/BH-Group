@@ -13,7 +13,7 @@ import {
   commissionPercentSchema,
   currentMonthRange,
   formatMoney,
-  formatPercent,
+  formatPercents,
   type DateRange,
 } from "@/lib/commission"
 import type { PropertyCommissionCurrency } from "@/lib/api/types"
@@ -47,8 +47,8 @@ export function PropertyFinancialSection({ propertyId, commissionPercent, canMan
           <AlertTriangle />
           <AlertTitle>Comision neconfigurat</AlertTitle>
           <AlertDescription>
-            Fără procentul de administrare nu se calculează venitul BH Stays și suma proprietarului pentru
-            această proprietate.
+            Rezervările create cât timp procentul nu este setat nu vor avea comision BH Stays. Setează-l înainte
+            de a primi rezervări noi.
           </AlertDescription>
         </Alert>
       )}
@@ -88,30 +88,20 @@ function CurrencyBreakdown({ line }: { line: PropertyCommissionCurrency }) {
         <Figure label="Venit brut încasat" value={formatMoney(line.capturedTotal, currency)} />
         <Figure label="Refunduri" value={formatMoney(line.refundedTotal, currency)} />
         <Figure label="Venit net" value={formatMoney(line.netRevenue, currency)} emphasis />
-        <Figure
-          label="Procent BH Stays"
-          value={line.commissionConfigured && line.commissionPercent != null
-            ? formatPercent(line.commissionPercent)
-            : "Comision neconfigurat"}
-        />
-        <Figure
-          label="Venit BH Stays"
-          value={line.bhStaysRevenue != null ? formatMoney(line.bhStaysRevenue, currency) : "—"}
-        />
-        <Figure
-          label="Sumă proprietar"
-          value={line.ownerAmount != null ? formatMoney(line.ownerAmount, currency) : "—"}
-          emphasis
-        />
+        <Figure label="Procent BH Stays (rezervări)" value={formatPercents(line.commissionPercents)} />
+        <Figure label="Venit BH Stays" value={formatMoney(line.bhStaysRevenue, currency)} />
+        <Figure label="Sumă proprietar" value={formatMoney(line.ownerAmount, currency)} emphasis />
       </dl>
       <p className="mt-3 text-xs text-muted-foreground">
-        Comisionul se aplică doar cazării ({formatMoney(line.commissionableBase, currency)} după refunduri);
-        taxa de curățenie și taxa pentru oaspeți suplimentari rămân integral proprietarului.
+        Comisionul se aplică doar cazării ({formatMoney(line.commissionableBase, currency)} după refunduri), la
+        procentul valabil când a fost creată fiecare rezervare; curățenia, oaspeții suplimentari, late checkout,
+        taxele și addon-urile rămân integral proprietarului. Încasările intră în perioadă după data plății, iar
+        refundurile după data refundului.
       </p>
       {line.unallocatedReservationCount > 0 && (
         <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
           {line.unallocatedReservationCount}{" "}
-          {line.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului (
+          {line.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără snapshot verificabil (
           {formatMoney(line.unallocatedNetRevenue, currency)}): incluse în venitul net, fără comision BH Stays.
         </p>
       )}
@@ -173,8 +163,8 @@ function CommissionEditor({ propertyId, commissionPercent }: { propertyId: strin
         </Button>
       </div>
       <p id={`${id}-commission-help`} className="text-xs text-muted-foreground">
-        Între 0 și 100, maximum două zecimale. Lasă gol pentru „neconfigurat”. Modificarea se aplică imediat
-        tuturor rapoartelor.
+        Între 0 și 100, maximum două zecimale. Lasă gol pentru „neconfigurat”. Se aplică rezervărilor create de
+        acum înainte; rezervările existente își păstrează procentul.
       </p>
       {error && (
         <p id={`${id}-commission-error`} role="alert" className="text-xs text-destructive">

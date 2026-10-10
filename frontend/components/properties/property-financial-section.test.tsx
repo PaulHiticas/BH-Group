@@ -23,13 +23,12 @@ function currencyLine(overrides: Partial<PropertyCommissionCurrency>): PropertyC
     refundedTotal: 250,
     netRevenue: 1250,
     commissionableBase: 1000,
-    commissionPercent: 20,
-    commissionConfigured: true,
+    commissionPercents: [20],
     bhStaysRevenue: 200,
     ownerAmount: 1050,
     unallocatedNetRevenue: 0,
     unallocatedReservationCount: 0,
-    paidReservationCount: 2,
+    reservationCount: 2,
     ...overrides,
   }
 }
@@ -79,7 +78,7 @@ describe("PropertyFinancialSection", () => {
     expect(within(ron).getByText("Venit brut încasat").nextSibling).toHaveTextContent(/1\.500,00\sRON/)
     expect(within(ron).getByText("Refunduri").nextSibling).toHaveTextContent(/250,00\sRON/)
     expect(within(ron).getByText("Venit net").nextSibling).toHaveTextContent(/1\.250,00\sRON/)
-    expect(within(ron).getByText("Procent BH Stays").nextSibling).toHaveTextContent("20%")
+    expect(within(ron).getByText("Procent BH Stays (rezervări)").nextSibling).toHaveTextContent("20%")
     expect(within(ron).getByText("Venit BH Stays").nextSibling).toHaveTextContent(/200,00\sRON/)
     expect(within(ron).getByText("Sumă proprietar").nextSibling).toHaveTextContent(/1\.050,00\sRON/)
 
@@ -101,26 +100,41 @@ describe("PropertyFinancialSection", () => {
     expect(screen.getByLabelText("Până la")).toHaveValue(to)
   })
 
-  it("flags an unconfigured commission and shows no artificial split", () => {
-    mockReport({
-      data: report([currencyLine({ commissionPercent: null, commissionConfigured: false, bhStaysRevenue: null, ownerAmount: null })], null),
-    })
+  it("warns that new reservations get no commission while the property is unconfigured", () => {
+    // past reservations keep their own snapshot percent, even though the setting is now empty
+    mockReport({ data: report([currencyLine({ commissionPercents: [20, 25] })], null) })
 
     renderWithProviders(<PropertyFinancialSection propertyId={PROPERTY_ID} commissionPercent={null} canManage />)
 
     expect(screen.getByRole("status")).toHaveTextContent("Comision neconfigurat")
+    expect(screen.getByRole("status")).toHaveTextContent("Rezervările create cât timp procentul nu este setat")
     const ron = screen.getByRole("region", { name: "Încasări în RON" })
-    expect(within(ron).getByText("Procent BH Stays").nextSibling).toHaveTextContent("Comision neconfigurat")
-    expect(within(ron).getByText("Venit BH Stays").nextSibling).toHaveTextContent("—")
-    expect(within(ron).getByText("Sumă proprietar").nextSibling).toHaveTextContent("—")
+    expect(within(ron).getByText("Procent BH Stays (rezervări)").nextSibling).toHaveTextContent("20% / 25%")
+    expect(within(ron).getByText("Venit BH Stays").nextSibling).toHaveTextContent(/200,00\sRON/)
   })
 
-  it("mentions collected money that has no price breakdown", () => {
+  it("shows a later refund as a negative adjustment of its own period", () => {
+    mockReport({
+      data: report([currencyLine({
+        capturedTotal: 0, refundedTotal: 100, netRevenue: -100, commissionableBase: -80,
+        bhStaysRevenue: -16, ownerAmount: -84,
+      })]),
+    })
+
+    renderWithProviders(<PropertyFinancialSection propertyId={PROPERTY_ID} commissionPercent={20} canManage={false} />)
+
+    const ron = screen.getByRole("region", { name: "Încasări în RON" })
+    expect(within(ron).getByText("Venit net").nextSibling).toHaveTextContent(/-100,00\sRON/)
+    expect(within(ron).getByText("Venit BH Stays").nextSibling).toHaveTextContent(/-16,00\sRON/)
+    expect(within(ron).getByText("Sumă proprietar").nextSibling).toHaveTextContent(/-84,00\sRON/)
+  })
+
+  it("mentions collected money of reservations without a verifiable snapshot", () => {
     mockReport({ data: report([currencyLine({ unallocatedNetRevenue: 200, unallocatedReservationCount: 2 })]) })
 
     renderWithProviders(<PropertyFinancialSection propertyId={PROPERTY_ID} commissionPercent={20} canManage={false} />)
 
-    expect(screen.getByText(/2 rezervări fără defalcare a prețului \(\s*200,00\sRON\s*\)/)).toBeInTheDocument()
+    expect(screen.getByText(/2 rezervări fără snapshot verificabil \(\s*200,00\sRON\s*\)/)).toBeInTheDocument()
   })
 
   it("has loading, empty and error states", async () => {

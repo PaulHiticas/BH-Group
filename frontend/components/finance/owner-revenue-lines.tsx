@@ -1,6 +1,6 @@
 "use client"
 
-import { formatMoney, formatPercent } from "@/lib/commission"
+import { formatMoney, formatPercents } from "@/lib/commission"
 import type { OwnerRevenueLine } from "@/lib/api/types"
 
 interface OwnerRevenueLinesProps {
@@ -37,29 +37,26 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 
 function CurrencyBlock({ line, showPayout }: { line: OwnerRevenueLine; showPayout: boolean }) {
   const { currency } = line
-  const money = (value: number | null) => (value != null ? formatMoney(value, currency) : "—")
+  const money = (value: number) => formatMoney(value, currency)
   const commissionLabel =
-    line.commissionPercent != null ? `Comision BH Stays (${formatPercent(line.commissionPercent)})` : "Comision BH Stays"
+    line.commissionPercents.length > 0
+      ? `Comision BH Stays (${formatPercents(line.commissionPercents)})`
+      : "Comision BH Stays"
 
   return (
     <section aria-label={`Încasări ${currency}`} className="rounded-lg border border-border/60 p-4">
       <h3 className="mb-2 text-sm font-semibold">{currency}</h3>
       <dl className="grid gap-2 text-sm">
         <Row label="Venit net încasat" value={money(line.netRevenue)} strong />
-        <Row label={commissionLabel} value={line.bhStaysCommission != null ? `-${money(line.bhStaysCommission)}` : "—"} />
+        <Row label={commissionLabel} value={money(-line.bhStaysCommission)} />
         <Row label="Sumă proprietar" value={money(line.ownerAmount)} strong />
-        {showPayout && <Row label="Cheltuieli facturate" value={`-${money(line.expensesTotal)}`} />}
+        {showPayout && <Row label="Cheltuieli facturate" value={money(-line.expensesTotal)} />}
         {showPayout && <Row label="Net de plată" value={money(line.netPayout)} strong />}
       </dl>
-      {line.unconfiguredNetRevenue > 0 && (
-        <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-          {money(line.unconfiguredNetRevenue)} așteaptă configurarea comisionului de administrare de către BH Stays.
-        </p>
-      )}
       {line.unallocatedReservationCount > 0 && (
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p role="status" className="mt-1 text-xs text-muted-foreground">
           {line.unallocatedReservationCount}{" "}
-          {line.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără defalcare a prețului (
+          {line.unallocatedReservationCount === 1 ? "rezervare" : "rezervări"} fără snapshot verificabil (
           {money(line.unallocatedNetRevenue)}): fără comision BH Stays.
         </p>
       )}
