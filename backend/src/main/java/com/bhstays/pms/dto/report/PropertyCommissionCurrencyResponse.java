@@ -1,21 +1,23 @@
 package com.bhstays.pms.dto.report;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
- * One property's collected money in one currency, split into what belongs
- * to the owner and what BH Stays keeps. {@code bhStaysRevenue} and
- * {@code ownerAmount} are null while the property has no commission
- * configured - the split is unknown, not zero.
+ * One property's money movements in one currency within a period, dated
+ * by the transactions: captures by capture date, refunds by refund date.
+ * A refund in a later period shows there as a negative adjustment of the
+ * net revenue, the base and the commission - earlier periods never change.
  *
- * <p>{@code unallocatedNetRevenue} is the part of {@code netRevenue} whose
- * reservations have no price breakdown (historical bookings, a
- * staff-entered total), so its accommodation share is unknown: it stays in
- * the net revenue but is left out of {@code commissionableBase}, and
- * {@code unallocatedReservationCount} says how many reservations that is.
+ * <p>The commission of each reservation uses the percent snapshotted on
+ * the reservation when it was created ({@code commissionPercents} lists the
+ * distinct ones involved). Reservations without a verifiable price
+ * breakdown or percent snapshot (historical bookings) stay in the net
+ * revenue, are never commissioned with a guessed value, and are reported in
+ * {@code unallocatedNetRevenue} / {@code unallocatedReservationCount}.
  *
- * <p>This is the one line every financial view is built from - property
- * report, dashboard, /finance and owner statements.
+ * <p>Always {@code ownerAmount = netRevenue - bhStaysRevenue}. This is the
+ * one line every financial view is built from.
  */
 public record PropertyCommissionCurrencyResponse(
         String currency,
@@ -23,12 +25,11 @@ public record PropertyCommissionCurrencyResponse(
         BigDecimal refundedTotal,
         BigDecimal netRevenue,
         BigDecimal commissionableBase,
-        BigDecimal commissionPercent,
-        boolean commissionConfigured,
+        List<BigDecimal> commissionPercents,
         BigDecimal bhStaysRevenue,
         BigDecimal ownerAmount,
         BigDecimal unallocatedNetRevenue,
         int unallocatedReservationCount,
-        int paidReservationCount
+        int reservationCount
 ) {
 }

@@ -6,11 +6,12 @@ import java.util.UUID;
 /**
  * One property in one currency on the /finance page. The revenue figures
  * are exactly those of the property commission report for the same period
- * (they come from the same calculation); expenses and net profit are added
- * on top.
+ * (they come from the same calculation, dated by the transactions);
+ * expenses (by expense date) and net profit are added on top.
  *
- * <p>{@code bhStaysRevenue} and {@code ownerAmount} are null while the
- * property has no commission configured.
+ * <p>{@code commissionPercents} are the reservations' snapshotted percents
+ * involved in the period; {@code propertyCommissionPercent} is the
+ * property's current setting, which only applies to new reservations.
  */
 public record FinancialReportRowResponse(
         UUID propertyId,
@@ -21,8 +22,8 @@ public record FinancialReportRowResponse(
         BigDecimal refundedTotal,
         BigDecimal netRevenue,
         BigDecimal commissionableBase,
-        BigDecimal commissionPercent,
-        boolean commissionConfigured,
+        java.util.List<BigDecimal> commissionPercents,
+        BigDecimal propertyCommissionPercent,
         BigDecimal bhStaysRevenue,
         BigDecimal ownerAmount,
         BigDecimal unallocatedNetRevenue,
@@ -33,8 +34,7 @@ public record FinancialReportRowResponse(
         /* Deprecated: same value as {@code netRevenue} (it was never gross); kept for API compatibility. */
         @Deprecated BigDecimal grossRevenue,
         /*
-         * Deprecated: same value as {@code bhStaysRevenue}, but 0 instead of null when the commission is
-         * not configured; kept for API compatibility.
+         * Deprecated: same value as {@code bhStaysRevenue}; kept for API compatibility.
          */
         @Deprecated BigDecimal commissionAmount
 ) {

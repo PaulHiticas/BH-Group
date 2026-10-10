@@ -25,9 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * The /finance report: per property and currency, the collected-money
- * figures of {@link PropertyCommissionReportService} (captured payments
- * minus successful refunds, commission on accommodation only) plus the
- * property's expenses. It never computes revenue or commission itself, so
+ * figures of {@link PropertyCommissionReportService} (captures and
+ * successful refunds dated by their transactions, commission on
+ * accommodation only, at each reservation's snapshotted percent) plus the
+ * property's expenses (by expense date). It never computes revenue or commission itself, so
  * it always matches the property report and the dashboard for the same
  * period. Amounts in different currencies are never added together.
  */
@@ -35,15 +36,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FinancialReportService {
 
-    private static final String DEFAULT_CURRENCY = "RON";
-
     private final PropertyRepository propertyRepository;
     private final ExpenseRepository expenseRepository;
     private final PropertyCommissionReportService commissionReportService;
 
     @Transactional(readOnly = true)
     public FinancialReportSummaryResponse summary(UUID propertyId, LocalDate from, LocalDate to) {
-        PropertyCommissionReportService.validatePeriod(from, to);
+        FinancialPeriod.validate(from, to);
         List<PropertyCommissionSettings> properties = propertyId != null
                 ? propertyRepository.findCommissionSettings(propertyId).map(List::of).orElseGet(List::of)
                 : propertyRepository.findAllCommissionSettings();
@@ -51,9 +50,8 @@ public class FinancialReportService {
             return new FinancialReportSummaryResponse(List.of(), List.of());
         }
 
-        Map<UUID, List<PropertyCommissionCurrencyResponse>> revenue = propertyId != null
-                ? commissionReportService.linesForProperties(properties, from, to)
-                : commissionReportService.linesForAllProperties(properties, from, to);
+        Map<UUID, List<PropertyCommissionCurrencyResponse>> revenue =
+                commissionReportService.linesFor(properties, from, to);
         Map<UUID, Map<String, BigDecimal>> expenses = expensesByProperty(from, to);
 
         List<FinancialReportRowResponse> rows = new ArrayList<>();
@@ -75,9 +73,10 @@ public class FinancialReportService {
                         row.refundedTotal().toPlainString(),
                         row.netRevenue().toPlainString(),
                         row.commissionableBase().toPlainString(),
-                        row.commissionPercent() != null ? row.commissionPercent().toPlainString() : "neconfigurat",
-                        row.bhStaysRevenue() != null ? row.bhStaysRevenue().toPlainString() : "",
-                        row.ownerAmount() != null ? row.ownerAmount().toPlainString() : "",
+                        row.commissionPercents().stream().map(BigDecimal::toPlainString)
+                                .collect(java.util.stream.Collectors.joining(" / ")),
+                        row.bhStaysRevenue().toPlainString(),
+                        row.ownerAmount().toPlainString(),
                         row.unallocatedNetRevenue().toPlainString(),
                         row.expensesTotal().toPlainString(),
                         row.netProfit().toPlainString(),
@@ -86,7 +85,11 @@ public class FinancialReportService {
                 .toList();
     }
 
-    /** One row per currency with collected money or expenses; a property with neither gets one empty RON row. */
+    /**
+     * One row per currency with money movements or expenses. A property with
+     * neither has no row: there is no currency to show it in, and none is
+     * assumed.
+     */
     private List<FinancialReportRowResponse> buildRows(PropertyCommissionSettings property,
                                                        List<PropertyCommissionCurrencyResponse> revenueLines,
                                                        Map<String, BigDecimal> expensesByCurrency) {
@@ -96,29 +99,26 @@ public class FinancialReportService {
         Set<String> currencies = new TreeSet<>();
         currencies.addAll(revenueByCurrency.keySet());
         currencies.addAll(expensesByCurrency.keySet());
-        if (currencies.isEmpty()) {
-            currencies.add(DEFAULT_CURRENCY);
-        }
 
         return currencies.stream()
                 .map(currency -> {
                     PropertyCommissionCurrencyResponse line = revenueByCurrency.containsKey(currency)
                             ? revenueByCurrency.get(currency)
-                            : PropertyCommissionCalculator.empty(currency, property.commissionPercent());
+                            : PropertyCommissionCalculator.empty(currency);
                     BigDecimal expensesTotal = PropertyCommissionCalculator.money(
                             expensesByCurrency.getOrDefault(currency, BigDecimal.ZERO));
                     return new FinancialReportRowResponse(
                             property.id(), property.name(), property.ownerName(), currency,
                             line.capturedTotal(), line.refundedTotal(), line.netRevenue(),
-                            line.commissionableBase(), line.commissionPercent(), line.commissionConfigured(),
+                            line.commissionableBase(), line.commissionPercents(),
+                            property.commissionPercent() != null
+                                    ? PropertyCommissionCalculator.money(property.commissionPercent()) : null,
                             line.bhStaysRevenue(), line.ownerAmount(),
                             line.unallocatedNetRevenue(), line.unallocatedReservationCount(),
                             expensesTotal,
                             line.netRevenue().subtract(expensesTotal),
                             line.netRevenue(),
-                            line.bhStaysRevenue() != null
-                                    ? line.bhStaysRevenue()
-                                    : PropertyCommissionCalculator.money(BigDecimal.ZERO));
+                            line.bhStaysRevenue());
                 })
                 .toList();
     }
@@ -152,7 +152,7 @@ public class FinancialReportService {
     private Map<UUID, Map<String, BigDecimal>> expensesByProperty(LocalDate from, LocalDate to) {
         Map<UUID, Map<String, BigDecimal>> result = new HashMap<>();
         for (PropertyCurrencyAmount amount : expenseRepository.sumGroupedByPropertyAndCurrency(
-                PropertyCommissionReportService.startOf(from), PropertyCommissionReportService.endOf(to))) {
+                FinancialPeriod.startOf(from), FinancialPeriod.endOf(to))) {
             result.computeIfAbsent(amount.propertyId(), id -> new HashMap<>())
                     .merge(amount.currency(), amount.amount(), BigDecimal::add);
         }

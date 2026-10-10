@@ -5,8 +5,9 @@ import java.util.List;
 
 /**
  * {@code unconfiguredProperties} lists every property without a commission
- * percentage, whether or not it collected anything in the period, so the
- * administrator can see what still needs setting up.
+ * percentage, whether or not it collected anything in the period: new
+ * reservations of these properties get no commission snapshot, so they
+ * should be configured before taking bookings.
  */
 public record CommissionSummaryResponse(
         LocalDate from,

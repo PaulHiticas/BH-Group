@@ -31,6 +31,8 @@ import com.bhstays.pms.dto.report.PropertyCommissionReportResponse;
 import com.bhstays.pms.dto.report.UnconfiguredPropertyResponse;
 import com.bhstays.pms.repository.AuditLogRepository;
 import com.bhstays.pms.repository.PaymentRepository;
+import com.bhstays.pms.repository.PaymentTransactionRepository;
+import com.bhstays.pms.service.FinancialPeriod;
 import com.bhstays.pms.repository.PropertyRepository;
 import com.bhstays.pms.repository.ReservationRepository;
 import com.bhstays.pms.repository.UserRepository;
@@ -85,6 +87,7 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
     @Autowired private PropertyRepository propertyRepository;
     @Autowired private ReservationRepository reservationRepository;
     @Autowired private PaymentRepository paymentRepository;
+    @Autowired private PaymentTransactionRepository paymentTransactionRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private AuditLogRepository auditLogRepository;
     @Autowired private SecureTokenGenerator secureTokenGenerator;
@@ -135,16 +138,12 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
                 .build());
     }
 
-    private Payment payment(Reservation reservation, PaymentStatus status, String amount, String refunded) {
-        return paymentRepository.saveAndFlush(Payment.builder()
-                .reservation(reservation)
-                .provider(PaymentProvider.MANUAL)
-                .method(PaymentMethod.BANK_TRANSFER)
-                .status(status)
-                .amount(new BigDecimal(amount))
-                .refundedAmount(new BigDecimal(refunded))
-                .currency(reservation.getCurrency())
-                .build());
+    private LedgerFixtures ledger() {
+        return new LedgerFixtures(paymentRepository, paymentTransactionRepository);
+    }
+
+    private static Instant at(String isoInstant) {
+        return Instant.parse(isoInstant);
     }
 
     private User staff(Role role) {
@@ -213,6 +212,22 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
                 new BigDecimal("300.00"), new BigDecimal("50.00"), new BigDecimal("40.00"), new BigDecimal("30.00"),
                 new BigDecimal("40.00"), new BigDecimal("40.00"), reservation.getId())).isEqualTo(1);
 
+        // the commission percent snapshot: 0.00-100.00, two decimals; the property had none, so none was copied
+        assertThat(jdbcTemplate.queryForObject(
+                "select management_commission_percent_snapshot from reservations where id = ?",
+                BigDecimal.class, reservation.getId())).isNull();
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "update reservations set management_commission_percent_snapshot = 100.01 where id = ?",
+                reservation.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "update reservations set management_commission_percent_snapshot = -0.01 where id = ?",
+                reservation.getId()))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(jdbcTemplate.queryForObject("select numeric_scale from information_schema.columns "
+                        + "where table_name = 'reservations' and column_name = 'management_commission_percent_snapshot'",
+                Integer.class)).isEqualTo(2);
+
         // owner statements: rows issued before V40 are LEGACY_GROSS; a new-formula row must reconcile
         User owner = staff(Role.OWNER);
         UUID legacyId = UUID.randomUUID();
@@ -238,39 +253,42 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
     @Test
     void propertyReport_countsOnlyCapturedMoneyAndCommissionsOnlyAccommodation() {
         Property property = property("Apartament 20%", "20.00");
-        LocalDate base = LocalDate.of(2042, 3, 1);
+        LocalDate checkIn = LocalDate.of(2042, 6, 1);
+        LedgerFixtures ledger = ledger();
 
-        // 500 = 400 accommodation + 100 cleaning, fully paid; the other attempts never captured anything
-        Reservation paid = reservation(property, base, "RON", "500.00", "400.00", "100.00", "0.00");
-        payment(paid, PaymentStatus.SUCCEEDED, "500.00", "0");
-        payment(paid, PaymentStatus.PENDING, "500.00", "0");
-        payment(paid, PaymentStatus.PROCESSING, "500.00", "0");
-        payment(paid, PaymentStatus.FAILED, "500.00", "0");
-        payment(paid, PaymentStatus.CANCELLED, "500.00", "0");
+        // 500 = 400 accommodation + 100 cleaning, captured in March; the other attempts never captured anything
+        Reservation paid = reservation(property, checkIn, "RON", "500.00", "400.00", "100.00", "0.00");
+        ledger.capture(paid, "500.00", at("2042-03-05T10:00:00Z"));
+        ledger.attempt(paid, PaymentStatus.PENDING, "500.00", at("2042-03-05T10:00:00Z"));
+        ledger.attempt(paid, PaymentStatus.PROCESSING, "500.00", at("2042-03-05T10:00:00Z"));
+        ledger.attempt(paid, PaymentStatus.FAILED, "500.00", at("2042-03-05T10:00:00Z"));
+        ledger.attempt(paid, PaymentStatus.CANCELLED, "500.00", at("2042-03-05T10:00:00Z"));
 
-        // 1000 = 800 accommodation + 150 cleaning + 50 extra guest; 250 refunded
-        Reservation partlyRefunded = reservation(property, base.plusDays(3), "RON", "1000.00", "800.00", "150.00", "50.00");
-        payment(partlyRefunded, PaymentStatus.PARTIALLY_REFUNDED, "1000.00", "250.00");
+        // 1000 = 800 accommodation + 150 cleaning + 50 extra guest; 250 refunded in March, a declined refund ignored
+        Reservation partlyRefunded = reservation(property, checkIn.plusDays(3), "RON", "1000.00", "800.00", "150.00", "50.00");
+        Payment partly = ledger.capture(partlyRefunded, "1000.00", at("2042-03-06T10:00:00Z"));
+        ledger.refund(partly, "250.00", at("2042-03-07T10:00:00Z"));
+        ledger.failedRefund(partly, "100.00", at("2042-03-08T10:00:00Z"));
 
         // a booking hold that was never paid
-        Reservation hold = reservation(property, base.plusDays(6), "RON", "300.00", "300.00", "0.00", "0.00");
+        Reservation hold = reservation(property, checkIn.plusDays(6), "RON", "300.00", "300.00", "0.00", "0.00");
         hold.setStatus(ReservationStatus.PENDING);
         hold.setHoldExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
         reservationRepository.saveAndFlush(hold);
-        payment(hold, PaymentStatus.PENDING, "300.00", "0");
+        ledger.attempt(hold, PaymentStatus.PENDING, "300.00", at("2042-03-09T10:00:00Z"));
 
         // EUR: one fully refunded, one paid
-        Reservation refunded = reservation(property, base.plusDays(9), "EUR", "200.00", "160.00", "40.00", "0.00");
-        payment(refunded, PaymentStatus.REFUNDED, "200.00", "200.00");
-        Reservation eurPaid = reservation(property, base.plusDays(12), "EUR", "300.00", "300.00", "0.00", "0.00");
-        payment(eurPaid, PaymentStatus.SUCCEEDED, "300.00", "0");
+        Reservation refunded = reservation(property, checkIn.plusDays(9), "EUR", "200.00", "160.00", "40.00", "0.00");
+        ledger.refund(ledger.capture(refunded, "200.00", at("2042-03-10T10:00:00Z")), "200.00", at("2042-03-11T10:00:00Z"));
+        Reservation eurPaid = reservation(property, checkIn.plusDays(12), "EUR", "300.00", "300.00", "0.00", "0.00");
+        ledger.capture(eurPaid, "300.00", at("2042-03-12T10:00:00Z"));
 
-        // outside the period
-        Reservation later = reservation(property, base.plusMonths(2), "RON", "900.00", "900.00", "0.00", "0.00");
-        payment(later, PaymentStatus.SUCCEEDED, "900.00", "0");
+        // captured in May: outside the period, whatever its check-in
+        Reservation later = reservation(property, checkIn.plusDays(15), "RON", "900.00", "900.00", "0.00", "0.00");
+        ledger.capture(later, "900.00", at("2042-05-02T10:00:00Z"));
 
         PropertyCommissionReportResponse report =
-                reportService.propertyReport(property.getId(), base, base.plusMonths(1).minusDays(1));
+                reportService.propertyReport(property.getId(), LocalDate.of(2042, 3, 1), LocalDate.of(2042, 3, 31));
 
         assertThat(report.commissionConfigured()).isTrue();
         assertThat(report.currencies()).extracting(PropertyCommissionCurrencyResponse::currency)
@@ -282,9 +300,10 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
         assertThat(ron.netRevenue()).isEqualByComparingTo("1250.00");
         // 400 + 800 * 750 / 1000
         assertThat(ron.commissionableBase()).isEqualByComparingTo("1000.00");
+        assertThat(ron.commissionPercents()).containsExactly(new BigDecimal("20.00"));
         assertThat(ron.bhStaysRevenue()).isEqualByComparingTo("200.00");
         assertThat(ron.ownerAmount()).isEqualByComparingTo("1050.00");
-        assertThat(ron.paidReservationCount()).isEqualTo(2);
+        assertThat(ron.reservationCount()).isEqualTo(2);
 
         PropertyCommissionCurrencyResponse eur = line(report, "EUR");
         assertThat(eur.capturedTotal()).isEqualByComparingTo("500.00");
@@ -293,38 +312,42 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
         assertThat(eur.commissionableBase()).isEqualByComparingTo("300.00");
         assertThat(eur.bhStaysRevenue()).isEqualByComparingTo("60.00");
         assertThat(eur.ownerAmount()).isEqualByComparingTo("240.00");
+
+        // May holds only the late capture
+        PropertyCommissionCurrencyResponse may = line(reportService.propertyReport(property.getId(),
+                LocalDate.of(2042, 5, 1), LocalDate.of(2042, 5, 31)), "RON");
+        assertThat(may.capturedTotal()).isEqualByComparingTo("900.00");
+        assertThat(may.bhStaysRevenue()).isEqualByComparingTo("180.00");
     }
 
     @Test
     void summary_aggregatesPropertiesWithDifferentPercentsPerCurrency() {
-        LocalDate base = LocalDate.of(2043, 6, 1);
+        LocalDate checkIn = LocalDate.of(2043, 8, 1);
+        Instant june = at("2043-06-10T10:00:00Z");
+        LedgerFixtures ledger = ledger();
         Property twenty = property("Comision 20%", "20.00");
         Property zero = property("Comision 0%", "0.00");
         Property hundred = property("Comision 100%", "100.00");
         Property unconfigured = property("Comision neconfigurat", null);
 
-        payment(reservation(twenty, base, "RON", "500.00", "400.00", "100.00", "0.00"),
-                PaymentStatus.SUCCEEDED, "500.00", "0");                               // BH 80, owner 420
-        payment(reservation(twenty, base.plusDays(3), "EUR", "100.00", "100.00", "0.00", "0.00"),
-                PaymentStatus.SUCCEEDED, "100.00", "0");                               // BH 20, owner 80
-        payment(reservation(zero, base, "RON", "400.00", "300.00", "100.00", "0.00"),
-                PaymentStatus.SUCCEEDED, "400.00", "0");                               // BH 0, owner 400
-        payment(reservation(hundred, base, "RON", "500.00", "350.00", "150.00", "0.00"),
-                PaymentStatus.SUCCEEDED, "500.00", "0");                               // BH 350, owner 150
-        payment(reservation(unconfigured, base, "RON", "600.00", "500.00", "100.00", "0.00"),
-                PaymentStatus.SUCCEEDED, "600.00", "0");                               // not split
+        ledger.capture(reservation(twenty, checkIn, "RON", "500.00", "400.00", "100.00", "0.00"), "500.00", june);       // BH 80, owner 420
+        ledger.capture(reservation(twenty, checkIn.plusDays(3), "EUR", "100.00", "100.00", "0.00", "0.00"), "100.00", june); // BH 20, owner 80
+        ledger.capture(reservation(zero, checkIn, "RON", "400.00", "300.00", "100.00", "0.00"), "400.00", june);         // BH 0, owner 400
+        ledger.capture(reservation(hundred, checkIn, "RON", "500.00", "350.00", "150.00", "0.00"), "500.00", june);      // BH 350, owner 150
+        // booked while the property had no percent: no snapshot, flagged, never commissioned
+        ledger.capture(reservation(unconfigured, checkIn, "RON", "600.00", "500.00", "100.00", "0.00"), "600.00", june);
 
-        CommissionSummaryResponse summary = reportService.summary(base, base.plusDays(29));
+        CommissionSummaryResponse summary = reportService.summary(LocalDate.of(2043, 6, 1), LocalDate.of(2043, 6, 30));
 
         assertThat(summary.totals()).extracting(CommissionSummaryCurrencyTotals::currency)
                 .containsExactly("EUR", "RON");
         CommissionSummaryCurrencyTotals ron = totals(summary, "RON");
         assertThat(ron.propertiesNetRevenue()).isEqualByComparingTo("2000.00");
         assertThat(ron.bhStaysRevenue()).isEqualByComparingTo("430.00");
-        assertThat(ron.ownersAmount()).isEqualByComparingTo("970.00");
+        assertThat(ron.ownersAmount()).isEqualByComparingTo("1570.00");
         assertThat(ron.includedPropertyCount()).isEqualTo(4);
-        assertThat(ron.unconfiguredPropertyCount()).isEqualTo(1);
-        assertThat(ron.unconfiguredNetRevenue()).isEqualByComparingTo("600.00");
+        assertThat(ron.unallocatedNetRevenue()).isEqualByComparingTo("600.00");
+        assertThat(ron.unallocatedReservationCount()).isEqualTo(1);
 
         CommissionSummaryCurrencyTotals eur = totals(summary, "EUR");
         assertThat(eur.propertiesNetRevenue()).isEqualByComparingTo("100.00");
@@ -385,8 +408,13 @@ class PropertyCommissionReportingIntegrationTest extends AbstractIntegrationTest
 
         assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
                 .isEqualTo(PaymentStatus.SUCCEEDED);
+        // the capture is dated by the real webhook processing, i.e. today in Romanian time
+        LocalDate today = LocalDate.now(FinancialPeriod.BUSINESS_ZONE);
         PropertyCommissionCurrencyResponse ron =
-                line(reportService.propertyReport(property.getId(), checkIn, checkIn), "RON");
+                line(reportService.propertyReport(property.getId(), today.minusDays(1), today.plusDays(1)), "RON");
+        assertThat(paymentTransactionRepository.findByPaymentIdOrderByCreatedAtAsc(payment.getId()))
+                .filteredOn(t -> t.getType() == com.bhstays.pms.domain.PaymentTransactionType.CHARGE)
+                .hasSize(1);
         assertThat(ron.capturedTotal()).isEqualByComparingTo("500.00");
         assertThat(ron.netRevenue()).isEqualByComparingTo("500.00");
         assertThat(ron.bhStaysRevenue()).isEqualByComparingTo("80.00");

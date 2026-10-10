@@ -39,8 +39,9 @@ public class OwnerFinancialsService {
     private final PropertyCommissionReportService commissionReportService;
 
     /**
-     * {@code bhStaysCommission}, {@code ownerAmount} and {@code netPayout}
-     * are null while the property has no commission configured.
+     * One property in one currency for the period. Captures and refunds are
+     * dated by their transactions, so a row can be a pure adjustment (only a
+     * refund of an earlier period's capture) with negative amounts.
      */
     public record PropertyFinancials(
             UUID propertyId,
@@ -50,8 +51,7 @@ public class OwnerFinancialsService {
             BigDecimal refundedTotal,
             BigDecimal netRevenue,
             BigDecimal commissionableBase,
-            BigDecimal commissionPercent,
-            boolean commissionConfigured,
+            List<BigDecimal> commissionPercents,
             BigDecimal bhStaysCommission,
             BigDecimal ownerAmount,
             BigDecimal unallocatedNetRevenue,
@@ -59,40 +59,17 @@ public class OwnerFinancialsService {
             BigDecimal expensesTotal,
             BigDecimal netPayout) {
 
-        public boolean hasCollectedMoney() {
-            return capturedTotal.signum() != 0;
-        }
-
         public boolean hasActivity() {
-            return hasCollectedMoney() || expensesTotal.signum() != 0;
+            return capturedTotal.signum() != 0 || refundedTotal.signum() != 0 || expensesTotal.signum() != 0;
         }
 
-        /** Collected money that cannot be split yet because the property has no commission. */
-        public boolean awaitsCommission() {
-            return hasCollectedMoney() && !commissionConfigured;
-        }
-
-        /**
-         * The commission to settle: the computed one, or 0 for an expense-only
-         * row of a property without a percent (nothing was collected to
-         * split). Only meaningful when {@link #awaitsCommission()} is false.
-         */
-        public BigDecimal settledCommission() {
-            return bhStaysCommission != null ? bhStaysCommission : PropertyCommissionCalculator.money(BigDecimal.ZERO);
-        }
-
-        /** Same rule as {@link #settledCommission()}: net revenue - commission. */
-        public BigDecimal settledOwnerAmount() {
-            return ownerAmount != null ? ownerAmount : netRevenue;
+        /** The reservations' snapshot percent when they all share one, otherwise null. */
+        public BigDecimal singleCommissionPercent() {
+            return commissionPercents.size() == 1 ? commissionPercents.get(0) : null;
         }
     }
 
-    /**
-     * Adds up one currency's rows the way a statement does. While any row
-     * {@link PropertyFinancials#awaitsCommission() awaits a commission} the
-     * split is unknown: commission, owner amount and payout are null and
-     * {@code unconfiguredNetRevenue} says how much is waiting.
-     */
+    /** Adds up one currency's rows exactly the way a statement does. */
     public static OwnerRevenueLine aggregate(String currency, List<PropertyFinancials> rows) {
         BigDecimal captured = BigDecimal.ZERO;
         BigDecimal refunded = BigDecimal.ZERO;
@@ -101,35 +78,26 @@ public class OwnerFinancialsService {
         BigDecimal commission = BigDecimal.ZERO;
         BigDecimal owner = BigDecimal.ZERO;
         BigDecimal expenses = BigDecimal.ZERO;
-        BigDecimal unconfiguredNet = BigDecimal.ZERO;
         BigDecimal unallocatedNet = BigDecimal.ZERO;
         int unallocatedReservations = 0;
-        boolean complete = true;
+        java.util.TreeSet<BigDecimal> percents = new java.util.TreeSet<>();
         for (PropertyFinancials row : rows) {
             captured = captured.add(row.capturedTotal());
             refunded = refunded.add(row.refundedTotal());
             net = net.add(row.netRevenue());
             base = base.add(row.commissionableBase());
+            commission = commission.add(row.bhStaysCommission());
+            owner = owner.add(row.ownerAmount());
             expenses = expenses.add(row.expensesTotal());
             unallocatedNet = unallocatedNet.add(row.unallocatedNetRevenue());
             unallocatedReservations += row.unallocatedReservationCount();
-            if (row.awaitsCommission()) {
-                complete = false;
-                unconfiguredNet = unconfiguredNet.add(row.netRevenue());
-            } else {
-                commission = commission.add(row.settledCommission());
-                owner = owner.add(row.settledOwnerAmount());
-            }
+            percents.addAll(row.commissionPercents());
         }
-        BigDecimal percent = rows.size() == 1 ? rows.get(0).commissionPercent() : null;
-        return new OwnerRevenueLine(currency, captured, refunded, net, base, percent,
-                complete ? commission : null,
-                complete ? owner : null,
-                complete ? owner.subtract(expenses) : null,
-                expenses, unconfiguredNet, unallocatedNet, unallocatedReservations);
+        return new OwnerRevenueLine(currency, captured, refunded, net, base, List.copyOf(percents),
+                commission, owner, owner.subtract(expenses), expenses, unallocatedNet, unallocatedReservations);
     }
 
-    /** One entry per property per currency with collected money or owner-chargeable expenses in the period. */
+    /** One entry per property per currency with captures, refunds or owner-chargeable expenses in the period. */
     @Transactional(readOnly = true)
     public List<PropertyFinancials> computeForOwner(UUID ownerId, LocalDate from, LocalDate to) {
         List<PropertyCommissionSettings> properties = propertyRepository.findCommissionSettingsByOwnerId(ownerId);
@@ -137,11 +105,11 @@ public class OwnerFinancialsService {
             return List.of();
         }
         Map<UUID, List<PropertyCommissionCurrencyResponse>> revenue =
-                commissionReportService.linesForProperties(properties, from, to);
+                commissionReportService.linesFor(properties, from, to);
         Map<UUID, Map<String, BigDecimal>> expenses = new HashMap<>();
         for (PropertyCurrencyAmount amount
                 : expenseRepository.sumChargeableToOwnerGroupedByPropertyAndCurrency(ownerId,
-                        PropertyCommissionReportService.startOf(from), PropertyCommissionReportService.endOf(to))) {
+                        FinancialPeriod.startOf(from), FinancialPeriod.endOf(to))) {
             expenses.computeIfAbsent(amount.propertyId(), id -> new HashMap<>())
                     .merge(amount.currency(), amount.amount(), BigDecimal::add);
         }
@@ -166,17 +134,17 @@ public class OwnerFinancialsService {
         for (String currency : currencies) {
             PropertyCommissionCurrencyResponse line = revenueByCurrency.containsKey(currency)
                     ? revenueByCurrency.get(currency)
-                    : PropertyCommissionCalculator.empty(currency, property.commissionPercent());
+                    : PropertyCommissionCalculator.empty(currency);
             BigDecimal expensesTotal = PropertyCommissionCalculator.money(
                     expensesByCurrency.getOrDefault(currency, BigDecimal.ZERO));
             PropertyFinancials row = new PropertyFinancials(
                     property.id(), property.name(), currency,
                     line.capturedTotal(), line.refundedTotal(), line.netRevenue(), line.commissionableBase(),
-                    line.commissionPercent(), line.commissionConfigured(),
+                    line.commissionPercents(),
                     line.bhStaysRevenue(), line.ownerAmount(),
                     line.unallocatedNetRevenue(), line.unallocatedReservationCount(),
                     expensesTotal,
-                    line.ownerAmount() != null ? line.ownerAmount().subtract(expensesTotal) : null);
+                    line.ownerAmount().subtract(expensesTotal));
             if (row.hasActivity()) {
                 rows.add(row);
             }

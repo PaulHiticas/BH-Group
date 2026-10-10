@@ -7,7 +7,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -107,6 +111,19 @@ public class Reservation extends BaseEntity {
     @Column(name = "addon_amount", precision = 10, scale = 2)
     private BigDecimal addonAmount;
 
+    /**
+     * The property's BH Stays management commission when this reservation
+     * was created. The financial reports use it instead of the property's
+     * current percent, so changing the percent only affects reservations
+     * created afterwards. Null when the property had none configured, and
+     * for reservations created before the snapshot existed.
+     */
+    @Column(name = "management_commission_percent_snapshot", precision = 5, scale = 2, updatable = false)
+    @DecimalMin("0.00")
+    @DecimalMax("100.00")
+    @Digits(integer = 3, fraction = 2)
+    private BigDecimal managementCommissionPercentSnapshot;
+
     @Column(length = 2000)
     private String notes;
 
@@ -136,6 +153,14 @@ public class Reservation extends BaseEntity {
     @LastModifiedBy
     @Column(name = "updated_by")
     private UUID updatedBy;
+
+    /** Every creation path (staff, public booking, iCal import) goes through here; updates never change it. */
+    @PrePersist
+    void snapshotManagementCommission() {
+        if (managementCommissionPercentSnapshot == null && property != null) {
+            managementCommissionPercentSnapshot = property.getCommissionPercent();
+        }
+    }
 
     public String getGuestFullName() {
         return guestFirstName + " " + guestLastName;

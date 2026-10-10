@@ -37,9 +37,14 @@ import org.springframework.transaction.annotation.Transactional;
  * Generation is a one-shot, explicit admin action - not a live recomputed
  * view - because a statement is a record of what was owed for a period,
  * and that must stay stable even if payments/expenses for the period are
- * edited afterwards. Re-generating the exact same owner+currency+period is
- * rejected (see {@link #generate}) rather than silently producing a second,
- * conflicting record.
+ * edited afterwards. Its figures are the transaction-dated movements of
+ * the period (see {@link PropertyCommissionReportService}): a refund made
+ * after a statement was issued never changes it - it appears, with the
+ * matching commission reduction, in the statement of the period in which
+ * the refund was made. A period that overlaps one already issued for the
+ * same owner and currency (the exact same period included) is rejected
+ * (see {@link #generate}): the shared days' transactions would otherwise be
+ * counted in two statements.
  */
 @Service
 @RequiredArgsConstructor
@@ -69,18 +74,6 @@ public class OwnerStatementService {
             throw new BadRequestException("Nicio activitate financiară găsită pentru acest proprietar în perioada selectată");
         }
 
-        // A statement must never show a made-up split: money collected for a
-        // property without a commission percent cannot be divided yet.
-        List<String> unconfigured = financials.stream()
-                .filter(OwnerFinancialsService.PropertyFinancials::awaitsCommission)
-                .map(OwnerFinancialsService.PropertyFinancials::propertyName)
-                .distinct()
-                .toList();
-        if (!unconfigured.isEmpty()) {
-            throw new BadRequestException("Comisionul de administrare nu este configurat pentru: "
-                    + String.join(", ", unconfigured) + ". Setează procentul înainte de a genera decontul.");
-        }
-
         // One statement per currency - a statement never mixes currencies.
         Map<String, List<OwnerFinancialsService.PropertyFinancials>> byCurrency = financials.stream()
                 .collect(Collectors.groupingBy(OwnerFinancialsService.PropertyFinancials::currency, TreeMap::new,
@@ -91,15 +84,17 @@ public class OwnerStatementService {
             String currency = entry.getKey();
             List<OwnerFinancialsService.PropertyFinancials> rows = entry.getValue();
 
-            if (ownerStatementRepository.findByOwnerIdAndCurrencyAndPeriodStartAndPeriodEnd(
-                    ownerId, currency, periodStart, periodEnd).isPresent()) {
+            // Overlapping periods would count the same transactions in two statements.
+            var overlapping = ownerStatementRepository.findOverlapping(ownerId, currency, periodStart, periodEnd);
+            if (overlapping.isPresent()) {
                 throw new ConflictException(
                         "Există deja un decont " + currency + " pentru " + owner.getFirstName() + " " + owner.getLastName()
-                                + " în perioada " + periodStart + " - " + periodEnd);
+                                + " în perioada " + overlapping.get().getPeriodStart() + " - "
+                                + overlapping.get().getPeriodEnd() + ", care se suprapune cu perioada aleasă");
             }
 
-            BigDecimal commissionAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::settledCommission);
-            BigDecimal ownerAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::settledOwnerAmount);
+            BigDecimal commissionAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::bhStaysCommission);
+            BigDecimal ownerAmount = sum(rows, OwnerFinancialsService.PropertyFinancials::ownerAmount);
             BigDecimal expensesTotal = sum(rows, OwnerFinancialsService.PropertyFinancials::expensesTotal);
             BigDecimal netPayout = ownerAmount.subtract(expensesTotal);
 
@@ -128,7 +123,7 @@ public class OwnerStatementService {
             List<OwnerStatementLine> lines = new java.util.ArrayList<>();
             for (var row : rows) {
                 Property property = propertyRepository.findById(row.propertyId()).orElse(null);
-                BigDecimal lineOwnerAmount = row.settledOwnerAmount();
+                BigDecimal lineOwnerAmount = row.ownerAmount();
                 lines.add(ownerStatementLineRepository.save(OwnerStatementLine.builder()
                         .statement(statement)
                         .property(property)
@@ -137,8 +132,8 @@ public class OwnerStatementService {
                         .refundedTotal(row.refundedTotal())
                         .grossRevenue(row.netRevenue())
                         .commissionableBase(row.commissionableBase())
-                        .commissionPercent(row.commissionPercent())
-                        .commissionAmount(row.settledCommission())
+                        .commissionPercent(row.singleCommissionPercent())
+                        .commissionAmount(row.bhStaysCommission())
                         .ownerAmount(lineOwnerAmount)
                         .expensesTotal(row.expensesTotal())
                         .netAmount(lineOwnerAmount.subtract(row.expensesTotal()))

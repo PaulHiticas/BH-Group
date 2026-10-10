@@ -2,47 +2,58 @@ package com.bhstays.pms.service;
 
 import com.bhstays.pms.dto.report.CommissionSummaryCurrencyTotals;
 import com.bhstays.pms.dto.report.PropertyCommissionCurrencyResponse;
-import com.bhstays.pms.repository.projection.ReservationPaymentTotals;
+import com.bhstays.pms.repository.projection.ReservationMoneyEvent;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.UUID;
 
 /**
- * Splits one property's collected money into the owner's share and BH
- * Stays's commission, separately per currency (amounts in different
- * currencies are never added together, and nothing is converted).
+ * Splits collected money into the owner's share and BH Stays's commission,
+ * per property and currency (never converted, never added across
+ * currencies), for a period dated by the transactions themselves.
  *
  * <pre>
- * netRevenue          = captured - successful refunds
- * commissionableBase  = accommodation part of what was captured, after refunds
- * bhStaysRevenue      = commissionableBase * commissionPercent / 100
+ * netRevenue          = captures - successful refunds          (in the period)
+ * commissionableBase  = accommodation part of that net money
+ * bhStaysRevenue      = commissionableBase * reservation's percent snapshot / 100
  * ownerAmount         = netRevenue - bhStaysRevenue
  * </pre>
  *
- * <p>Per reservation, the accommodation part of a capture is the
- * reservation's accommodation share of its total (capped at the
- * accommodation amount if more than the total was paid). Refunds carry no
- * allocation to price components, so a partial refund reduces that base
- * proportionally: {@code base = capturedAccommodation * net / captured}.
- * Cleaning fee, extra-guest fee and any other non-accommodation amount are
- * therefore never commissioned.
+ * <p><b>Per reservation</b>, after captures C and refunds R, the
+ * commissionable base is {@code B = min(C * accommodation / total,
+ * accommodation) * (C - R) / C}: the accommodation share of what was
+ * captured (capped at the accommodation, so a separate late-checkout or
+ * add-on payment on top of a fully paid stay is never commissioned),
+ * reduced proportionally by refunds, which carry no allocation to price
+ * components. Cleaning, extra-guest, late checkout, taxes and add-ons are
+ * never part of it. The commission uses the percent snapshotted on the
+ * reservation when it was created, never the property's current one.
  *
- * <p>A reservation without a price breakdown - or paid in a currency other
- * than its own - has no verifiable accommodation share: its net amount is
- * reported as {@code unallocatedNetRevenue} and left out of the base.
+ * <p><b>Periods.</b> A capture belongs to the period of its capture date,
+ * a refund to the period of its refund date. A period's figures for a
+ * reservation are its cumulative state at the period end minus its state
+ * at the period start, with the base and commission rounded (2 decimals,
+ * HALF_UP; intermediate ratios at scale {@value #INTERMEDIATE_SCALE}) on
+ * the cumulative values. So a later refund is a negative adjustment of the
+ * later period, earlier periods never change, and consecutive periods add
+ * up exactly to the whole.
  *
- * <p>Rounding: intermediate ratios at scale {@value #INTERMEDIATE_SCALE},
- * each reservation's base and each property/currency commission rounded to
- * 2 decimals HALF_UP; portfolio totals are sums of those rounded values, so
- * they reconcile exactly with the per-property figures.
+ * <p>A reservation without a verifiable price breakdown or percent snapshot
+ * (historical bookings), or paid in another currency than its own, is not
+ * commissioned: its money stays in the net revenue and is reported as
+ * unallocated, with a count - nothing is estimated.
  *
  * <p>This is the only place the formula lives: the property report, the
- * dashboard, /finance and owner statements all take their figures from
- * {@link #calculate} and add them up with {@link #totals}.
+ * dashboard, /finance, owner statements and the owner portal all take
+ * their figures from {@link #calculate} and add them up with {@link #totals}.
  */
 public final class PropertyCommissionCalculator {
 
@@ -54,52 +65,48 @@ public final class PropertyCommissionCalculator {
     private PropertyCommissionCalculator() {
     }
 
-    /** Rows must all belong to the same property; the result is sorted by currency. */
-    public static List<PropertyCommissionCurrencyResponse> calculate(BigDecimal commissionPercent,
-                                                                     List<ReservationPaymentTotals> rows) {
-        Map<String, Accumulator> byCurrency = new TreeMap<>();
-        for (ReservationPaymentTotals row : rows) {
-            byCurrency.computeIfAbsent(normalizeCurrency(row.paymentCurrency()), currency -> new Accumulator())
-                    .add(row);
+    /**
+     * Lines per property, each sorted by currency, for the movements in
+     * [start, end). Events before {@code start} only set each reservation's
+     * starting state; events at or after {@code end} are ignored.
+     */
+    public static Map<UUID, List<PropertyCommissionCurrencyResponse>> calculate(List<ReservationMoneyEvent> events,
+                                                                               Instant start, Instant end) {
+        Map<String, List<ReservationMoneyEvent>> byReservationAndCurrency = new LinkedHashMap<>();
+        for (ReservationMoneyEvent event : events) {
+            String key = event.reservationId() + "|" + normalizeCurrency(event.paymentCurrency());
+            byReservationAndCurrency.computeIfAbsent(key, k -> new ArrayList<>()).add(event);
         }
 
-        List<PropertyCommissionCurrencyResponse> result = new ArrayList<>();
-        byCurrency.forEach((currency, acc) -> result.add(acc.toResponse(currency, commissionPercent)));
+        Map<UUID, Map<String, LineAccumulator>> lines = new LinkedHashMap<>();
+        for (List<ReservationMoneyEvent> reservationEvents : byReservationAndCurrency.values()) {
+            ReservationMoneyEvent first = reservationEvents.get(0);
+            ReservationTerms terms = ReservationTerms.of(first);
+            State before = State.at(reservationEvents, start, terms);
+            State after = State.at(reservationEvents, end, terms);
+            if (before.captured.compareTo(after.captured) == 0 && before.refunded.compareTo(after.refunded) == 0) {
+                continue;
+            }
+            lines.computeIfAbsent(first.propertyId(), id -> new TreeMap<>())
+                    .computeIfAbsent(normalizeCurrency(first.paymentCurrency()), currency -> new LineAccumulator())
+                    .add(terms, before, after);
+        }
+
+        Map<UUID, List<PropertyCommissionCurrencyResponse>> result = new LinkedHashMap<>();
+        lines.forEach((propertyId, byCurrency) -> {
+            List<PropertyCommissionCurrencyResponse> propertyLines = new ArrayList<>();
+            byCurrency.forEach((currency, acc) -> propertyLines.add(acc.toResponse(currency)));
+            result.put(propertyId, propertyLines);
+        });
         return result;
     }
 
-    /**
-     * The accommodation part of a reservation's captured money left after
-     * refunds, or null when it cannot be determined from the snapshot.
-     */
-    static BigDecimal commissionableBase(ReservationPaymentTotals row) {
-        BigDecimal captured = orZero(row.capturedAmount());
-        BigDecimal total = row.reservationTotal();
-        BigDecimal accommodation = row.accommodationAmount();
-        if (accommodation == null || total == null || total.signum() <= 0 || captured.signum() <= 0
-                || !normalizeCurrency(row.paymentCurrency()).equals(normalizeCurrency(row.reservationCurrency()))) {
-            return null;
-        }
-
-        BigDecimal capturedAccommodation = captured.multiply(accommodation)
-                .divide(total, INTERMEDIATE_SCALE, ROUNDING)
-                .min(accommodation);
-        BigDecimal net = captured.subtract(orZero(row.refundedAmount()));
-        return capturedAccommodation.multiply(net)
-                .divide(captured, INTERMEDIATE_SCALE, ROUNDING)
-                .setScale(MONEY_SCALE, ROUNDING);
+    /** A currency with no movement (e.g. only expenses) - all zero. */
+    public static PropertyCommissionCurrencyResponse empty(String currency) {
+        return new LineAccumulator().toResponse(currency);
     }
 
-    /** A currency with nothing collected (e.g. only expenses) - zero amounts, same commission flags. */
-    public static PropertyCommissionCurrencyResponse empty(String currency, BigDecimal commissionPercent) {
-        return new Accumulator().toResponse(currency, commissionPercent);
-    }
-
-    /**
-     * Adds up per-property lines of one currency. Properties without a
-     * commission count in the net revenue but in neither share, so
-     * {@code net = bhStays + owners + unconfiguredNet} always holds.
-     */
+    /** Adds up per-property lines of one currency; {@code net = bhStays + owners} always holds. */
     public static CommissionSummaryCurrencyTotals totals(String currency,
                                                          List<PropertyCommissionCurrencyResponse> lines) {
         BigDecimal captured = BigDecimal.ZERO;
@@ -107,31 +114,19 @@ public final class PropertyCommissionCalculator {
         BigDecimal net = BigDecimal.ZERO;
         BigDecimal bhStays = BigDecimal.ZERO;
         BigDecimal owners = BigDecimal.ZERO;
-        BigDecimal unconfiguredNet = BigDecimal.ZERO;
         BigDecimal unallocatedNet = BigDecimal.ZERO;
-        int unconfiguredProperties = 0;
         int unallocatedReservations = 0;
         for (PropertyCommissionCurrencyResponse line : lines) {
             captured = captured.add(line.capturedTotal());
             refunded = refunded.add(line.refundedTotal());
             net = net.add(line.netRevenue());
+            bhStays = bhStays.add(line.bhStaysRevenue());
+            owners = owners.add(line.ownerAmount());
             unallocatedNet = unallocatedNet.add(line.unallocatedNetRevenue());
             unallocatedReservations += line.unallocatedReservationCount();
-            if (line.commissionConfigured()) {
-                bhStays = bhStays.add(line.bhStaysRevenue());
-                owners = owners.add(line.ownerAmount());
-            } else {
-                unconfiguredProperties++;
-                unconfiguredNet = unconfiguredNet.add(line.netRevenue());
-            }
         }
         return new CommissionSummaryCurrencyTotals(currency, money(captured), money(refunded), money(net),
-                money(bhStays), money(owners), lines.size(), unconfiguredProperties, money(unconfiguredNet),
-                money(unallocatedNet), unallocatedReservations);
-    }
-
-    static BigDecimal commission(BigDecimal base, BigDecimal commissionPercent) {
-        return base.multiply(commissionPercent).divide(ONE_HUNDRED, MONEY_SCALE, ROUNDING);
+                money(bhStays), money(owners), lines.size(), money(unallocatedNet), unallocatedReservations);
     }
 
     static BigDecimal money(BigDecimal value) {
@@ -146,45 +141,90 @@ public final class PropertyCommissionCalculator {
         return value != null ? value : BigDecimal.ZERO;
     }
 
-    private static final class Accumulator {
+    /** What a reservation's money can be split with; {@code commissionable} only when all of it is verifiable. */
+    private record ReservationTerms(boolean commissionable, BigDecimal total, BigDecimal accommodation,
+                                    BigDecimal percent) {
+
+        static ReservationTerms of(ReservationMoneyEvent event) {
+            boolean commissionable = event.accommodationAmount() != null
+                    && event.reservationTotal() != null
+                    && event.reservationTotal().signum() > 0
+                    && event.commissionPercentSnapshot() != null
+                    && normalizeCurrency(event.paymentCurrency()).equals(normalizeCurrency(event.reservationCurrency()));
+            return new ReservationTerms(commissionable, event.reservationTotal(), event.accommodationAmount(),
+                    event.commissionPercentSnapshot());
+        }
+    }
+
+    /** A reservation's cumulative position just before {@code cut}. */
+    private record State(BigDecimal captured, BigDecimal refunded, BigDecimal base, BigDecimal commission) {
+
+        static State at(List<ReservationMoneyEvent> events, Instant cut, ReservationTerms terms) {
+            BigDecimal captured = BigDecimal.ZERO;
+            BigDecimal refunded = BigDecimal.ZERO;
+            for (ReservationMoneyEvent event : events) {
+                if (!event.occurredAt().isBefore(cut)) {
+                    continue;
+                }
+                if (event.kind() == ReservationMoneyEvent.Kind.CAPTURE) {
+                    captured = captured.add(orZero(event.amount()));
+                } else {
+                    refunded = refunded.add(orZero(event.amount()));
+                }
+            }
+            BigDecimal base = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            BigDecimal commission = BigDecimal.ZERO.setScale(MONEY_SCALE);
+            if (terms.commissionable() && captured.signum() > 0) {
+                BigDecimal capturedAccommodation = captured.multiply(terms.accommodation())
+                        .divide(terms.total(), INTERMEDIATE_SCALE, ROUNDING)
+                        .min(terms.accommodation());
+                base = capturedAccommodation.multiply(captured.subtract(refunded))
+                        .divide(captured, INTERMEDIATE_SCALE, ROUNDING)
+                        .setScale(MONEY_SCALE, ROUNDING);
+                commission = base.multiply(terms.percent()).divide(ONE_HUNDRED, MONEY_SCALE, ROUNDING);
+            }
+            return new State(captured, refunded, base, commission);
+        }
+    }
+
+    private static final class LineAccumulator {
         private BigDecimal captured = BigDecimal.ZERO;
         private BigDecimal refunded = BigDecimal.ZERO;
         private BigDecimal base = BigDecimal.ZERO;
+        private BigDecimal commission = BigDecimal.ZERO;
         private BigDecimal unallocatedNet = BigDecimal.ZERO;
+        private final TreeSet<BigDecimal> percents = new TreeSet<>();
         private int reservations;
         private int unallocatedReservations;
 
-        void add(ReservationPaymentTotals row) {
-            BigDecimal rowCaptured = orZero(row.capturedAmount());
-            BigDecimal rowRefunded = orZero(row.refundedAmount());
-            captured = captured.add(rowCaptured);
-            refunded = refunded.add(rowRefunded);
+        void add(ReservationTerms terms, State before, State after) {
+            BigDecimal capturedDelta = after.captured().subtract(before.captured());
+            BigDecimal refundedDelta = after.refunded().subtract(before.refunded());
+            captured = captured.add(capturedDelta);
+            refunded = refunded.add(refundedDelta);
             reservations++;
-
-            BigDecimal rowBase = commissionableBase(row);
-            if (rowBase != null) {
-                base = base.add(rowBase);
+            if (terms.commissionable()) {
+                base = base.add(after.base().subtract(before.base()));
+                commission = commission.add(after.commission().subtract(before.commission()));
+                percents.add(money(terms.percent()));
             } else {
-                unallocatedNet = unallocatedNet.add(rowCaptured.subtract(rowRefunded));
+                unallocatedNet = unallocatedNet.add(capturedDelta.subtract(refundedDelta));
                 unallocatedReservations++;
             }
         }
 
-        PropertyCommissionCurrencyResponse toResponse(String currency, BigDecimal commissionPercent) {
+        PropertyCommissionCurrencyResponse toResponse(String currency) {
             BigDecimal net = money(captured.subtract(refunded));
-            boolean configured = commissionPercent != null;
-            BigDecimal bhStaysRevenue = configured ? commission(base, commissionPercent) : null;
-            BigDecimal ownerAmount = configured ? money(net.subtract(bhStaysRevenue)) : null;
+            BigDecimal bhStays = money(commission);
             return new PropertyCommissionCurrencyResponse(
                     currency,
                     money(captured),
                     money(refunded),
                     net,
                     money(base),
-                    configured ? money(commissionPercent) : null,
-                    configured,
-                    bhStaysRevenue,
-                    ownerAmount,
+                    List.copyOf(percents),
+                    bhStays,
+                    money(net.subtract(bhStays)),
                     money(unallocatedNet),
                     unallocatedReservations,
                     reservations);

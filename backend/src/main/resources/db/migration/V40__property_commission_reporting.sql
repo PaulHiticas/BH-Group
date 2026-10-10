@@ -27,7 +27,21 @@
 --    NULL - their breakdown is unknown and is reported as such
 --    ("fără defalcare"), never estimated.
 --
--- 3. owner statements record the same figures the reports show
+-- 3. reservations get a snapshot of the property's management commission
+--    percent, copied when the reservation is created. Reports and
+--    statements use it instead of the property's current percent, so a
+--    later change of the percent only affects reservations created after
+--    it. Existing reservations keep NULL: their percent cannot be
+--    verified, so they are reported as such and never commissioned with
+--    a guessed one. No backfill.
+--
+-- 4. financial periods are dated by the transactions themselves: a
+--    capture by its successful CHARGE ledger entry, a refund by its
+--    successful REFUND ledger entry (payment_transactions.created_at,
+--    written when the gateway confirmed it). A refund in a later month is
+--    an adjustment of that month and never changes an earlier period.
+--
+-- 5. owner statements record the same figures the reports show
 --    (captured, refunds, commissionable base, percent, commission, owner
 --    amount, money without a breakdown). Statements generated before
 --    this migration are marked LEGACY_GROSS: their commission was taken
@@ -80,8 +94,21 @@ ALTER TABLE reservations
         )
     );
 
--- The commission report filters a property's reservations by check-in date.
-CREATE INDEX ix_reservations_property_check_in ON reservations (property_id, check_in_date);
+-- ------------------------------------------------------------
+-- management commission percent snapshot
+-- ------------------------------------------------------------
+ALTER TABLE reservations
+    ADD COLUMN management_commission_percent_snapshot NUMERIC(5, 2);
+
+ALTER TABLE reservations
+    ADD CONSTRAINT chk_reservations_commission_percent_snapshot CHECK (
+        management_commission_percent_snapshot IS NULL
+        OR (management_commission_percent_snapshot >= 0 AND management_commission_percent_snapshot <= 100)
+    );
+
+-- Financial periods select captures and refunds by their ledger timestamp.
+CREATE INDEX ix_payment_transactions_status_type_created
+    ON payment_transactions (status, type, created_at);
 
 -- ------------------------------------------------------------
 -- owner statements on the same formula
@@ -124,8 +151,7 @@ ALTER TABLE owner_statement_lines
             AND commission_percent IS NULL AND owner_amount IS NULL
             AND unallocated_net_revenue IS NULL AND unallocated_reservation_count IS NULL)
         OR (captured_total IS NOT NULL AND refunded_total IS NOT NULL AND commissionable_base IS NOT NULL
-            -- a line with collected money always has a percent; an expense-only line may not
-            AND (commission_percent IS NOT NULL OR captured_total = 0)
+            -- the reservations' snapshot percent when they all share one; NULL when mixed or none
             AND (commission_percent IS NULL OR (commission_percent >= 0 AND commission_percent <= 100))
             AND owner_amount IS NOT NULL AND unallocated_net_revenue IS NOT NULL
             AND unallocated_reservation_count IS NOT NULL
