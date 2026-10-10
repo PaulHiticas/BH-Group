@@ -103,12 +103,7 @@ public class OwnerService {
         var properties = propertyRepository.findByOwnerId(ownerId);
 
         List<OwnerRevenueLine> revenueByCurrency = byCurrency(ownerFinancialsService.computeForOwner(ownerId, null, null));
-        OwnerRevenueLine ron = OwnerMapper.legacyLine(revenueByCurrency);
-        BigDecimal grossRevenue = ron != null ? ron.netRevenue() : BigDecimal.ZERO;
-        BigDecimal commissionAmount = ron != null && ron.bhStaysCommission() != null ? ron.bhStaysCommission() : BigDecimal.ZERO;
-        BigDecimal expensesTotal = ron != null ? ron.expensesTotal() : BigDecimal.ZERO;
-        BigDecimal netRevenue = ron != null && ron.netPayout() != null
-                ? ron.netPayout() : grossRevenue.subtract(commissionAmount).subtract(expensesTotal);
+        OwnerMapper.LegacyFields legacy = OwnerMapper.LegacyFields.of(revenueByCurrency);
 
         Specification<Reservation> upcomingSpec = ReservationSpecifications.combine(
                 ReservationSpecifications.hasPropertyOwner(ownerId),
@@ -132,7 +127,12 @@ public class OwnerService {
                 .toList();
 
         return new OwnerDashboardSummaryResponse(
-                properties.size(), grossRevenue, commissionAmount, expensesTotal, netRevenue, OwnerMapper.LEGACY_CURRENCY,
+                properties.size(),
+                legacy.pick(OwnerRevenueLine::netRevenue),
+                legacy.pick(OwnerRevenueLine::bhStaysCommission),
+                legacy.pick(OwnerRevenueLine::expensesTotal),
+                legacy.pick(OwnerRevenueLine::netPayout),
+                legacy.currency(),
                 upcoming, openTickets, revenueByCurrency);
     }
 

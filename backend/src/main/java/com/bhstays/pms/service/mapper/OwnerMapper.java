@@ -14,8 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class OwnerMapper {
 
-    /** The only currency the deprecated flat revenue fields ever covered. */
-    public static final String LEGACY_CURRENCY = "RON";
     private final PropertyMapper propertyMapper;
 
     public OwnerMapper(PropertyMapper propertyMapper) {
@@ -32,12 +30,7 @@ public class OwnerMapper {
                 .findFirst()
                 .orElse(null);
 
-        OwnerRevenueLine ron = legacyLine(revenueByCurrency);
-        BigDecimal grossRevenue = ron != null ? ron.netRevenue() : BigDecimal.ZERO;
-        BigDecimal commissionAmount = ron != null && ron.bhStaysCommission() != null
-                ? ron.bhStaysCommission() : BigDecimal.ZERO;
-        BigDecimal netRevenue = ron != null && ron.ownerAmount() != null
-                ? ron.ownerAmount() : grossRevenue.subtract(commissionAmount);
+        LegacyFields legacy = LegacyFields.of(revenueByCurrency);
 
         return new OwnerPropertyResponse(
                 property.getId(),
@@ -54,18 +47,36 @@ public class OwnerMapper {
                 property.getMaxGuests(),
                 property.getCommissionPercent(),
                 coverUrl,
-                grossRevenue,
-                commissionAmount,
-                netRevenue,
-                LEGACY_CURRENCY,
+                legacy.pick(OwnerRevenueLine::netRevenue),
+                legacy.pick(OwnerRevenueLine::bhStaysCommission),
+                legacy.pick(OwnerRevenueLine::ownerAmount),
+                legacy.currency(),
                 documents.stream().map(propertyMapper::toDocumentResponse).toList(),
                 revenueByCurrency);
     }
 
-    public static OwnerRevenueLine legacyLine(List<OwnerRevenueLine> revenueByCurrency) {
-        return revenueByCurrency.stream()
-                .filter(line -> LEGACY_CURRENCY.equals(line.currency()))
-                .findFirst()
-                .orElse(null);
+    /**
+     * Values for the deprecated single-currency fields: the only line when
+     * there is exactly one currency; zero (no currency) when there is none;
+     * null when there are several - never one currency picked over another
+     * and never a mixed total.
+     */
+    public record LegacyFields(OwnerRevenueLine only, boolean multiCurrency) {
+
+        public static LegacyFields of(List<OwnerRevenueLine> revenueByCurrency) {
+            return new LegacyFields(revenueByCurrency.size() == 1 ? revenueByCurrency.get(0) : null,
+                    revenueByCurrency.size() > 1);
+        }
+
+        public BigDecimal pick(java.util.function.Function<OwnerRevenueLine, BigDecimal> field) {
+            if (multiCurrency) {
+                return null;
+            }
+            return only != null ? field.apply(only) : BigDecimal.ZERO.setScale(2);
+        }
+
+        public String currency() {
+            return only != null ? only.currency() : null;
+        }
     }
 }

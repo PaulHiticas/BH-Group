@@ -9,10 +9,11 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * {@code revenueByCurrency} holds the property's all-time collected money,
- * one line per currency, on the same formula as the statements. The flat
- * revenue fields are deprecated RON-only figures kept for API
- * compatibility.
+ * {@code revenueByCurrency} is the official source: the property's
+ * all-time collected money, one line per currency, on the same formula as
+ * the statements. The flat revenue fields are deprecated: with exactly one
+ * currency they mirror it (code in {@code currency}); with several they are
+ * null - currencies are never added together.
  */
 public record OwnerPropertyResponse(
         UUID id,
@@ -25,13 +26,13 @@ public record OwnerPropertyResponse(
         int maxGuests,
         BigDecimal commissionPercent,
         String coverPhotoUrl,
-        /* Deprecated: RON net collected revenue; use {@code revenueByCurrency}. */
+        /* Deprecated: net collected revenue of the only currency, else null. */
         @Deprecated BigDecimal grossRevenue,
-        /* Deprecated: RON BH Stays commission (0 if not configured); use {@code revenueByCurrency}. */
+        /* Deprecated: BH Stays commission of the only currency, else null. */
         @Deprecated BigDecimal commissionAmount,
-        /* Deprecated: RON owner amount; use {@code revenueByCurrency}. */
+        /* Deprecated: owner amount of the only currency, else null. */
         @Deprecated BigDecimal netRevenue,
-        /* Deprecated: always RON. */
+        /* Deprecated: code of the only currency, else null. */
         @Deprecated String currency,
         List<PropertyDocumentResponse> documents,
         List<OwnerRevenueLine> revenueByCurrency
