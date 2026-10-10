@@ -64,13 +64,13 @@ Rapoartele, `/finance` și deconturile le pot vedea `SUPER_ADMIN`, `ADMINISTRATO
 proprietarilor și portalul proprietarului iau cifrele din același calcul
 (`PropertyCommissionCalculator` prin `PropertyCommissionReportService`). Se folosesc doar bani
 încasați (plăți `SUCCEEDED` / `PARTIALLY_REFUNDED` / `REFUNDED`; pending, failed, cancelled și
-hold-urile nu contează), separat pe fiecare monedă, fără conversii. Rezervările intră în perioadă
-după data de check-in. Pentru fiecare proprietate, perioadă și monedă:
+hold-urile nu contează), separat pe fiecare monedă, fără conversii. Pentru fiecare proprietate,
+perioadă și monedă:
 
 ```
 venit net proprietate = încasat − refunduri reușite
 bază comisionabilă    = partea de cazare din încasat, după refunduri
-venit BH Stays        = bază comisionabilă × procent / 100
+venit BH Stays        = bază comisionabilă × procentul salvat pe rezervare / 100
 sumă proprietar       = venit net proprietate − venit BH Stays
 net de plată (decont) = sumă proprietar − cheltuieli facturate proprietarului
 ```
@@ -92,15 +92,33 @@ acestea sunt 0 în snapshot; o plată separată pentru late checkout, peste o re
 integral, nu este comisionată (partea de cazare e plafonată la valoarea din snapshot). Un refund
 parțial reduce baza proporțional.
 
-**Istoric.** Rezervările fără defalcare verificabilă (create înainte de snapshot sau cu un total
-diferit de cotația sistemului) apar ca „fără defalcare”: banii încasați intră în venitul net, dar
-nu se calculează automat comision pe ei, și sunt numărați separat în rapoarte și deconturi. Nu se
-estimează nimic.
+**Procentul se salvează pe rezervare.** La crearea rezervării (staff, rezervare publică, import
+iCal) procentul proprietății se copiază în `management_commission_percent_snapshot`. Rapoartele și
+deconturile folosesc acest snapshot, nu procentul curent: dacă procentul proprietății se schimbă
+din 20% în 25%, rezervările existente rămân la 20% și doar cele noi folosesc 25%.
 
-**Procent neconfigurat.** Proprietatea apare ca „Comision neconfigurat”, fără venit BH Stays și
-fără sumă proprietar; un decont nu poate fi generat cât timp o proprietate cu încasări nu are
-procent. Deconturile emise înainte de această formulă sunt marcate `LEGACY_GROSS` și rămân exact
-cum au fost emise. Fiecare decont acoperă o singură monedă.
+**Perioada după tranzacție.** O încasare intră în perioada în care a fost capturată, un refund în
+perioada în care a reușit (data din ledgerul `payment_transactions`), iar reducerea comisionului
+intră în aceeași perioadă cu refundul. Un refund ulterior nu modifică retroactiv luna încasării:
+apare ca ajustare negativă în perioada lui. Perioadele sunt zile calendaristice în ora României.
+Cheltuielile intră în perioadă după data cheltuielii.
+
+**Istoric.** Rezervările fără defalcare verificabilă sau fără snapshot de procent (create înainte
+de snapshot, cu un total diferit de cotația sistemului, sau cât timp proprietatea nu avea procent)
+apar ca „fără defalcare”: banii încasați intră în venitul net și în suma proprietarului, dar nu se
+calculează comision pe ei, și sunt numărați separat în rapoarte și deconturi. Nu se estimează și nu
+se completează automat niciun procent istoric.
+
+**Deconturi.** Un decont emis nu se mai modifică; un refund făcut după emitere apare, cu reducerea
+comisionului, în decontul perioadei în care a fost făcut. Un decont nu poate acoperi zile deja
+incluse într-un alt decont al aceluiași proprietar în aceeași monedă, ca nicio tranzacție să nu fie
+numărată de două ori. Deconturile emise înainte de această formulă sunt marcate `LEGACY_GROSS` și
+rămân exact cum au fost emise. Fiecare decont acoperă o singură monedă.
+
+**Mai multe monede.** Sursa oficială în API sunt listele pe monede (`revenueByCurrency`,
+`totalRevenueByCurrency`, `totals`); RON și EUR nu se adună niciodată. Câmpurile vechi cu o singură
+valoare sunt deprecated: cu o singură monedă conțin valoarea și codul ei, cu mai multe monede sunt
+`null` — nu se alege implicit RON și nu se returnează un total mixt.
 
 ## Rulare locală
 
